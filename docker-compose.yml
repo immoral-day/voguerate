@@ -1,0 +1,30 @@
+services:
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+    environment:
+      - VITE_API_URL=http://localhost:8080/api
+    depends_on:
+      - backend
+
+  # Backend (Laravel + Nginx + PHP-FPM 8.4)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend/laravel:/app
+      - ./backend/laravel/storage:/app/storage
+    ports:
+      - "8080:80"
+
+networks:
+  default:
+    name: voguerate-network

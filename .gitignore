@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+frontend/.env
+backend/laravel/.env
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Laravel specific
+backend/laravel/storage/*.key
+backend/laravel/storage/logs/*
+backend/laravel/bootstrap/cache/*
+
+# Database
+*.sqlite
+backend/laravel/database/*.sqlite
+
+# Docker volumes data (if any local)
+docker-data/
+
+# Temp files
+*.tmp
+*.temp
