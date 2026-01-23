@@ -13,6 +13,7 @@ Route::post('/upload', [UploadController::class, 'upload']);
 Route::delete('/upload', [UploadController::class, 'delete']);
 
 Route::prefix('v1')->group(function () {
+    Route::post('/login', [UserController::class, 'login']);
     Route::apiResource('users', UserController::class);
     Route::apiResource('items', ClothingItemController::class)->parameters(['items' => 'item']);
     Route::apiResource('reviews', ReviewController::class);

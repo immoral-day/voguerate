@@ -21,6 +21,24 @@ class UserController extends Controller
         return response()->json($user);
     }
 
+    public function login(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $user = User::where('username', $data['username'])
+            ->orWhere('email', $data['username'])
+            ->first();
+
+        if (!$user || !Hash::check($data['password'], $user->password)) {
+            return response()->json(['error' => 'Неверный логин или пароль'], 401);
+        }
+
+        return response()->json($user);
+    }
+
     public function store(Request $request): JsonResponse
     {
         try {

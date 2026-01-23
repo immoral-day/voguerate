@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ClothingItem, UpcomingDrop } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
-import { ChevronLeftIcon, PlusIcon, XIcon } from '../components/icons/Icons';
+import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
 import { apiService } from '../services/apiService';
 
@@ -12,14 +12,17 @@ interface AdminPanelProps {
     onCreateDrop: (drop: Partial<UpcomingDrop>) => Promise<void>;
     onDeleteItem: (id: string) => Promise<void>;
     onDeleteDrop: (id: string) => Promise<void>;
+    onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
+    onUpdateDrop: (id: string, data: Partial<UpcomingDrop>) => Promise<void>;
     onBack: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-    items, drops, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onBack 
+    items, drops, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onUpdateItem, onUpdateDrop, onBack 
 }) => {
     const [activeTab, setActiveTab] = useState<'items' | 'drops'>('items');
     const [showForm, setShowForm] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string>('');
@@ -48,19 +51,66 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
+    const resetForm = () => {
+        setFormData({ brand: '', name: '', category: 'Streetwear', type: 'SINGLE_LOOK', price: 0, releaseDate: new Date().toISOString().split('T')[0], tags: '', sizes: '', colors: '' });
+        setImageFile(null);
+        setImagePreview('');
+        setFormError('');
+        setEditingId(null);
+        setShowForm(false);
+    };
+
+    const startEditItem = (item: ClothingItem) => {
+        setFormData({
+            brand: item.brand,
+            name: item.name,
+            category: item.category,
+            type: item.type,
+            price: item.price,
+            releaseDate: item.releaseDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+            tags: item.tags?.join(', ') || '',
+            sizes: item.sizes?.join(', ') || '',
+            colors: item.colors?.join(', ') || '',
+        });
+        setImagePreview(item.image || '');
+        setEditingId(item.id);
+        setShowForm(true);
+    };
+
+    const startEditDrop = (drop: UpcomingDrop) => {
+        setFormData({
+            brand: drop.brand,
+            name: drop.name,
+            category: 'Streetwear',
+            type: 'SINGLE_LOOK',
+            price: typeof drop.price === 'number' ? drop.price : 0,
+            releaseDate: new Date(drop.releaseDate).toISOString().split('T')[0],
+            tags: '',
+            sizes: '',
+            colors: '',
+        });
+        setImagePreview(drop.image || '');
+        setEditingId(drop.id);
+        setShowForm(true);
+    };
+
     const handleSubmitItem = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!imageFile) {
+        if (!editingId && !imageFile) {
             setFormError('Добавьте изображение');
             return;
         }
         setLoading(true);
         try {
-            const upload = await apiService.uploadFile(imageFile, 'item');
-            await onCreateItem({
+            let imageUrl = imagePreview;
+            if (imageFile) {
+                const upload = await apiService.uploadFile(imageFile, 'item');
+                imageUrl = upload.url;
+            }
+            const data = {
                 brand: formData.brand,
                 name: formData.name,
-                image: upload.url,
+                image: imageUrl,
                 category: formData.category,
                 type: formData.type,
                 price: formData.price,
@@ -68,12 +118,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
                 sizes: formData.sizes.split(',').map(s => s.trim()).filter(Boolean),
                 colors: formData.colors.split(',').map(c => c.trim()).filter(Boolean),
-            });
-            setShowForm(false);
-            setFormData({ brand: '', name: '', category: 'Streetwear', type: 'SINGLE_LOOK', price: 0, releaseDate: new Date().toISOString().split('T')[0], tags: '', sizes: '', colors: '' });
-            setImageFile(null);
-            setImagePreview('');
-            setFormError('');
+            };
+            if (editingId) {
+                await onUpdateItem(editingId, data);
+            } else {
+                await onCreateItem(data);
+            }
+            resetForm();
         } finally {
             setLoading(false);
         }
@@ -81,25 +132,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const handleSubmitDrop = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!imageFile) {
+        if (!editingId && !imageFile) {
             setFormError('Добавьте изображение');
             return;
         }
         setLoading(true);
         try {
-            const upload = await apiService.uploadFile(imageFile, 'drop');
-            await onCreateDrop({
+            let imageUrl = imagePreview;
+            if (imageFile) {
+                const upload = await apiService.uploadFile(imageFile, 'drop');
+                imageUrl = upload.url;
+            }
+            const data = {
                 brand: formData.brand,
                 name: formData.name,
-                image: upload.url,
+                image: imageUrl,
                 price: formData.price,
                 releaseDate: new Date(formData.releaseDate).toISOString(),
-            });
-            setShowForm(false);
-            setFormData({ brand: '', name: '', category: 'Streetwear', type: 'SINGLE_LOOK', price: 0, releaseDate: new Date().toISOString().split('T')[0], tags: '', sizes: '', colors: '' });
-            setImageFile(null);
-            setImagePreview('');
-            setFormError('');
+            };
+            if (editingId) {
+                await onUpdateDrop(editingId, data);
+            } else {
+                await onCreateDrop(data);
+            }
+            resetForm();
         } finally {
             setLoading(false);
         }
@@ -114,7 +170,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                     <h1 className="text-3xl font-black uppercase">АДМИН ПАНЕЛЬ</h1>
                 </div>
-                <Button onClick={() => { setShowForm(true); setFormError(''); setImageFile(null); setImagePreview(''); }}>
+                <Button onClick={() => { resetForm(); setShowForm(true); }}>
                     <PlusIcon className="mr-2" /> СОЗДАТЬ {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
                 </Button>
             </div>
@@ -123,7 +179,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 {['items', 'drops'].map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => { setActiveTab(tab as 'items' | 'drops'); setShowForm(false); setFormError(''); }}
+                        onClick={() => { setActiveTab(tab as 'items' | 'drops'); resetForm(); }}
                         className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                     >
                         {tab === 'items' ? 'ПРЕДМЕТЫ' : 'РЕЛИЗЫ'} ({tab === 'items' ? items.length : drops.length})
@@ -133,7 +189,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {showForm && (
                 <div className="bg-white border-2 border-black p-6 shadow-neo mb-8">
-                    <h2 className="text-xl font-black uppercase mb-6">{activeTab === 'items' ? 'НОВЫЙ ПРЕДМЕТ' : 'НОВЫЙ РЕЛИЗ'}</h2>
+                    <h2 className="text-xl font-black uppercase mb-6">
+                        {editingId ? 'РЕДАКТИРОВАТЬ' : 'НОВЫЙ'} {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
+                    </h2>
                     <form onSubmit={activeTab === 'items' ? handleSubmitItem : handleSubmitDrop} className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-black uppercase mb-2">БРЕНД</label>
@@ -198,7 +256,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         {formError && <div className="col-span-2 text-xs font-bold text-red-600 uppercase">{formError}</div>}
                         <div className="col-span-2 flex gap-4 mt-4">
                             <Button type="submit" disabled={loading}>{loading ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}</Button>
-                            <Button variant="ghost" onClick={() => setShowForm(false)}>ОТМЕНА</Button>
+                            <Button variant="ghost" onClick={resetForm}>ОТМЕНА</Button>
                         </div>
                     </form>
                 </div>
@@ -222,9 +280,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         <h3 className="font-black text-sm mt-1">{item.name}</h3>
                                         <p className="text-xs text-gray-500 font-mono">${item.price} • {item.category}</p>
                                     </div>
-                                    <button onClick={() => onDeleteItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
-                                        <XIcon />
-                                    </button>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => startEditItem(item)} className="p-2 text-blue-500 hover:bg-blue-50 transition-colors">
+                                            <EditIcon />
+                                        </button>
+                                        <button onClick={() => onDeleteItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                            <XIcon />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))
@@ -250,9 +313,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         <h3 className="font-black text-sm mt-1">{drop.name}</h3>
                                         <p className="text-xs text-gray-500 font-mono">{typeof drop.price === 'number' ? `$${drop.price}` : drop.price} • {new Date(drop.releaseDate).toLocaleDateString()}</p>
                                     </div>
-                                    <button onClick={() => onDeleteDrop(drop.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
-                                        <XIcon />
-                                    </button>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => startEditDrop(drop)} className="p-2 text-blue-500 hover:bg-blue-50 transition-colors">
+                                            <EditIcon />
+                                        </button>
+                                        <button onClick={() => onDeleteDrop(drop.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                            <XIcon />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))

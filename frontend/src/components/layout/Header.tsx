@@ -35,7 +35,12 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfile
                 className="cursor-pointer hover:-translate-y-1 transition-transform flex items-center gap-4 bg-white border-2 border-black px-4 py-2 shadow-neo"
             >
                 <div className="text-right hidden sm:block">
-                    <div className="text-xs font-black text-black uppercase tracking-wider">{currentUser.username}</div>
+                    <div className="flex items-center justify-end gap-2">
+                        {currentUser.role === 'ADMIN' && (
+                            <span className="text-[9px] font-black bg-red-500 text-white px-1.5 py-0.5 uppercase">ADMIN</span>
+                        )}
+                        <span className="text-xs font-black text-black uppercase tracking-wider">{currentUser.username}</span>
+                    </div>
                     <div className="text-[10px] text-gray-500 font-mono font-bold">{currentUser.reputation} REP</div>
                 </div>
                 <Avatar src={currentUser.avatar || DEFAULT_AVATAR} alt={currentUser.username} size="sm" />

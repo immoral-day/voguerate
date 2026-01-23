@@ -1,21 +1,28 @@
 import React, { useState } from 'react';
 import { UpcomingDrop } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
-import { ChevronLeftIcon } from '../components/icons/Icons';
+import { HeartIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
 
 interface CalendarViewProps {
     drops: UpcomingDrop[];
-    onDropClick: (id: string) => void;
+    onCop: (id: string) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ drops }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop }) => {
     const [filter, setFilter] = useState<'UPCOMING' | 'RELEASED'>('UPCOMING');
+    const [loadingId, setLoadingId] = useState<string | null>(null);
     
     const filteredDrops = drops.filter(d => {
         const isReleased = new Date(d.releaseDate) < new Date();
         return filter === 'RELEASED' ? isReleased : !isReleased;
     });
+
+    const handleCop = async (id: string) => {
+        setLoadingId(id);
+        await onCop(id);
+        setLoadingId(null);
+    };
 
     return (
         <div className="animate-fade-in pb-12">
@@ -45,7 +52,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops }) => {
                     const isReleased = date < new Date();
 
                     return (
-                        <div key={drop.id} className="group bg-white border-2 border-black p-4 flex flex-col md:flex-row gap-6 hover:shadow-neo transition-all hover:-translate-y-1 cursor-pointer relative overflow-hidden opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
+                        <div key={drop.id} className="group bg-white border-2 border-black p-4 flex flex-col md:flex-row gap-6 hover:shadow-neo transition-all hover:-translate-y-1 relative overflow-hidden opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
                             <div className="absolute left-0 top-0 bottom-0 w-2 bg-neo-yellow group-hover:w-4 transition-all"></div>
                             
                             <div className="w-full md:w-32 h-32 border-2 border-black flex-shrink-0">
@@ -57,18 +64,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops }) => {
                                     <span className="text-xs font-bold bg-black text-white px-2 py-0.5 uppercase">{drop.brand}</span>
                                     <span className="text-xs font-mono font-bold text-gray-500">{date.toLocaleDateString()}</span>
                                 </div>
-                                <h3 className="text-2xl font-black uppercase mb-2 group-hover:underline decoration-neo-blue underline-offset-4">{drop.name}</h3>
+                                <h3 className="text-2xl font-black uppercase mb-2">{drop.name}</h3>
                                 <div className="flex gap-4 text-xs font-bold uppercase text-gray-600">
                                     <span>Цена: {drop.price === 'TBA' ? 'TBA' : `$${drop.price}`}</span>
                                     <span>•</span>
-                                    <span>{isReleased ? 'Владельцы: ' : 'Ждут: '}{drop.copCount}</span>
+                                    <span>{isReleased ? 'Владельцы' : 'Ждут'}: {drop.copCount || 0}</span>
                                 </div>
                             </div>
 
                             <div className="flex items-center justify-center pr-4">
-                                <Button variant="outline" className="h-12 w-12 p-0 rounded-full border-black hover:bg-black hover:text-white">
-                                    <ChevronLeftIcon className="rotate-180" />
-                                </Button>
+                                {!isReleased && (
+                                    <Button 
+                                        onClick={() => handleCop(drop.id)}
+                                        disabled={loadingId === drop.id}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <HeartIcon />
+                                        {loadingId === drop.id ? 'ДОБАВЛЯЮ...' : 'ЖДУ'}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     );

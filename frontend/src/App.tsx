@@ -83,19 +83,13 @@ export const App: React.FC = () => {
         setAuthLoading(true);
         setAuthError('');
         try {
-            const allUsers = await apiService.get<User[]>('/v1/users');
-            const user = allUsers.find((u) => 
-                u.username.toLowerCase() === usernameOrEmail.toLowerCase()
-            );
-            if (user) {
-                setCurrentUser(user);
-                setUsers(allUsers);
-                localStorage.setItem('currentUserId', user.id);
-            } else {
-                setAuthError('Пользователь не найден. Попробуйте зарегистрироваться.');
-            }
-        } catch {
-            setAuthError('Ошибка входа. Попробуйте снова.');
+            const user = await apiService.post<User>('/v1/login', { username: usernameOrEmail, password });
+            setCurrentUser(user);
+            localStorage.setItem('currentUserId', user.id);
+            await refreshData();
+        } catch (err: unknown) {
+            const error = err as Error;
+            setAuthError(error.message || 'Неверный логин или пароль');
         } finally {
             setAuthLoading(false);
         }
@@ -238,6 +232,39 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleUpdateItem = async (id: string, data: Partial<ClothingItem>) => {
+        try {
+            const updated = await apiService.put<ClothingItem>(`/v1/items/${id}`, data);
+            setClothingItems(prev => prev.map(i => i.id === id ? updated : i));
+            addToast('Предмет обновлён');
+        } catch (error) {
+            console.error('Failed to update item:', error);
+            addToast('Ошибка обновления');
+        }
+    };
+
+    const handleUpdateDrop = async (id: string, data: Partial<UpcomingDrop>) => {
+        try {
+            const updated = await apiService.put<UpcomingDrop>(`/v1/drops/${id}`, data);
+            setDrops(prev => prev.map(d => d.id === id ? updated : d));
+            addToast('Релиз обновлён');
+        } catch (error) {
+            console.error('Failed to update drop:', error);
+            addToast('Ошибка обновления');
+        }
+    };
+
+    const handleCopDrop = async (id: string) => {
+        try {
+            const updated = await apiService.post<UpcomingDrop>(`/v1/drops/${id}/cop`, {});
+            setDrops(prev => prev.map(d => d.id === id ? updated : d));
+            addToast('Добавлено в ожидание!');
+        } catch (error) {
+            console.error('Failed to cop drop:', error);
+            addToast('Ошибка');
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-bg flex items-center justify-center">
@@ -267,7 +294,7 @@ export const App: React.FC = () => {
             break;
         case 'EXPLORE':
         case 'CALENDAR':
-            content = <CalendarView drops={drops} onDropClick={(id) => console.log(id)} />;
+            content = <CalendarView drops={drops} onCop={handleCopDrop} />;
             break;
         case 'TOP_RATED':
             content = <TopRatedView items={clothingItems} onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })} />;
@@ -289,7 +316,9 @@ export const App: React.FC = () => {
                     onCreateItem={handleCreateItem} 
                     onCreateDrop={handleCreateDrop} 
                     onDeleteItem={handleDeleteItem} 
-                    onDeleteDrop={handleDeleteDrop} 
+                    onDeleteDrop={handleDeleteDrop}
+                    onUpdateItem={handleUpdateItem}
+                    onUpdateDrop={handleUpdateDrop}
                     onBack={() => navigateTo('HOME')} 
                 />;
             } else {
