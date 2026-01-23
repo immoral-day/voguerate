@@ -86,7 +86,6 @@ export const App: React.FC = () => {
             const user = await apiService.post<User>('/v1/login', { username: usernameOrEmail, password });
             setCurrentUser(user);
             localStorage.setItem('currentUserId', user.id);
-            await refreshData();
         } catch (err: unknown) {
             const error = err as Error;
             setAuthError(error.message || 'Неверный логин или пароль');
@@ -172,10 +171,25 @@ export const App: React.FC = () => {
         try {
             const newReview = await apiService.post<Review>('/v1/reviews', reviewData);
             setReviews(prev => [newReview, ...prev]);
-            await refreshData();
-        } catch (error) {
-            console.error('Failed to add review:', error);
-            addToast('Ошибка публикации отзыва');
+            if (reviewData.clothingId) {
+                setClothingItems(prev => prev.map(item => {
+                    if (item.id === reviewData.clothingId) {
+                        const newCount = item.ratingCount + 1;
+                        const newAvg = Math.round(((item.averageRating * item.ratingCount) + (reviewData.rating || 0)) / newCount);
+                        return { ...item, ratingCount: newCount, averageRating: newAvg };
+                    }
+                    return item;
+                }));
+            }
+            if (currentUser) {
+                const updatedUser = { ...currentUser, reviewsCount: currentUser.reviewsCount + 1, reputation: currentUser.reputation + 5 };
+                setCurrentUser(updatedUser);
+                setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+            }
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка публикации отзыва');
+            throw error;
         }
     };
 
