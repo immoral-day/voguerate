@@ -36,14 +36,15 @@ class UploadController extends Controller
         };
 
         $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs("public/{$folder}", $filename);
+        $path = $file->storeAs($folder, $filename, 'public');
         
-        $publicPath = Storage::url($path);
-        $url = rtrim($request->getSchemeAndHttpHost(), '/') . $publicPath;
+        $relativePath = "/storage/{$folder}/{$filename}";
+        $url = "http://localhost:8080{$relativePath}";
 
         return response()->json([
             'url' => $url,
             'path' => $path,
+            'relativePath' => $relativePath,
         ]);
     }
 

@@ -35,4 +35,4 @@ RUN php artisan config:clear && php artisan cache:clear
 
 EXPOSE 80
 
-CMD ["sh", "-c", "chown -R www-data:www-data /app/storage /app/database && chmod -R 775 /app/storage && chmod 664 /app/database/database.sqlite && /usr/bin/supervisord -c /etc/supervisord.conf"]
+CMD ["sh", "-c", "chown -R www-data:www-data /app/storage /app/database && chmod -R 775 /app/storage && chmod 664 /app/database/database.sqlite && ln -sf /app/storage/app/public /app/public/storage && mkdir -p /app/storage/app/public/avatars /app/storage/app/public/items /app/storage/app/public/drops && /usr/bin/supervisord -c /etc/supervisord.conf"]
