@@ -57,6 +57,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
     };
 
     const sortedReviews = [...reviews].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const hasUserReviewed = reviews.some(r => r.userId === currentUser.id);
 
     return (
         <div className="animate-fade-in pb-20 max-w-6xl mx-auto">
@@ -110,47 +111,55 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                             <div className="text-neo-yellow text-xs font-mono">VOGUE_RATE_ALGO_V1</div>
                         </div>
 
-                        <div className="p-8">
-                            <div className="flex items-start md:items-center gap-8 mb-8 flex-col md:flex-row">
-                                <ScoreDisplay score={totalScore} />
-                                <div className="flex-1 space-y-1 pt-4 md:pt-0">
-                                    <p className="font-bold text-sm uppercase">КАЛЬКУЛЯТОР ОЦЕНКИ:</p>
-                                    <p className="font-mono text-xs text-gray-600 leading-relaxed">
-                                        Система автоматически считает итог на основе весов критериев. Максимум 90 баллов.
-                                    </p>
+                        {hasUserReviewed ? (
+                            <div className="p-8 text-center">
+                                <div className="text-6xl mb-4">✓</div>
+                                <h4 className="font-black text-xl uppercase mb-2">ВЫ УЖЕ ОЦЕНИЛИ</h4>
+                                <p className="text-gray-500 font-mono text-sm">Вы можете написать только одну рецензию на предмет</p>
+                            </div>
+                        ) : (
+                            <div className="p-8">
+                                <div className="flex items-start md:items-center gap-8 mb-8 flex-col md:flex-row">
+                                    <ScoreDisplay score={totalScore} />
+                                    <div className="flex-1 space-y-1 pt-4 md:pt-0">
+                                        <p className="font-bold text-sm uppercase">КАЛЬКУЛЯТОР ОЦЕНКИ:</p>
+                                        <p className="font-mono text-xs text-gray-600 leading-relaxed">
+                                            Система автоматически считает итог на основе весов критериев. Максимум 90 баллов.
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 gap-1 mb-8">
-                                <CrystalSlider label="КОНЦЕПЦИЯ / ИДЕЯ" multiplier={2} max={10} value={ratings.concept} onChange={(v) => setRatings({...ratings, concept: v})} />
-                                <CrystalSlider label="ИСПОЛНЕНИЕ / КРОЙ" multiplier={2} max={10} value={ratings.execution} onChange={(v) => setRatings({...ratings, execution: v})} />
-                                <CrystalSlider label="УЗНАВАЕМОСТЬ / ДНК" multiplier={2} max={10} value={ratings.dna} onChange={(v) => setRatings({...ratings, dna: v})} />
-                                <CrystalSlider label="АКТУАЛЬНОСТЬ" multiplier={3} max={5} value={ratings.relevance} onChange={(v) => setRatings({...ratings, relevance: v})} />
-                                <CrystalSlider label="ВАЙБ / АТМОСФЕРА" multiplier={3} max={5} value={ratings.vibe} onChange={(v) => setRatings({...ratings, vibe: v})} />
-                            </div>
+                                
+                                <div className="grid grid-cols-1 gap-1 mb-8">
+                                    <CrystalSlider label="КОНЦЕПЦИЯ / ИДЕЯ" multiplier={2} max={10} value={ratings.concept} onChange={(v) => setRatings({...ratings, concept: v})} />
+                                    <CrystalSlider label="ИСПОЛНЕНИЕ / КРОЙ" multiplier={2} max={10} value={ratings.execution} onChange={(v) => setRatings({...ratings, execution: v})} />
+                                    <CrystalSlider label="УЗНАВАЕМОСТЬ / ДНК" multiplier={2} max={10} value={ratings.dna} onChange={(v) => setRatings({...ratings, dna: v})} />
+                                    <CrystalSlider label="АКТУАЛЬНОСТЬ" multiplier={3} max={5} value={ratings.relevance} onChange={(v) => setRatings({...ratings, relevance: v})} />
+                                    <CrystalSlider label="ВАЙБ / АТМОСФЕРА" multiplier={3} max={5} value={ratings.vibe} onChange={(v) => setRatings({...ratings, vibe: v})} />
+                                </div>
 
-                            <div className="relative">
-                                <textarea 
-                                    value={newReviewText}
-                                    onChange={(e) => setNewReviewText(e.target.value)}
-                                    className="w-full bg-bg border-2 border-black p-4 text-black text-sm font-mono mb-4 focus:outline-none focus:bg-white min-h-[120px]"
-                                    placeholder="Минимум 100 символов для фиксации оценки..."
-                                />
-                                <div className={`text-right text-xs font-mono font-bold mb-4 ${newReviewText.length < 100 ? 'text-neo-red' : 'text-neo-green'}`}>
-                                    {newReviewText.length} / 100 chars
-                                    {newReviewText.length < 100 && " (TYPE MORE)"}
+                                <div className="relative">
+                                    <textarea 
+                                        value={newReviewText}
+                                        onChange={(e) => setNewReviewText(e.target.value)}
+                                        className="w-full bg-bg border-2 border-black p-4 text-black text-sm font-mono mb-4 focus:outline-none focus:bg-white min-h-[120px]"
+                                        placeholder="Минимум 100 символов для фиксации оценки..."
+                                    />
+                                    <div className={`text-right text-xs font-mono font-bold mb-4 ${newReviewText.length < 100 ? 'text-neo-red' : 'text-neo-green'}`}>
+                                        {newReviewText.length} / 100 chars
+                                        {newReviewText.length < 100 && " (TYPE MORE)"}
+                                    </div>
                                 </div>
+                                
+                                <Button 
+                                    variant="primary" 
+                                    className={`w-full py-4 text-lg ${newReviewText.length < 100 ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                                    onClick={handleAddReview}
+                                    disabled={newReviewText.length < 100 || submitting}
+                                >
+                                    {submitting ? 'ОТПРАВКА...' : newReviewText.length < 100 ? 'ENTER AT LEAST 100 CHARS' : 'ЗАФИКСИРОВАТЬ ОЦЕНКУ'}
+                                </Button>
                             </div>
-                            
-                            <Button 
-                                variant="primary" 
-                                className={`w-full py-4 text-lg ${newReviewText.length < 100 ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                                onClick={handleAddReview}
-                                disabled={newReviewText.length < 100 || submitting}
-                            >
-                                {submitting ? 'ОТПРАВКА...' : newReviewText.length < 100 ? 'ENTER AT LEAST 100 CHARS' : 'ЗАФИКСИРОВАТЬ ОЦЕНКУ'}
-                            </Button>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>

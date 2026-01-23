@@ -38,6 +38,14 @@ class ReviewController extends Controller
             return response()->json(['error' => $e->errors()], 422);
         }
 
+        $existingReview = Review::where('user_id', $data['userId'])
+            ->where('clothing_item_id', $data['clothingId'])
+            ->first();
+
+        if ($existingReview) {
+            return response()->json(['error' => 'Вы уже написали рецензию на этот предмет'], 400);
+        }
+
         $review = Review::create([
             'user_id' => $data['userId'],
             'clothing_item_id' => $data['clothingId'],

@@ -75,6 +75,7 @@ export interface UpcomingDrop {
   price: number | string;
   copCount: number;
   dropCount: number;
+  coppedBy?: string[];
 }
 
 export interface Message {

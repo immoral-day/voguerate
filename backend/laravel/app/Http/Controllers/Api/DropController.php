@@ -81,9 +81,24 @@ class DropController extends Controller
         return response()->json(null, 204);
     }
 
-    public function cop(Drop $drop): JsonResponse
+    public function cop(Request $request, Drop $drop): JsonResponse
     {
-        $drop->increment('cop_count');
+        $userId = $request->input('userId');
+        if (!$userId) {
+            return response()->json(['error' => 'userId required'], 400);
+        }
+
+        $coppedBy = $drop->copped_by ?? [];
+        if (in_array($userId, $coppedBy)) {
+            return response()->json(['error' => 'Вы уже ждёте этот релиз'], 400);
+        }
+
+        $coppedBy[] = $userId;
+        $drop->update([
+            'copped_by' => $coppedBy,
+            'cop_count' => count($coppedBy),
+        ]);
+
         return response()->json($drop);
     }
 }

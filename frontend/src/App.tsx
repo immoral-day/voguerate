@@ -255,13 +255,14 @@ export const App: React.FC = () => {
     };
 
     const handleCopDrop = async (id: string) => {
+        if (!currentUser) return;
         try {
-            const updated = await apiService.post<UpcomingDrop>(`/v1/drops/${id}/cop`, {});
+            const updated = await apiService.post<UpcomingDrop>(`/v1/drops/${id}/cop`, { userId: currentUser.id });
             setDrops(prev => prev.map(d => d.id === id ? updated : d));
             addToast('Добавлено в ожидание!');
-        } catch (error) {
-            console.error('Failed to cop drop:', error);
-            addToast('Ошибка');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка');
         }
     };
 
@@ -294,7 +295,7 @@ export const App: React.FC = () => {
             break;
         case 'EXPLORE':
         case 'CALENDAR':
-            content = <CalendarView drops={drops} onCop={handleCopDrop} />;
+            content = <CalendarView drops={drops} onCop={handleCopDrop} currentUserId={currentUser.id} />;
             break;
         case 'TOP_RATED':
             content = <TopRatedView items={clothingItems} onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })} />;

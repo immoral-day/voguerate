@@ -7,9 +7,10 @@ import { Button } from '../components/UI';
 interface CalendarViewProps {
     drops: UpcomingDrop[];
     onCop: (id: string) => void;
+    currentUserId: string;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop, currentUserId }) => {
     const [filter, setFilter] = useState<'UPCOMING' | 'RELEASED'>('UPCOMING');
     const [loadingId, setLoadingId] = useState<string | null>(null);
     
@@ -22,6 +23,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop }) => {
         setLoadingId(id);
         await onCop(id);
         setLoadingId(null);
+    };
+
+    const hasUserCopped = (drop: UpcomingDrop) => {
+        return drop.coppedBy?.includes(currentUserId) || false;
     };
 
     return (
@@ -74,14 +79,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop }) => {
 
                             <div className="flex items-center justify-center pr-4">
                                 {!isReleased && (
-                                    <Button 
-                                        onClick={() => handleCop(drop.id)}
-                                        disabled={loadingId === drop.id}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <HeartIcon />
-                                        {loadingId === drop.id ? 'ДОБАВЛЯЮ...' : 'ЖДУ'}
-                                    </Button>
+                                    hasUserCopped(drop) ? (
+                                        <span className="px-4 py-2 bg-neo-yellow border-2 border-black font-black text-sm flex items-center gap-2">
+                                            <HeartIcon filled />
+                                            ОЖИДАЮ
+                                        </span>
+                                    ) : (
+                                        <Button 
+                                            onClick={() => handleCop(drop.id)}
+                                            disabled={loadingId === drop.id}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <HeartIcon />
+                                            {loadingId === drop.id ? 'ДОБАВЛЯЮ...' : 'ЖДУ'}
+                                        </Button>
+                                    )
                                 )}
                             </div>
                         </div>
