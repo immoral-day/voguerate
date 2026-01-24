@@ -6,3 +6,4 @@ laravel/storage/framework/cache/*
 laravel/storage/framework/sessions/*
 laravel/storage/framework/views/*
 laravel/public/storage
+laravel/storage/app/public/public

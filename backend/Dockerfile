@@ -11,7 +11,7 @@ RUN apk add --no-cache \
     libzip-dev \
     sqlite-dev
 
-RUN docker-php-ext-install pdo pdo_sqlite zip
+RUN docker-php-ext-install pdo pdo_sqlite zip opcache
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -19,6 +19,8 @@ COPY ./laravel /app
 
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY supervisord.conf /etc/supervisord.conf
+COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+COPY php.ini /usr/local/etc/php/conf.d/custom.ini
 
 RUN mkdir -p /var/log/nginx /var/log/supervisor /app/storage/app/public
 
