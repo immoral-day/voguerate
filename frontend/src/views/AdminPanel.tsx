@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ClothingItem, UpcomingDrop } from '../types';
+import { ClothingItem, UpcomingDrop, ReviewReport, UserReport } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
@@ -8,25 +8,38 @@ import { apiService } from '../services/apiService';
 interface AdminPanelProps {
     items: ClothingItem[];
     drops: UpcomingDrop[];
+    reviewReports: ReviewReport[];
+    userReports: UserReport[];
     onCreateItem: (item: Partial<ClothingItem>) => Promise<void>;
     onCreateDrop: (drop: Partial<UpcomingDrop>) => Promise<void>;
     onDeleteItem: (id: string) => Promise<void>;
     onDeleteDrop: (id: string) => Promise<void>;
+    onDeleteReviewReport: (id: string) => Promise<void>;
+    onDeleteUserReport: (id: string) => Promise<void>;
+    onDeleteReview: (id: string) => Promise<void>;
+    onBanUser: (id: string, days: number) => Promise<void>;
     onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
     onUpdateDrop: (id: string, data: Partial<UpcomingDrop>) => Promise<void>;
     onBack: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-    items, drops, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onUpdateItem, onUpdateDrop, onBack 
+    items, drops, reviewReports, userReports, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUpdateItem, onUpdateDrop, onBack 
 }) => {
-    const [activeTab, setActiveTab] = useState<'items' | 'drops'>('items');
+    const [activeTab, setActiveTab] = useState<'items' | 'drops' | 'reports'>('items');
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string>('');
     const [formError, setFormError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [itemCategoryFilter, setItemCategoryFilter] = useState<'ALL' | ClothingItem['category']>('ALL');
+    const [itemTypeFilter, setItemTypeFilter] = useState<'ALL' | ClothingItem['type']>('ALL');
+    const [dropStatusFilter, setDropStatusFilter] = useState<'ALL' | 'UPCOMING' | 'RELEASED'>('ALL');
+    const [reportTab, setReportTab] = useState<'review' | 'user'>('review');
+    const [reviewBanDays, setReviewBanDays] = useState<Record<string, number>>({});
+    const [userBanDays, setUserBanDays] = useState<Record<string, number>>({});
 
     const [formData, setFormData] = useState({
         brand: '',
@@ -161,6 +174,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const matchesQuery = (value: string) => value.toLowerCase().includes(normalizedQuery);
+
+    const filteredItems = items.filter((item) => {
+        const matchesText = !normalizedQuery || matchesQuery(`${item.brand} ${item.name}`);
+        const matchesCategory = itemCategoryFilter === 'ALL' || item.category === itemCategoryFilter;
+        const matchesType = itemTypeFilter === 'ALL' || item.type === itemTypeFilter;
+        return matchesText && matchesCategory && matchesType;
+    });
+
+    const filteredDrops = drops.filter((drop) => {
+        const matchesText = !normalizedQuery || matchesQuery(`${drop.brand} ${drop.name}`);
+        const isReleased = new Date(drop.releaseDate) < new Date();
+        const matchesStatus = dropStatusFilter === 'ALL'
+            || (dropStatusFilter === 'RELEASED' && isReleased)
+            || (dropStatusFilter === 'UPCOMING' && !isReleased);
+        return matchesText && matchesStatus;
+    });
+
+    const filteredReviewReports = reviewReports.filter((report) => {
+        const userName = report.reporter?.username || '';
+        const itemName = report.review?.clothing?.name || '';
+        const text = report.review?.text || '';
+        const matchesText = !normalizedQuery || matchesQuery(`${userName} ${itemName} ${text}`);
+        return matchesText;
+    });
+
+    const filteredUserReports = userReports.filter((report) => {
+        const reporterName = report.reporter?.username || '';
+        const reportedName = report.reportedUser?.username || '';
+        const matchesText = !normalizedQuery || matchesQuery(`${reporterName} ${reportedName}`);
+        return matchesText;
+    });
+
     return (
         <div className="animate-fade-in pb-12">
             <div className="flex items-center justify-between mb-8">
@@ -170,21 +217,94 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                     <h1 className="text-3xl font-black uppercase">АДМИН ПАНЕЛЬ</h1>
                 </div>
-                <Button onClick={() => { resetForm(); setShowForm(true); }}>
-                    <PlusIcon className="mr-2" /> СОЗДАТЬ {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
-                </Button>
+                {activeTab !== 'reports' && (
+                    <Button onClick={() => { resetForm(); setShowForm(true); }}>
+                        <PlusIcon className="mr-2" /> СОЗДАТЬ {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
+                    </Button>
+                )}
             </div>
 
             <div className="flex border-b-2 border-black mb-8">
-                {['items', 'drops'].map((tab) => (
+                {(['items', 'drops', 'reports'] as const).map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => { setActiveTab(tab as 'items' | 'drops'); resetForm(); }}
+                        onClick={() => { setActiveTab(tab); resetForm(); }}
                         className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                     >
-                        {tab === 'items' ? 'ПРЕДМЕТЫ' : 'РЕЛИЗЫ'} ({tab === 'items' ? items.length : drops.length})
+                        {tab === 'items' ? 'ПРЕДМЕТЫ' : tab === 'drops' ? 'РЕЛИЗЫ' : 'РЕПОРТЫ'} (
+                        {tab === 'items' ? items.length : tab === 'drops' ? drops.length : reviewReports.length + userReports.length})
                     </button>
                 ))}
+            </div>
+
+            <div className="bg-white border-2 border-black p-4 shadow-neo mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2">
+                    <label className="block text-xs font-black uppercase mb-2">ПОИСК</label>
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-3 border-2 border-black font-mono"
+                        placeholder="Бренд, название, текст..."
+                    />
+                </div>
+                {activeTab === 'items' && (
+                    <>
+                        <div>
+                            <label className="block text-xs font-black uppercase mb-2">КАТЕГОРИЯ</label>
+                            <select
+                                value={itemCategoryFilter}
+                                onChange={(e) => setItemCategoryFilter(e.target.value as 'ALL' | ClothingItem['category'])}
+                                className="w-full px-4 py-3 border-2 border-black font-mono"
+                            >
+                                <option value="ALL">Все</option>
+                                <option value="Streetwear">Streetwear</option>
+                                <option value="Luxury">Luxury</option>
+                                <option value="Techwear">Techwear</option>
+                                <option value="Vintage">Vintage</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-black uppercase mb-2">ТИП</label>
+                            <select
+                                value={itemTypeFilter}
+                                onChange={(e) => setItemTypeFilter(e.target.value as 'ALL' | ClothingItem['type'])}
+                                className="w-full px-4 py-3 border-2 border-black font-mono"
+                            >
+                                <option value="ALL">Все</option>
+                                <option value="SINGLE_LOOK">Single Look</option>
+                                <option value="COLLECTION">Collection</option>
+                            </select>
+                        </div>
+                    </>
+                )}
+                {activeTab === 'drops' && (
+                    <div>
+                        <label className="block text-xs font-black uppercase mb-2">СТАТУС</label>
+                        <select
+                            value={dropStatusFilter}
+                            onChange={(e) => setDropStatusFilter(e.target.value as 'ALL' | 'UPCOMING' | 'RELEASED')}
+                            className="w-full px-4 py-3 border-2 border-black font-mono"
+                        >
+                            <option value="ALL">Все</option>
+                            <option value="UPCOMING">Предстоящие</option>
+                            <option value="RELEASED">Прошедшие</option>
+                        </select>
+                    </div>
+                )}
+                {activeTab === 'reports' && (
+                    <div>
+                        <label className="block text-xs font-black uppercase mb-2">ТИП</label>
+                        <select
+                            value={reportTab}
+                            onChange={(e) => setReportTab(e.target.value as 'review' | 'user')}
+                            className="w-full px-4 py-3 border-2 border-black font-mono"
+                        >
+                            <option value="review">Рецензии</option>
+                            <option value="user">Пользователи</option>
+                        </select>
+                    </div>
+                )}
             </div>
 
             {showForm && (
@@ -264,12 +384,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {activeTab === 'items' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {items.length === 0 ? (
+                    {filteredItems.length === 0 ? (
                         <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
                             <p className="text-gray-400 font-mono uppercase">Нет предметов. Создайте первый!</p>
                         </div>
                     ) : (
-                        items.map((item) => (
+                        filteredItems.map((item) => (
                             <div key={item.id} className="bg-white border-2 border-black p-4 shadow-neo">
                                 <div className="aspect-[4/5] bg-gray-100 mb-4 overflow-hidden">
                                     <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} className="w-full h-full object-cover" />
@@ -297,12 +417,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
             {activeTab === 'drops' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {drops.length === 0 ? (
+                    {filteredDrops.length === 0 ? (
                         <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
                             <p className="text-gray-400 font-mono uppercase">Нет релизов. Создайте первый!</p>
                         </div>
                     ) : (
-                        drops.map((drop) => (
+                        filteredDrops.map((drop) => (
                             <div key={drop.id} className="bg-white border-2 border-black p-4 shadow-neo">
                                 <div className="aspect-square bg-gray-100 mb-4 overflow-hidden">
                                     <img src={drop.image || DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover" />
@@ -324,6 +444,127 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                             </div>
                         ))
+                    )}
+                </div>
+            )}
+
+
+            {activeTab === 'reports' && (
+                <div className="grid grid-cols-1 gap-4">
+                    {reportTab === 'review' ? (
+                        filteredReviewReports.length === 0 ? (
+                            <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
+                                <p className="text-gray-400 font-mono uppercase">Нет репортов рецензий.</p>
+                            </div>
+                        ) : (
+                            filteredReviewReports.map((report) => (
+                                <div key={report.id} className="bg-white border-2 border-black p-4 shadow-neo">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                <span className="text-[10px] font-black uppercase bg-neo-yellow px-1 border border-black">
+                                                    {report.review?.clothing?.brand || 'Бренд'}
+                                                </span>
+                                                <span className="text-[10px] font-black uppercase bg-black text-white px-1 border border-black">
+                                                    {report.review?.clothing?.name || 'Предмет'}
+                                                </span>
+                                                <span className="text-[10px] font-mono text-gray-500">
+                                                    Репорт от: {report.reporter?.username || report.reporterId}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs font-mono text-gray-500 mb-2">
+                                                Рецензия: {report.review?.rating} • {report.review?.date}
+                                            </div>
+                                            <p className="text-sm font-mono text-black break-words">{report.review?.text || 'Текст недоступен'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {report.review?.userId && (
+                                                <select
+                                                    value={reviewBanDays[report.id] ?? 7}
+                                                    onChange={(e) => setReviewBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
+                                                    className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                >
+                                                    <option value={1}>1 день</option>
+                                                    <option value={7}>7 дней</option>
+                                                    <option value={30}>30 дней</option>
+                                                    <option value={90}>90 дней</option>
+                                                </select>
+                                            )}
+                                            <button onClick={() => onDeleteReviewReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                                <XIcon />
+                                            </button>
+                                            {report.review?.id && (
+                                                <button
+                                                    onClick={() => onDeleteReview(report.review!.id)}
+                                                    className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
+                                                >
+                                                    Удалить рецензию
+                                                </button>
+                                            )}
+                                            {report.review?.userId && (
+                                                <button
+                                                    onClick={() => onBanUser(report.review!.userId, reviewBanDays[report.id] ?? 7)}
+                                                    className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
+                                                >
+                                                    Забанить
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )
+                    ) : (
+                        filteredUserReports.length === 0 ? (
+                            <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
+                                <p className="text-gray-400 font-mono uppercase">Нет репортов пользователей.</p>
+                            </div>
+                        ) : (
+                            filteredUserReports.map((report) => (
+                                <div key={report.id} className="bg-white border-2 border-black p-4 shadow-neo">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                <span className="text-[10px] font-black uppercase bg-neo-yellow px-1 border border-black">
+                                                    Репорт от: {report.reporter?.username || report.reporterId}
+                                                </span>
+                                                <span className="text-[10px] font-black uppercase bg-black text-white px-1 border border-black">
+                                                    На: {report.reportedUser?.username || report.reportedUserId}
+                                                </span>
+                                            </div>
+                                            {report.reason && (
+                                                <p className="text-sm font-mono text-black break-words">{report.reason}</p>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {report.reportedUserId && (
+                                                <select
+                                                    value={userBanDays[report.id] ?? 7}
+                                                    onChange={(e) => setUserBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
+                                                    className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                >
+                                                    <option value={1}>1 день</option>
+                                                    <option value={7}>7 дней</option>
+                                                    <option value={30}>30 дней</option>
+                                                    <option value={90}>90 дней</option>
+                                                </select>
+                                            )}
+                                            <button onClick={() => onDeleteUserReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                                <XIcon />
+                                            </button>
+                                            {report.reportedUserId && (
+                                                <button
+                                                    onClick={() => onBanUser(report.reportedUserId!, userBanDays[report.id] ?? 7)}
+                                                    className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
+                                                >
+                                                    Забанить
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )
                     )}
                 </div>
             )}

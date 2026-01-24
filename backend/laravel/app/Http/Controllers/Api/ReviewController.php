@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Review;
 use App\Models\ClothingItem;
 use App\Models\User;
+use App\Models\ReviewReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -14,7 +15,13 @@ class ReviewController extends Controller
 {
     public function index(): JsonResponse
     {
-        $reviews = Review::with(['user', 'clothingItem'])->get();
+        $reviews = Review::with(['user', 'clothingItem'])
+            ->withCount('reports')
+            ->whereHas('user', function ($q) {
+                $q->whereNull('banned_until')
+                    ->orWhere('banned_until', '<=', now());
+            })
+            ->get();
         return response()->json($reviews);
     }
 
@@ -95,12 +102,46 @@ class ReviewController extends Controller
     public function destroy(Review $review): JsonResponse
     {
         $user = $review->user;
+        $item = $review->clothingItem;
+
+        if ($item) {
+            $newCount = max(0, $item->rating_count - 1);
+            $newAvg = $newCount === 0
+                ? 0
+                : (int) round((($item->average_rating * $item->rating_count) - $review->rating) / $newCount);
+            $item->update(['rating_count' => $newCount, 'average_rating' => $newAvg]);
+        }
+
         $user->update([
             'reviews_count' => max(0, $user->reviews_count - 1),
             'reputation' => max(0, $user->reputation - 5),
         ]);
         $review->delete();
         return response()->json(null, 204);
+    }
+
+    public function report(Request $request, Review $review): JsonResponse
+    {
+        $data = $request->validate([
+            'reporterId' => 'required|exists:users,id',
+            'reason' => 'nullable|string',
+        ]);
+
+        $exists = ReviewReport::where('review_id', $review->id)
+            ->where('reporter_id', $data['reporterId'])
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['error' => 'Вы уже отправляли репорт'], 400);
+        }
+
+        ReviewReport::create([
+            'review_id' => $review->id,
+            'reporter_id' => $data['reporterId'],
+            'reason' => $data['reason'] ?? null,
+        ]);
+
+        return response()->json(['success' => true]);
     }
 
     public function like(Review $review): JsonResponse

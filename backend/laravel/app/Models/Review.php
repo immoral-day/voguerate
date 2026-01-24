@@ -42,6 +42,11 @@ class Review extends Model
         return $this->hasMany(Comment::class);
     }
 
+    public function reports(): HasMany
+    {
+        return $this->hasMany(ReviewReport::class);
+    }
+
     public function toArray(): array
     {
         $data = [
@@ -55,6 +60,13 @@ class Review extends Model
             'date' => $this->created_at?->toDateString(),
             'comments' => [],
         ];
+
+        if (array_key_exists('reports_count', $this->attributes)) {
+            $data['reportsCount'] = $this->reports_count;
+        }
+        if ($this->relationLoaded('reports')) {
+            $data['reportsCount'] = $this->reports->count();
+        }
 
         if ($this->relationLoaded('user')) {
             $data['user'] = $this->user;

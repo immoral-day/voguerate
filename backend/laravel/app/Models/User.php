@@ -28,6 +28,7 @@ class User extends Authenticatable
         'badges',
         'following',
         'followers',
+        'banned_until',
     ];
 
     protected $hidden = [
@@ -42,6 +43,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'joined_date' => 'date',
+            'banned_until' => 'datetime',
             'favorite_designers' => 'array',
             'favorites' => 'array',
             'wardrobe' => 'array',
@@ -72,6 +74,7 @@ class User extends Authenticatable
             'role' => $this->role,
             'bio' => $this->bio,
             'joinedDate' => $this->joined_date?->toDateString(),
+            'bannedUntil' => $this->banned_until?->toDateTimeString(),
             'favoriteDesigners' => $this->favorite_designers ?? [],
             'favorites' => $this->favorites ?? [],
             'wardrobe' => $this->wardrobe ?? ['owned' => [], 'wanted' => [], 'sold' => []],

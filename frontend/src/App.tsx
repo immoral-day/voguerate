@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClothingItem, Review, ViewState, User, UpcomingDrop } from './types';
+import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport } from './types';
 import { ToastContainer } from './components/UI';
 import { Sidebar, Header, Footer, SearchResultsOverlay } from './components/layout';
 import { EditProfileModal } from './components/modals/EditProfileModal';
@@ -24,6 +24,8 @@ export const App: React.FC = () => {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [drops, setDrops] = useState<UpcomingDrop[]>([]);
+    const [reviewReports, setReviewReports] = useState<ReviewReport[]>([]);
+    const [userReports, setUserReports] = useState<UserReport[]>([]);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [toasts, setToasts] = useState<{ id: string, message: string }[]>([]);
@@ -35,16 +37,20 @@ export const App: React.FC = () => {
         const loadData = async () => {
             try {
                 setIsLoading(true);
-                const [itemsData, reviewsData, usersData, dropsData] = await Promise.all([
+                const [itemsData, reviewsData, usersData, dropsData, reviewReportsData, userReportsData] = await Promise.all([
                     apiService.get<ClothingItem[]>('/v1/items'),
                     apiService.get<Review[]>('/v1/reviews'),
                     apiService.get<User[]>('/v1/users'),
                     apiService.get<UpcomingDrop[]>('/v1/drops'),
+                    apiService.get<ReviewReport[]>('/v1/report-reviews'),
+                    apiService.get<UserReport[]>('/v1/report-users'),
                 ]);
                 setClothingItems(itemsData);
                 setReviews(reviewsData);
                 setUsers(usersData);
                 setDrops(dropsData);
+                setReviewReports(reviewReportsData);
+                setUserReports(userReportsData);
             } catch (error) {
                 console.error('Failed to load data from API:', error);
             } finally {
@@ -193,6 +199,105 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleDeleteReview = async (id: string) => {
+        try {
+            await apiService.delete(`/v1/reviews/${id}`);
+            const reviewToRemove = reviews.find(r => r.id === id);
+            setReviews(prev => prev.filter(r => r.id !== id));
+            if (reviewToRemove?.clothingId) {
+                setClothingItems(prev => prev.map(item => {
+                    if (item.id === reviewToRemove.clothingId) {
+                        const newCount = Math.max(0, item.ratingCount - 1);
+                        const newAvg = newCount === 0
+                            ? 0
+                            : Math.round(((item.averageRating * item.ratingCount) - reviewToRemove.rating) / newCount);
+                        return { ...item, ratingCount: newCount, averageRating: newAvg };
+                    }
+                    return item;
+                }));
+            }
+            if (reviewToRemove?.userId) {
+                setUsers(prev => prev.map(user => {
+                    if (user.id === reviewToRemove.userId) {
+                        return {
+                            ...user,
+                            reviewsCount: Math.max(0, user.reviewsCount - 1),
+                            reputation: Math.max(0, user.reputation - 5),
+                        };
+                    }
+                    return user;
+                }));
+                if (currentUser?.id === reviewToRemove.userId) {
+                    setCurrentUser({
+                        ...currentUser,
+                        reviewsCount: Math.max(0, currentUser.reviewsCount - 1),
+                        reputation: Math.max(0, currentUser.reputation - 5),
+                    });
+                }
+            }
+            addToast('Рецензия удалена');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка удаления рецензии');
+        }
+    };
+
+    const handleReportReview = async (reviewId: string) => {
+        if (!currentUser) return;
+        try {
+            await apiService.post(`/v1/reviews/${reviewId}/report`, { reporterId: currentUser.id });
+            addToast('Рецензия отправлена на модерацию');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка репорта');
+        }
+    };
+
+    const handleReportUser = async (userId: string, reason: string) => {
+        if (!currentUser) return;
+        try {
+            await apiService.post(`/v1/users/${userId}/report`, { reporterId: currentUser.id, reason });
+            addToast('Пользователь отправлен на модерацию');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка репорта');
+        }
+    };
+
+    const handleBanUser = async (userId: string, days: number) => {
+        try {
+            const bannedUser = await apiService.post<User>(`/v1/users/${userId}/ban`, { days, reporterId: currentUser?.id });
+            setUsers(prev => prev.filter(u => u.id !== bannedUser.id));
+            setReviews(prev => prev.filter(r => r.userId !== bannedUser.id));
+            addToast(`Пользователь забанен на ${days} дн.`);
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка бана');
+        }
+    };
+
+    const handleDeleteReviewReport = async (id: string) => {
+        try {
+            await apiService.delete(`/v1/report-reviews/${id}`);
+            setReviewReports(prev => prev.filter(r => r.id !== id));
+            addToast('Репорт удален');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка удаления репорта');
+        }
+    };
+
+    const handleDeleteUserReport = async (id: string) => {
+        try {
+            await apiService.delete(`/v1/report-users/${id}`);
+            setUserReports(prev => prev.filter(r => r.id !== id));
+            addToast('Репорт удален');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка удаления репорта');
+        }
+    };
+
     const handleDesignerClick = (name: string) => {
         const designerUser = users.find(u => u.username.toLowerCase() === name.toLowerCase());
         if (designerUser) {
@@ -328,10 +433,16 @@ export const App: React.FC = () => {
                 content = <AdminPanel 
                     items={clothingItems} 
                     drops={drops} 
+                    reviewReports={reviewReports}
+                    userReports={userReports}
                     onCreateItem={handleCreateItem} 
                     onCreateDrop={handleCreateDrop} 
                     onDeleteItem={handleDeleteItem} 
                     onDeleteDrop={handleDeleteDrop}
+                    onDeleteReview={handleDeleteReview}
+                    onDeleteReviewReport={handleDeleteReviewReport}
+                    onDeleteUserReport={handleDeleteUserReport}
+                    onBanUser={handleBanUser}
                     onUpdateItem={handleUpdateItem}
                     onUpdateDrop={handleUpdateDrop}
                     onBack={() => navigateTo('HOME')} 
@@ -360,6 +471,7 @@ export const App: React.FC = () => {
             onToggleFavorite={handleToggleFavorite}
             isFavorite={currentUser.favorites?.includes(item.id) || false}
             onAddReview={handleAddReview}
+                    onReportReview={handleReportReview}
             onToast={addToast}
                 />;
       } else {
@@ -380,6 +492,8 @@ export const App: React.FC = () => {
             onDesignerClick={handleDesignerClick}
             onLogout={handleLogout}
             usersList={users}
+                    onReportUser={handleReportUser}
+                    onToast={addToast}
                 />;
       } else {
                 content = <div className="p-12 text-center font-mono">User not found</div>;

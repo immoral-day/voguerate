@@ -15,10 +15,12 @@ interface ProfileViewProps {
     onDesignerClick: (name: string) => void;
     onLogout?: () => void;
     usersList?: User[];
+    onReportUser: (userId: string, reason: string) => void;
+    onToast: (msg: string) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ 
-    user, currentUser, onEditProfile, onToggleFollow, items, reviews, onItemClick, onDesignerClick, onLogout, usersList = [] 
+    user, currentUser, onEditProfile, onToggleFollow, items, reviews, onItemClick, onDesignerClick, onLogout, usersList = [], onReportUser, onToast 
 }) => {
     const isCurrentUser = user.id === currentUser.id;
     const isFollowing = currentUser.following?.includes(user.id) || false;
@@ -34,6 +36,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'REVIEWS' | 'PORTFOLIO' | 'SAVED'>('OVERVIEW');
     const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('VERIFIED');
+    const [isReportOpen, setIsReportOpen] = useState(false);
+    const [reportReason, setReportReason] = useState('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const handleAvatarClick = () => {
@@ -46,6 +50,34 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     return (
         <div className="animate-fade-in pb-20">
+            {isReportOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white border-2 border-black shadow-neo p-6 w-full max-w-lg">
+                        <h3 className="text-lg font-black uppercase mb-4">Жалоба на пользователя</h3>
+                        <textarea
+                            value={reportReason}
+                            onChange={(e) => setReportReason(e.target.value)}
+                            className="w-full border-2 border-black p-3 font-mono text-sm min-h-[120px]"
+                            placeholder="Опиши причину жалобы..."
+                        />
+                        <div className="flex gap-3 mt-4">
+                            <Button
+                                onClick={() => {
+                                    if (reportReason.trim().length < 3) {
+                                        onToast('Укажи причину (минимум 3 символа)');
+                                        return;
+                                    }
+                                    onReportUser(user.id, reportReason.trim());
+                                    setIsReportOpen(false);
+                                }}
+                            >
+                                ОТПРАВИТЬ
+                            </Button>
+                            <Button variant="ghost" onClick={() => setIsReportOpen(false)}>ОТМЕНА</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-4">
@@ -78,9 +110,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             {isCurrentUser ? (
                                 <Button variant="outline" onClick={onEditProfile} className="w-full text-xs gap-2"><EditIcon /> EDIT PROFILE</Button>
                             ) : (
-                                <Button variant={isFollowing ? 'outline' : 'primary'} onClick={() => onToggleFollow(user.id)} className="w-full text-xs">
-                                    {isFollowing ? 'UNFOLLOW' : 'FOLLOW'}
-                                </Button>
+                                <div className="w-full flex flex-col gap-2">
+                                    <Button variant={isFollowing ? 'outline' : 'primary'} onClick={() => onToggleFollow(user.id)} className="w-full text-xs">
+                                        {isFollowing ? 'UNFOLLOW' : 'FOLLOW'}
+                                    </Button>
+                                    <Button variant="ghost" onClick={() => { setReportReason(''); setIsReportOpen(true); }} className="w-full text-xs">
+                                        REPORT USER
+                                    </Button>
+                                </div>
                             )}
                         </div>
 

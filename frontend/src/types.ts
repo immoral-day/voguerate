@@ -44,9 +44,30 @@ export interface Review {
   text: string;
   likes: number;
   date: string;
+  reportsCount?: number;
   user?: User;
   clothing?: ClothingItem;
   comments: Comment[];
+}
+
+export interface ReviewReport {
+  id: string;
+  reviewId?: string;
+  reporterId?: string;
+  reason?: string | null;
+  createdAt?: string;
+  review?: Review;
+  reporter?: User;
+}
+
+export interface UserReport {
+  id: string;
+  reportedUserId?: string;
+  reporterId?: string;
+  reason?: string | null;
+  createdAt?: string;
+  reportedUser?: User;
+  reporter?: User;
 }
 
 export interface ClothingItem {

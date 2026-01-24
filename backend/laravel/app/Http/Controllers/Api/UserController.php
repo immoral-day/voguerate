@@ -7,17 +7,30 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Models\UserReport;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
     public function index(): JsonResponse
     {
-        return response()->json(User::all());
+        $includeBanned = request()->boolean('includeBanned');
+        $query = User::query();
+        if (!$includeBanned) {
+            $query->where(function ($q) {
+                $q->whereNull('banned_until')
+                    ->orWhere('banned_until', '<=', now());
+            });
+        }
+
+        return response()->json($query->get());
     }
 
     public function show(User $user): JsonResponse
     {
+        if ($user->banned_until && $user->banned_until->isFuture() && !request()->boolean('includeBanned')) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
         return response()->json($user);
     }
 
@@ -34,6 +47,10 @@ class UserController extends Controller
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
             return response()->json(['error' => 'Неверный логин или пароль'], 401);
+        }
+
+        if ($user->banned_until && $user->banned_until->isFuture()) {
+            return response()->json(['error' => 'Пользователь заблокирован'], 403);
         }
 
         return response()->json($user);
@@ -117,5 +134,51 @@ class UserController extends Controller
     {
         $user->delete();
         return response()->json(null, 204);
+    }
+
+    public function report(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'reporterId' => 'required|exists:users,id',
+            'reason' => 'required|string|min:3',
+        ]);
+
+        if ((string) $data['reporterId'] === (string) $user->id) {
+            return response()->json(['error' => 'Нельзя репортить себя'], 400);
+        }
+
+        $exists = UserReport::where('reported_user_id', $user->id)
+            ->where('reporter_id', $data['reporterId'])
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['error' => 'Вы уже отправляли репорт'], 400);
+        }
+
+        UserReport::create([
+            'reported_user_id' => $user->id,
+            'reporter_id' => $data['reporterId'],
+            'reason' => $data['reason'],
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function ban(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'days' => 'required|integer|min:1|max:365',
+            'reporterId' => 'nullable|exists:users,id',
+        ]);
+
+        if (isset($data['reporterId']) && (string) $data['reporterId'] === (string) $user->id) {
+            return response()->json(['error' => 'Нельзя банить себя'], 400);
+        }
+
+        $user->update([
+            'banned_until' => now()->addDays($data['days']),
+        ]);
+
+        return response()->json($user->fresh());
     }
 }

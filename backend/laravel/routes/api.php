@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ClothingItemController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\DropController;
 use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\ReportController;
 
 Route::get('/health', fn () => response()->json(['ok' => true]));
 
@@ -15,9 +16,16 @@ Route::delete('/upload', [UploadController::class, 'delete']);
 Route::prefix('v1')->group(function () {
     Route::post('/login', [UserController::class, 'login']);
     Route::apiResource('users', UserController::class);
+    Route::post('/users/{user}/report', [UserController::class, 'report']);
+    Route::post('/users/{user}/ban', [UserController::class, 'ban']);
     Route::apiResource('items', ClothingItemController::class)->parameters(['items' => 'item']);
     Route::apiResource('reviews', ReviewController::class);
+    Route::post('/reviews/{review}/report', [ReviewController::class, 'report']);
     Route::post('/reviews/{review}/like', [ReviewController::class, 'like']);
     Route::apiResource('drops', DropController::class);
     Route::post('/drops/{drop}/cop', [DropController::class, 'cop']);
+    Route::get('/report-reviews', [ReportController::class, 'reviewReports']);
+    Route::get('/report-users', [ReportController::class, 'userReports']);
+    Route::delete('/report-reviews/{report}', [ReportController::class, 'destroyReviewReport']);
+    Route::delete('/report-users/{report}', [ReportController::class, 'destroyUserReport']);
 });

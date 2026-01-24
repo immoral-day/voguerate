@@ -13,11 +13,12 @@ interface ItemDetailViewProps {
     onToggleFavorite: (id: string) => void;
     isFavorite: boolean;
     onAddReview: (review: Partial<Review>) => Promise<void>;
+    onReportReview: (reviewId: string) => void;
     onToast: (msg: string) => void;
 }
 
 export const ItemDetailView: React.FC<ItemDetailViewProps> = ({ 
-    item, reviews, onBack, currentUser, onUserClick, onToggleFavorite, isFavorite, onAddReview, onToast 
+    item, reviews, onBack, currentUser, onUserClick, onToggleFavorite, isFavorite, onAddReview, onReportReview, onToast 
 }) => {
     const [ratings, setRatings] = useState<RatingBreakdown>({ 
         concept: 5,
@@ -55,6 +56,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
             setSubmitting(false);
         }
     };
+
 
     const sortedReviews = [...reviews].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const hasUserReviewed = reviews.some(r => r.userId === currentUser.id);
@@ -194,9 +196,19 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-4">
                                         <RatingCircle rating={review.rating} showMax />
-                                        <div className="flex items-center gap-1 border border-gray-200 px-3 py-1">
-                                            <HeartIcon />
-                                            <span className="text-xs font-bold">{review.likes}</span>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1 border border-gray-200 px-3 py-1">
+                                                <HeartIcon />
+                                                <span className="text-xs font-bold">{review.likes}</span>
+                                            </div>
+                                            {review.userId !== currentUser.id && (
+                                                <button
+                                                    onClick={() => onReportReview(review.id)}
+                                                    className="text-[10px] font-black uppercase border-2 border-black px-2 py-1 hover:bg-black hover:text-white transition-colors"
+                                                >
+                                                    Репорт
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                     <p className="text-black font-mono text-base leading-relaxed bg-bg p-4 border-l-2 border-black break-words">
