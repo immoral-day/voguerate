@@ -17,14 +17,18 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     const [favoriteDesigners, setFavoriteDesigners] = useState(user.favoriteDesigners?.join(', ') || '');
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState(user.avatar || DEFAULT_AVATAR);
+    const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
+    const [backgroundPreview, setBackgroundPreview] = useState(user.profileBackground || '');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const backgroundInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setBio(user.bio || '');
         setFavoriteDesigners(user.favoriteDesigners?.join(', ') || '');
         setAvatarPreview(user.avatar || DEFAULT_AVATAR);
+        setBackgroundPreview(user.profileBackground || '');
     }, [user]);
 
     if (!isOpen) return null;
@@ -39,21 +43,39 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         }
     };
 
+    const handleBackgroundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setBackgroundFile(file);
+            const reader = new FileReader();
+            reader.onload = () => setBackgroundPreview(reader.result as string);
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleSave = async () => {
         setSaving(true);
         setError('');
         try {
             let avatarUrl = user.avatar;
+            let backgroundUrl = user.profileBackground || '';
             if (avatarFile) {
                 console.log('Uploading avatar...', avatarFile.name);
                 const upload = await apiService.uploadFile(avatarFile, 'avatar');
                 console.log('Upload result:', upload);
                 avatarUrl = upload.url;
             }
+            if (backgroundFile) {
+                console.log('Uploading profile background...', backgroundFile.name);
+                const upload = await apiService.uploadFile(backgroundFile, 'profile');
+                console.log('Upload result:', upload);
+                backgroundUrl = upload.url;
+            }
             console.log('Saving profile with avatar:', avatarUrl);
             await onSave({
                 bio,
                 avatar: avatarUrl,
+                profileBackground: backgroundUrl,
                 favoriteDesigners: favoriteDesigners.split(',').map(d => d.trim()).filter(Boolean),
             });
             onClose();
@@ -82,6 +104,24 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                         </div>
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
                         <p className="text-xs text-gray-500 mt-2">Нажмите для загрузки</p>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-black uppercase mb-2">Фон профиля</label>
+                        <div className="border-2 border-black bg-bg p-3">
+                            {backgroundPreview ? (
+                                <div className="w-full h-32 border-2 border-black overflow-hidden mb-3">
+                                    <img src={backgroundPreview} alt="Profile background" className="w-full h-full object-cover" />
+                                </div>
+                            ) : (
+                                <div className="w-full h-32 border-2 border-dashed border-black flex items-center justify-center text-xs font-mono text-gray-500 mb-3">
+                                    Нет фона
+                                </div>
+                            )}
+                            <Button variant="outline" className="w-full" onClick={() => backgroundInputRef.current?.click()}>
+                                ВЫБРАТЬ ФОН
+                            </Button>
+                            <input ref={backgroundInputRef} type="file" accept="image/*" onChange={handleBackgroundChange} className="hidden" />
+                        </div>
                     </div>
                     <div>
                         <label className="block text-xs font-black uppercase mb-2">Bio</label>

@@ -30,6 +30,7 @@ class UploadController extends Controller
         $type = $request->input('type', 'general');
         $folder = match($type) {
             'avatar' => 'avatars',
+            'profile' => 'profiles',
             'item' => 'items',
             'drop' => 'drops',
             default => 'uploads',

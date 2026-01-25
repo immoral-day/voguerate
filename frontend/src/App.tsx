@@ -276,6 +276,20 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleVerifyUser = async (userId: string, verified: boolean) => {
+        try {
+            const updatedUser = await apiService.post<User>(`/v1/users/${userId}/verify`, { verified });
+            setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+            if (currentUser?.id === updatedUser.id) {
+                setCurrentUser(updatedUser);
+            }
+            addToast(verified ? 'Пользователь верифицирован' : 'Верификация снята');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка верификации');
+        }
+    };
+
     const handleDeleteReviewReport = async (id: string) => {
         try {
             await apiService.delete(`/v1/report-reviews/${id}`);
@@ -493,6 +507,7 @@ export const App: React.FC = () => {
             onLogout={handleLogout}
             usersList={users}
                     onReportUser={handleReportUser}
+                    onVerifyUser={handleVerifyUser}
                     onToast={addToast}
                 />;
       } else {
@@ -513,14 +528,14 @@ export const App: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-bg font-sans text-black">
             <Sidebar setView={setViewState} activeView={viewState.view} isAdmin={currentUser.role === 'ADMIN'} />
-      <div className="flex-1 ml-[88px]">
+            <div className="flex-1 ml-[88px] flex flex-col min-h-screen">
         <Header
           currentUser={currentUser}
           onSearch={setSearchQuery}
           onProfileClick={() => navigateTo('PROFILE', { userId: currentUser.id })}
           onFeedbackClick={() => navigateTo('FEEDBACK')}
         />
-        <main className="mt-24 p-8 relative">
+                <main className="mt-24 p-8 relative flex-1">
           {content}
           <SearchResultsOverlay
             query={searchQuery}

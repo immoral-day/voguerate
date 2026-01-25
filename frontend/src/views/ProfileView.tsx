@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { ClothingItem, Review, User } from '../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
 import { EditIcon, HeartIcon, BookmarkIcon, PlusIcon } from '../components/icons/Icons';
@@ -16,11 +16,12 @@ interface ProfileViewProps {
     onLogout?: () => void;
     usersList?: User[];
     onReportUser: (userId: string, reason: string) => void;
+    onVerifyUser: (userId: string, verified: boolean) => void;
     onToast: (msg: string) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ 
-    user, currentUser, onEditProfile, onToggleFollow, items, reviews, onItemClick, onDesignerClick, onLogout, usersList = [], onReportUser, onToast 
+    user, currentUser, onEditProfile, onToggleFollow, items, reviews, onItemClick, onDesignerClick, onLogout, usersList = [], onReportUser, onVerifyUser, onToast 
 }) => {
     const isCurrentUser = user.id === currentUser.id;
     const isFollowing = currentUser.following?.includes(user.id) || false;
@@ -29,6 +30,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const sortedUsers = [...usersList].sort((a, b) => b.reputation - a.reputation);
     const rank = sortedUsers.findIndex(u => u.id === user.id) + 1;
     const isVerified = user.badges?.includes('VERIFIED');
+    const isAdmin = currentUser.role === 'ADMIN';
     
     const avgScoreGiven = userReviews.length > 0 
         ? Math.round(userReviews.reduce((acc, r) => acc + r.rating, 0) / userReviews.length) 
@@ -38,13 +40,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('VERIFIED');
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [reportReason, setReportReason] = useState('');
-
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const handleAvatarClick = () => {
-        if (isCurrentUser) {
-            fileInputRef.current?.click();
-        }
-    };
 
     const savedItems = items.filter(i => user.favorites?.includes(i.id) || user.wardrobe?.wanted?.includes(i.id));
 
@@ -78,13 +73,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </div>
                 </div>
             )}
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-4">
+                    <div className="border-2 border-black bg-white shadow-neo mb-6 overflow-hidden">
+                        {user.profileBackground ? (
+                            <div className="h-40 w-full">
+                                <img src={user.profileBackground} alt="Profile background" className="w-full h-full object-cover" />
+                            </div>
+                        ) : (
+                            <div className="h-40 w-full bg-bg" />
+                        )}
+                    </div>
                     <div className="bg-white border-2 border-black p-6 shadow-neo mb-6 sticky top-32">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex gap-2">
-                                {isVerified && <Badge className="bg-black text-white border-black">VERIFIED</Badge>}
+                                {isVerified && <Badge className="bg-neo-yellow text-black border-black">VERIFIED</Badge>}
                                 {rank > 0 && <Badge className="bg-neo-blue text-white border-black">RANK #{rank}</Badge>}
                             </div>
                             {isCurrentUser && (
@@ -92,10 +95,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             )}
                         </div>
 
-                        <div className="flex flex-col items-center text-center mb-6 relative group">
-                            <div className="w-32 h-32 border-2 border-black p-1 mb-4 rounded-full overflow-hidden relative bg-gray-100">
-                                <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} size="xl" onClick={handleAvatarClick} />
-                                {isCurrentUser && <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold cursor-pointer transition-opacity pointer-events-none">CHANGE</div>}
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className="w-32 h-32 mb-4 overflow-hidden relative">
+                                <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} size="xl" />
                             </div>
                             <h1 className="text-3xl font-black uppercase leading-none mb-2 break-all">{user.username}</h1>
                             <div className="flex gap-2 justify-center mb-4 flex-wrap">
@@ -115,8 +117,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                         {isFollowing ? 'UNFOLLOW' : 'FOLLOW'}
                                     </Button>
                                     <Button variant="ghost" onClick={() => { setReportReason(''); setIsReportOpen(true); }} className="w-full text-xs">
-                                        REPORT USER
+                                        ПОЖАЛОВАТЬСЯ
                                     </Button>
+                                    {isAdmin && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => onVerifyUser(user.id, !isVerified)}
+                                            className="w-full text-xs"
+                                        >
+                                            {isVerified ? 'СНЯТЬ ВЕРИФИКАЦИЮ' : 'ВЕРИФИЦИРОВАТЬ'}
+                                        </Button>
+                                    )}
                                 </div>
                             )}
                         </div>

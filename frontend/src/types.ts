@@ -2,6 +2,7 @@ export interface User {
   id: string;
   username: string;
   avatar?: string | null;
+  profileBackground?: string | null;
   reputation: number;
   reviewsCount: number;
   role: 'USER' | 'DESIGNER' | 'ADMIN';

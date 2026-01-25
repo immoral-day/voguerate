@@ -101,6 +101,7 @@ class UserController extends Controller
             $data = $request->validate([
                 'username' => 'sometimes|string|unique:users,username,' . $user->id,
                 'avatar' => 'nullable|string',
+                'profileBackground' => 'nullable|string',
                 'bio' => 'nullable|string',
                 'role' => 'nullable|in:USER,DESIGNER,ADMIN',
                 'favoriteDesigners' => 'nullable|array',
@@ -117,6 +118,7 @@ class UserController extends Controller
         $updateData = [];
         if (isset($data['username'])) $updateData['username'] = $data['username'];
         if (array_key_exists('avatar', $data)) $updateData['avatar'] = $data['avatar'];
+        if (array_key_exists('profileBackground', $data)) $updateData['profile_background'] = $data['profileBackground'];
         if (array_key_exists('bio', $data)) $updateData['bio'] = $data['bio'];
         if (isset($data['role'])) $updateData['role'] = $data['role'];
         if (isset($data['favoriteDesigners'])) $updateData['favorite_designers'] = $data['favoriteDesigners'];
@@ -178,6 +180,27 @@ class UserController extends Controller
         $user->update([
             'banned_until' => now()->addDays($data['days']),
         ]);
+
+        return response()->json($user->fresh());
+    }
+
+    public function verify(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'verified' => 'required|boolean',
+        ]);
+
+        $badges = $user->badges ?? [];
+        $hasVerified = in_array('VERIFIED', $badges, true);
+
+        if ($data['verified'] && !$hasVerified) {
+            $badges[] = 'VERIFIED';
+        }
+        if (!$data['verified'] && $hasVerified) {
+            $badges = array_values(array_filter($badges, fn ($b) => $b !== 'VERIFIED'));
+        }
+
+        $user->update(['badges' => $badges]);
 
         return response()->json($user->fresh());
     }

@@ -18,6 +18,7 @@ Route::prefix('v1')->group(function () {
     Route::apiResource('users', UserController::class);
     Route::post('/users/{user}/report', [UserController::class, 'report']);
     Route::post('/users/{user}/ban', [UserController::class, 'ban']);
+    Route::post('/users/{user}/verify', [UserController::class, 'verify']);
     Route::apiResource('items', ClothingItemController::class)->parameters(['items' => 'item']);
     Route::apiResource('reviews', ReviewController::class);
     Route::post('/reviews/{review}/report', [ReviewController::class, 'report']);
