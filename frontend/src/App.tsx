@@ -13,7 +13,8 @@ import {
     FeedbackView, 
     ItemDetailView, 
     ProfileView, 
-    AdminPanel 
+    AdminPanel,
+    AuthorshipView,
 } from './views';
 import { apiService } from './services/apiService';
 
@@ -438,6 +439,15 @@ export const App: React.FC = () => {
       break;
     case 'FEEDBACK':
             content = <FeedbackView onToast={addToast} />;
+      break;
+    case 'AUTHORSHIP':
+      content = (
+        <AuthorshipView
+          currentUser={currentUser}
+          onBack={() => navigateTo('PROFILE', { userId: currentUser.id })}
+          onToast={addToast}
+        />
+      );
       break;
     case 'MANIFESTO':
       content = <ManifestoView />;

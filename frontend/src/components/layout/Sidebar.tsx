@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewState } from '../../types';
-import { HomeIcon, CalendarIcon, StarIcon, TrendingIcon, SettingsIcon } from '../icons/Icons';
+import { HomeIcon, CalendarIcon, StarIcon, TrendingIcon, SettingsIcon, AuthorIcon } from '../icons/Icons';
 
 interface SidebarProps {
     setView: (v: ViewState) => void;
@@ -14,6 +14,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isAdmin }
         { id: 'EXPLORE', icon: <CalendarIcon />, label: 'Календарь' },
         { id: 'TOP_RATED', icon: <StarIcon />, label: 'Топ' },
         { id: 'LEADERBOARD', icon: <TrendingIcon />, label: 'Рейтинг' },
+        { id: 'AUTHORSHIP', icon: <AuthorIcon />, label: 'Авторство' },
     ];
     
     if (isAdmin) {

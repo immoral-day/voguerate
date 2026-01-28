@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ClothingItem, UpcomingDrop, ReviewReport, UserReport } from '../types';
+import React, { useEffect, useState } from 'react';
+import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, AuthorshipRequest } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
@@ -26,7 +26,7 @@ interface AdminPanelProps {
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
     items, drops, reviewReports, userReports, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUpdateItem, onUpdateDrop, onBack 
 }) => {
-    const [activeTab, setActiveTab] = useState<'items' | 'drops' | 'reports'>('items');
+    const [activeTab, setActiveTab] = useState<'items' | 'drops' | 'reports' | 'authorship'>('items');
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -40,6 +40,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [reportTab, setReportTab] = useState<'review' | 'user'>('review');
     const [reviewBanDays, setReviewBanDays] = useState<Record<string, number>>({});
     const [userBanDays, setUserBanDays] = useState<Record<string, number>>({});
+    const [authorshipRequests, setAuthorshipRequests] = useState<AuthorshipRequest[]>([]);
+    const [authorshipStatusFilter, setAuthorshipStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+    const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
 
     const [formData, setFormData] = useState({
         brand: '',
@@ -208,6 +211,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         return matchesText;
     });
 
+    const loadAuthorshipRequests = async () => {
+        try {
+            const data = await apiService.get<AuthorshipRequest[]>('/v1/authorship-requests');
+            setAuthorshipRequests(data);
+        } catch (e) {
+            console.error('Failed to load authorship requests', e);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'authorship') {
+            loadAuthorshipRequests();
+        }
+    }, [activeTab]);
+
+    const handleApproveRequest = async (id: string) => {
+        try {
+            const updated = await apiService.post<AuthorshipRequest>(`/v1/authorship-requests/${id}/approve`, {});
+            setAuthorshipRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            alert('Заявка одобрена. Пользователь стал автором.');
+        } catch (e) {
+            console.error('Failed to approve authorship request', e);
+            alert('Ошибка одобрения заявки');
+        }
+    };
+
+    const handleRejectRequest = async (id: string) => {
+        try {
+            const updated = await apiService.post<AuthorshipRequest>(`/v1/authorship-requests/${id}/reject`, {
+                adminComment: rejectComment[id] || null,
+            });
+            setAuthorshipRequests(prev => prev.map(r => r.id === updated.id ? updated : r));
+            setRejectComment(prev => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
+            alert('Заявка отклонена');
+        } catch (e) {
+            console.error('Failed to reject authorship request', e);
+            alert('Ошибка отклонения заявки');
+        }
+    };
+
     return (
         <div className="animate-fade-in pb-12">
             <div className="flex items-center justify-between mb-8">
@@ -224,15 +271,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
             </div>
 
-            <div className="flex border-b-2 border-black mb-8">
-                {(['items', 'drops', 'reports'] as const).map((tab) => (
+            <div className="flex border-b-2 border-black mb-8 overflow-x-auto">
+                {(['items', 'drops', 'reports', 'authorship'] as const).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => { setActiveTab(tab); resetForm(); }}
-                        className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
+                        className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 whitespace-nowrap ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                     >
-                        {tab === 'items' ? 'ПРЕДМЕТЫ' : tab === 'drops' ? 'РЕЛИЗЫ' : 'РЕПОРТЫ'} (
-                        {tab === 'items' ? items.length : tab === 'drops' ? drops.length : reviewReports.length + userReports.length})
+                        {tab === 'items'
+                            ? 'ПРЕДМЕТЫ'
+                            : tab === 'drops'
+                            ? 'РЕЛИЗЫ'
+                            : tab === 'reports'
+                            ? 'РЕПОРТЫ'
+                            : 'АВТОРСТВО'} (
+                        {tab === 'items'
+                            ? items.length
+                            : tab === 'drops'
+                            ? drops.length
+                            : tab === 'reports'
+                            ? reviewReports.length + userReports.length
+                            : authorshipRequests.length})
                     </button>
                 ))}
             </div>
@@ -302,6 +361,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         >
                             <option value="review">Рецензии</option>
                             <option value="user">Пользователи</option>
+                        </select>
+                    </div>
+                )}
+                {activeTab === 'authorship' && (
+                    <div>
+                        <label className="block text-xs font-black uppercase mb-2">СТАТУС</label>
+                        <select
+                            value={authorshipStatusFilter}
+                            onChange={(e) => setAuthorshipStatusFilter(e.target.value as 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED')}
+                            className="w-full px-4 py-3 border-2 border-black font-mono"
+                        >
+                            <option value="ALL">Все</option>
+                            <option value="PENDING">На рассмотрении</option>
+                            <option value="APPROVED">Одобренные</option>
+                            <option value="REJECTED">Отклонённые</option>
                         </select>
                     </div>
                 )}
@@ -383,28 +457,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             )}
 
             {activeTab === 'items' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-stretch">
                     {filteredItems.length === 0 ? (
                         <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
                             <p className="text-gray-400 font-mono uppercase">Нет предметов. Создайте первый!</p>
                         </div>
                     ) : (
                         filteredItems.map((item) => (
-                            <div key={item.id} className="bg-white border-2 border-black p-4 shadow-neo">
-                                <div className="aspect-[4/5] bg-gray-100 mb-4 overflow-hidden">
+                            <div key={item.id} className="bg-white border-2 border-black p-3 shadow-neo h-full flex flex-col">
+                                <div className="aspect-[3/4] bg-gray-100 mb-3 overflow-hidden">
                                     <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="text-[10px] font-black uppercase bg-neo-yellow px-1 border border-black">{item.brand}</span>
-                                        <h3 className="font-black text-sm mt-1">{item.name}</h3>
-                                        <p className="text-xs text-gray-500 font-mono">${item.price} • {item.category}</p>
+                                <div className="flex justify-between items-start flex-1 gap-2">
+                                    <div className="pr-1">
+                                        <span className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black">{item.brand}</span>
+                                        <h3 className="font-black text-xs mt-1 line-clamp-2 break-words">{item.name}</h3>
+                                        <p className="text-[11px] text-gray-500 font-mono mt-1">${item.price} • {item.category}</p>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <button onClick={() => startEditItem(item)} className="p-2 text-blue-500 hover:bg-blue-50 transition-colors">
+                                    <div className="flex gap-1 flex-shrink-0">
+                                        <button onClick={() => startEditItem(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 transition-colors">
                                             <EditIcon />
                                         </button>
-                                        <button onClick={() => onDeleteItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                        <button onClick={() => onDeleteItem(item.id)} className="p-1.5 text-red-500 hover:bg-red-50 transition-colors">
                                             <XIcon />
                                         </button>
                                     </div>
@@ -416,28 +490,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             )}
 
             {activeTab === 'drops' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-stretch">
                     {filteredDrops.length === 0 ? (
                         <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
                             <p className="text-gray-400 font-mono uppercase">Нет релизов. Создайте первый!</p>
                         </div>
                     ) : (
                         filteredDrops.map((drop) => (
-                            <div key={drop.id} className="bg-white border-2 border-black p-4 shadow-neo">
-                                <div className="aspect-square bg-gray-100 mb-4 overflow-hidden">
+                            <div key={drop.id} className="bg-white border-2 border-black p-3 shadow-neo h-full flex flex-col">
+                                <div className="aspect-[3/4] bg-gray-100 mb-3 overflow-hidden">
                                     <img src={drop.image || DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover" />
                                 </div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <span className="text-[10px] font-black uppercase bg-neo-yellow px-1 border border-black">{drop.brand}</span>
-                                        <h3 className="font-black text-sm mt-1">{drop.name}</h3>
-                                        <p className="text-xs text-gray-500 font-mono">{typeof drop.price === 'number' ? `$${drop.price}` : drop.price} • {new Date(drop.releaseDate).toLocaleDateString()}</p>
+                                <div className="flex justify-between items-start flex-1 gap-2">
+                                    <div className="pr-1">
+                                        <span className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black">{drop.brand}</span>
+                                        <h3 className="font-black text-xs mt-1 line-clamp-2 break-words">{drop.name}</h3>
+                                        <p className="text-[11px] text-gray-500 font-mono mt-1">
+                                            {typeof drop.price === 'number' ? `$${drop.price}` : drop.price} • {new Date(drop.releaseDate).toLocaleDateString()}
+                                        </p>
                                     </div>
-                                    <div className="flex gap-1">
-                                        <button onClick={() => startEditDrop(drop)} className="p-2 text-blue-500 hover:bg-blue-50 transition-colors">
+                                    <div className="flex gap-1 flex-shrink-0">
+                                        <button onClick={() => startEditDrop(drop)} className="p-1.5 text-blue-500 hover:bg-blue-50 transition-colors">
                                             <EditIcon />
                                         </button>
-                                        <button onClick={() => onDeleteDrop(drop.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                        <button onClick={() => onDeleteDrop(drop.id)} className="p-1.5 text-red-500 hover:bg-red-50 transition-colors">
                                             <XIcon />
                                         </button>
                                     </div>
@@ -565,6 +641,128 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                             ))
                         )
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'authorship' && (
+                <div className="grid grid-cols-1 gap-4">
+                    {authorshipRequests.length === 0 ? (
+                        <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
+                            <p className="text-gray-400 font-mono uppercase">Нет заявок на авторство.</p>
+                        </div>
+                    ) : (
+                        authorshipRequests
+                            .filter((req) => {
+                                if (authorshipStatusFilter !== 'ALL' && req.status !== authorshipStatusFilter) return false;
+                                if (!searchQuery.trim()) return true;
+                                const q = searchQuery.toLowerCase();
+                                return (
+                                    req.user?.username?.toLowerCase().includes(q) ||
+                                    req.user?.email?.toLowerCase().includes(q) ||
+                                    (req.message || '').toLowerCase().includes(q)
+                                );
+                            })
+                            .map((request) => (
+                                <div key={request.id} className="bg-white border-2 border-black p-6 shadow-neo">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                                                <span
+                                                    className={`text-[10px] font-black uppercase px-2 py-1 border border-black ${
+                                                        request.status === 'PENDING'
+                                                            ? 'bg-yellow-100 text-yellow-900'
+                                                            : request.status === 'APPROVED'
+                                                            ? 'bg-green-100 text-green-900'
+                                                            : 'bg-red-100 text-red-900'
+                                                    }`}
+                                                >
+                                                    {request.status === 'PENDING'
+                                                        ? 'НА РАССМОТРЕНИИ'
+                                                        : request.status === 'APPROVED'
+                                                        ? 'ОДОБРЕНО'
+                                                        : 'ОТКЛОНЕНО'}
+                                                </span>
+                                                <span className="text-xs font-black uppercase">
+                                                    {request.user?.username || request.userId}
+                                                </span>
+                                                {request.user && (
+                                                    <span className="text-xs font-mono text-gray-500">
+                                                        ID: {request.userId}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {request.message && (
+                                                <div className="mb-3">
+                                                    <h4 className="text-xs font-black uppercase mb-1">Сообщение:</h4>
+                                                    <p className="text-sm font-mono text-gray-700 break-words">
+                                                        {request.message}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {request.portfolioLink && (
+                                                <div className="mb-3">
+                                                    <h4 className="text-xs font-black uppercase mb-1">Портфолио:</h4>
+                                                    <a
+                                                        href={request.portfolioLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-sm font-mono text-blue-600 hover:underline break-all"
+                                                    >
+                                                        {request.portfolioLink}
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {request.adminComment && (
+                                                <div className="mt-3 pt-3 border-t-2 border-gray-300">
+                                                    <h4 className="text-xs font-black uppercase mb-1">
+                                                        Комментарий админа:
+                                                    </h4>
+                                                    <p className="text-sm font-mono text-gray-700 break-words">
+                                                        {request.adminComment}
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {request.createdAt && (
+                                                <p className="text-xs font-mono text-gray-500 mt-3">
+                                                    Подана: {new Date(request.createdAt).toLocaleDateString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {request.status === 'PENDING' && (
+                                            <div className="flex flex-col gap-2 flex-shrink-0">
+                                                <Button
+                                                    onClick={() => handleApproveRequest(request.id)}
+                                                    className="text-xs"
+                                                >
+                                                    ОДОБРИТЬ
+                                                </Button>
+                                                <div className="flex flex-col gap-2">
+                                                    <textarea
+                                                        value={rejectComment[request.id] || ''}
+                                                        onChange={(e) =>
+                                                            setRejectComment(prev => ({
+                                                                ...prev,
+                                                                [request.id]: e.target.value,
+                                                            }))
+                                                        }
+                                                        className="w-48 px-2 py-1 border-2 border-black font-mono text-xs min-h-[60px]"
+                                                        placeholder="Комментарий при отказе (необязательно)"
+                                                        maxLength={500}
+                                                    />
+                                                    <Button
+                                                        variant="ghost"
+                                                        onClick={() => handleRejectRequest(request.id)}
+                                                        className="text-xs"
+                                                    >
+                                                        ОТКЛОНИТЬ
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
                     )}
                 </div>
             )}

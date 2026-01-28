@@ -8,3 +8,4 @@ export { FeedbackView } from './FeedbackView';
 export { ItemDetailView } from './ItemDetailView';
 export { ProfileView } from './ProfileView';
 export { AdminPanel } from './AdminPanel';
+export { AuthorshipView } from './AuthorshipView';

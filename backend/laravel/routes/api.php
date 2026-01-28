@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\DropController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\AuthorshipController;
 
 Route::get('/health', fn () => response()->json(['ok' => true]));
 
@@ -29,4 +30,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/report-users', [ReportController::class, 'userReports']);
     Route::delete('/report-reviews/{report}', [ReportController::class, 'destroyReviewReport']);
     Route::delete('/report-users/{report}', [ReportController::class, 'destroyUserReport']);
+
+    Route::get('/authorship-requests', [AuthorshipController::class, 'index']);
+    Route::post('/authorship-requests', [AuthorshipController::class, 'store']);
+    Route::get('/authorship-requests/{authorshipRequest}', [AuthorshipController::class, 'show']);
+    Route::post('/authorship-requests/{authorshipRequest}/approve', [AuthorshipController::class, 'approve']);
+    Route::post('/authorship-requests/{authorshipRequest}/reject', [AuthorshipController::class, 'reject']);
 });

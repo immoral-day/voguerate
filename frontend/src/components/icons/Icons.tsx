@@ -63,6 +63,17 @@ export const StarIcon = ({ filled, className }: { filled?: boolean; className?: 
     </IconWrapper>
 );
 
+// Иконка авторства — карточка + перо
+export const AuthorIcon = ({ className }: { className?: string }) => (
+    <IconWrapper className={className}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="square" strokeLinejoin="miter">
+            <rect x="3" y="4" width="10" height="16" rx="1" ry="1" />
+            <path d="M14.5 5.5 21 3l-2.5 6.5L13 12z" />
+            <path d="M13 12l2 2" />
+        </svg>
+    </IconWrapper>
+);
+
 export const CalendarIcon = ({ className }: { className?: string }) => (
     <IconWrapper className={className}>
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="square" strokeLinejoin="miter">

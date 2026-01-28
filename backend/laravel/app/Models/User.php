@@ -64,6 +64,11 @@ class User extends Authenticatable
         return $this->hasMany(Comment::class);
     }
 
+    public function authorshipRequests(): HasMany
+    {
+        return $this->hasMany(AuthorshipRequest::class);
+    }
+
     public function toArray(): array
     {
         return [
@@ -86,3 +91,4 @@ class User extends Authenticatable
         ];
     }
 }
+

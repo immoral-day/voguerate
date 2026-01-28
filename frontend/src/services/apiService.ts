@@ -20,8 +20,25 @@ export const apiService = {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
+      const error = await response.json().catch(() => ({} as any));
+      let message: string | undefined = error.message;
+
+      // Laravel валидация может возвращать { error: { field: [msg] } }
+      if (!message && error.error) {
+        if (typeof error.error === 'string') {
+          message = error.error;
+        } else if (typeof error.error === 'object') {
+          const firstKey = Object.keys(error.error)[0];
+          const firstVal = firstKey ? error.error[firstKey] : undefined;
+          if (Array.isArray(firstVal)) {
+            message = firstVal[0];
+          } else if (typeof firstVal === 'string') {
+            message = firstVal;
+          }
+        }
+      }
+
+      throw new Error(message || `API Error: ${response.statusText}`);
     }
     return response.json();
   },

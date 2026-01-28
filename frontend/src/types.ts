@@ -108,6 +108,18 @@ export interface Message {
   timestamp: string;
 }
 
+export interface AuthorshipRequest {
+  id: string;
+  userId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  message?: string;
+  portfolioLink?: string;
+  adminComment?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  user?: User;
+}
+
 export interface ViewState {
   view:
     | 'HOME'
@@ -122,7 +134,8 @@ export interface ViewState {
     | 'FEEDBACK'
     | 'DROP_DETAIL'
     | 'MANIFESTO'
-    | 'ADMIN';
+    | 'ADMIN'
+    | 'AUTHORSHIP';
   itemId?: string;
   userId?: string;
   designerName?: string;
