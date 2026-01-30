@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, AuthorshipRequest } from '../types';
+import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, AuthorshipRequest, Article } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
+import { RichTextEditor } from '../components/RichTextEditor';
 import { apiService } from '../services/apiService';
+import { stripHtmlToPlain } from '../utils/string';
 
 interface AdminPanelProps {
     items: ClothingItem[];
     drops: UpcomingDrop[];
     reviewReports: ReviewReport[];
     userReports: UserReport[];
+    articles: Article[];
     onCreateItem: (item: Partial<ClothingItem>) => Promise<void>;
     onCreateDrop: (drop: Partial<UpcomingDrop>) => Promise<void>;
     onDeleteItem: (id: string) => Promise<void>;
@@ -20,13 +23,16 @@ interface AdminPanelProps {
     onBanUser: (id: string, days: number) => Promise<void>;
     onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
     onUpdateDrop: (id: string, data: Partial<UpcomingDrop>) => Promise<void>;
+    onCreateArticle: (data: Partial<Article>) => Promise<void>;
+    onUpdateArticle: (id: string, data: Partial<Article>) => Promise<void>;
+    onDeleteArticle: (id: string) => Promise<void>;
     onBack: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-    items, drops, reviewReports, userReports, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUpdateItem, onUpdateDrop, onBack 
+    items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
 }) => {
-    const [activeTab, setActiveTab] = useState<'items' | 'drops' | 'reports' | 'authorship'>('items');
+    const [activeTab, setActiveTab] = useState<'items' | 'drops' | 'reports' | 'authorship' | 'news'>('items');
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -43,6 +49,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [authorshipRequests, setAuthorshipRequests] = useState<AuthorshipRequest[]>([]);
     const [authorshipStatusFilter, setAuthorshipStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
     const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
+
+    const [newsFormOpen, setNewsFormOpen] = useState(false);
+    const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+    const [newsSaving, setNewsSaving] = useState(false);
+    const [newsImageFile, setNewsImageFile] = useState<File | null>(null);
+    const [newsImagePreview, setNewsImagePreview] = useState<string>('');
+    const [newsForm, setNewsForm] = useState({
+        title: '',
+        body: '',
+        image: '',
+    });
 
     const [formData, setFormData] = useState({
         brand: '',
@@ -74,6 +91,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         setFormError('');
         setEditingId(null);
         setShowForm(false);
+    };
+
+    const resetNewsForm = () => {
+        setNewsForm({ title: '', body: '', image: '' });
+        setNewsImageFile(null);
+        setNewsImagePreview('');
+        setEditingArticleId(null);
+        setNewsFormOpen(false);
+    };
+
+    const handleNewsImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setNewsImageFile(file);
+            const reader = new FileReader();
+            reader.onload = () => setNewsImagePreview(reader.result as string);
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const startEditArticle = (article: Article) => {
+        setNewsForm({
+            title: article.title,
+            body: article.body ?? '',
+            image: article.image || '',
+        });
+        setNewsImageFile(null);
+        setNewsImagePreview(article.image || '');
+        setEditingArticleId(article.id);
+        setNewsFormOpen(true);
+    };
+
+    const handleSaveArticle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newsForm.title.trim()) return;
+        setNewsSaving(true);
+        try {
+            let imageUrl = newsForm.image.trim() || undefined;
+            if (newsImageFile) {
+                const upload = await apiService.uploadFile(newsImageFile, 'article');
+                imageUrl = upload.url;
+            }
+            const payload = {
+                title: newsForm.title.trim(),
+                body: newsForm.body,
+                image: imageUrl,
+            };
+            if (editingArticleId) {
+                await onUpdateArticle(editingArticleId, payload);
+            } else {
+                await onCreateArticle(payload);
+            }
+            resetNewsForm();
+        } finally {
+            setNewsSaving(false);
+        }
     };
 
     const startEditItem = (item: ClothingItem) => {
@@ -264,18 +337,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                     <h1 className="text-3xl font-black uppercase">АДМИН ПАНЕЛЬ</h1>
                 </div>
-                {activeTab !== 'reports' && (
+                {activeTab !== 'reports' && activeTab !== 'news' && (
                     <Button onClick={() => { resetForm(); setShowForm(true); }}>
                         <PlusIcon className="mr-2" /> СОЗДАТЬ {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
+                    </Button>
+                )}
+                {activeTab === 'news' && (
+                    <Button onClick={() => { resetNewsForm(); setNewsFormOpen(true); }}>
+                        <PlusIcon className="mr-2" /> СОЗДАТЬ НОВОСТЬ
                     </Button>
                 )}
             </div>
 
             <div className="flex border-b-2 border-black mb-8 overflow-x-auto">
-                {(['items', 'drops', 'reports', 'authorship'] as const).map((tab) => (
+                {(['items', 'drops', 'reports', 'authorship', 'news'] as const).map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => { setActiveTab(tab); resetForm(); }}
+                        onClick={() => { setActiveTab(tab); resetForm(); resetNewsForm(); }}
                         className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 whitespace-nowrap ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                     >
                         {tab === 'items'
@@ -284,14 +362,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             ? 'РЕЛИЗЫ'
                             : tab === 'reports'
                             ? 'РЕПОРТЫ'
-                            : 'АВТОРСТВО'} (
+                            : tab === 'authorship'
+                            ? 'АВТОРСТВО'
+                            : 'НОВОСТИ'} (
                         {tab === 'items'
                             ? items.length
                             : tab === 'drops'
                             ? drops.length
                             : tab === 'reports'
                             ? reviewReports.length + userReports.length
-                            : authorshipRequests.length})
+                            : tab === 'authorship'
+                            ? authorshipRequests.length
+                            : articles.length})
                     </button>
                 ))}
             </div>
@@ -377,6 +459,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <option value="APPROVED">Одобренные</option>
                             <option value="REJECTED">Отклонённые</option>
                         </select>
+                    </div>
+                )}
+                {activeTab === 'news' && (
+                    <div className="md:col-span-2">
+                        <label className="block text-xs font-black uppercase mb-2">ПОИСК ПО ЗАГОЛОВКУ</label>
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-black font-mono"
+                            placeholder="Заголовок новости..."
+                        />
                     </div>
                 )}
             </div>
@@ -766,6 +860,117 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     )}
                 </div>
             )}
+
+            {activeTab === 'news' && (
+                <div className="space-y-8">
+                    {newsFormOpen && (
+                        <div className="bg-white border-2 border-black p-6 shadow-neo">
+                            <h2 className="text-xl font-black uppercase mb-6">
+                                {editingArticleId ? 'РЕДАКТИРОВАТЬ НОВОСТЬ' : 'НОВАЯ НОВОСТЬ'}
+                            </h2>
+                            <form onSubmit={handleSaveArticle} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-black uppercase mb-2">ЗАГОЛОВОК</label>
+                                    <input
+                                        type="text"
+                                        value={newsForm.title}
+                                        onChange={(e) => setNewsForm({ ...newsForm, title: e.target.value })}
+                                        className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
+                                        placeholder="Заголовок новости"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black uppercase mb-2">ТЕКСТ</label>
+                                    <RichTextEditor
+                                        key={`news-body-${editingArticleId ?? 'new'}`}
+                                        value={newsForm.body}
+                                        onChange={(body) => setNewsForm((prev) => ({ ...prev, body }))}
+                                        placeholder="Текст новости..."
+                                        minHeight="220px"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black uppercase mb-2">КАРТИНКА (ОПЦИОНАЛЬНО)</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleNewsImageChange}
+                                        className="hidden"
+                                        id="news-image-upload"
+                                    />
+                                    <label htmlFor="news-image-upload" className="inline-block px-6 py-3 border-2 border-black cursor-pointer hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm mb-2">
+                                        ВЫБРАТЬ ФАЙЛ
+                                    </label>
+                                    {newsImagePreview && (
+                                        <div className="mt-2 w-40 h-28 border-2 border-black overflow-hidden bg-gray-100">
+                                            <img src={newsImagePreview} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-3 mt-4">
+                                    <Button type="submit" disabled={newsSaving}>
+                                        {newsSaving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
+                                    </Button>
+                                    <Button type="button" variant="ghost" onClick={resetNewsForm}>
+                                        ОТМЕНА
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4">
+                        {articles
+                            .filter((a) => !searchQuery.trim() || a.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+                            .length === 0 ? (
+                            <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center">
+                                <p className="text-gray-400 font-mono uppercase">Нет новостей. Создайте первую!</p>
+                            </div>
+                        ) : (
+                            articles
+                                .filter((a) => !searchQuery.trim() || a.title.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+                                .map((article) => (
+                                    <div key={article.id} className="bg-white border-2 border-black p-4 shadow-neo flex gap-4 items-start">
+                                        {article.image && (
+                                            <div className="w-24 h-24 flex-shrink-0 border-2 border-black overflow-hidden">
+                                                <img src={article.image} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-black text-sm uppercase mb-1">{article.title}</h3>
+                                            <p className="text-xs font-mono text-gray-500 mb-2">
+                                                {article.createdAt
+                                                    ? new Date(article.createdAt).toLocaleDateString()
+                                                    : '—'}
+                                            </p>
+                                            <p className="text-xs font-mono text-gray-600 line-clamp-2">
+                                                {stripHtmlToPlain(article.body, 120)}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-1 flex-shrink-0">
+                                            <button
+                                                onClick={() => startEditArticle(article)}
+                                                className="p-2 text-blue-500 hover:bg-blue-50 transition-colors"
+                                                title="Редактировать"
+                                            >
+                                                <EditIcon />
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteArticle(article.id)}
+                                                className="p-2 text-red-500 hover:bg-red-50 transition-colors"
+                                                title="Удалить"
+                                            >
+                                                <XIcon />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                        )}
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };

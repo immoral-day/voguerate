@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport } from './types';
-import { ToastContainer } from './components/UI';
+import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport, Article } from './types';
+import { ToastContainer, Button } from './components/UI';
 import { Sidebar, Header, Footer, SearchResultsOverlay } from './components/layout';
 import { EditProfileModal } from './components/modals/EditProfileModal';
 import {
@@ -15,6 +15,8 @@ import {
     ProfileView, 
     AdminPanel,
     AuthorshipView,
+    NewsView,
+    ArticleDetailView,
 } from './views';
 import { apiService } from './services/apiService';
 
@@ -27,6 +29,7 @@ export const App: React.FC = () => {
     const [drops, setDrops] = useState<UpcomingDrop[]>([]);
     const [reviewReports, setReviewReports] = useState<ReviewReport[]>([]);
     const [userReports, setUserReports] = useState<UserReport[]>([]);
+    const [articles, setArticles] = useState<Article[]>([]);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [toasts, setToasts] = useState<{ id: string, message: string }[]>([]);
@@ -38,13 +41,14 @@ export const App: React.FC = () => {
         const loadData = async () => {
             try {
                 setIsLoading(true);
-                const [itemsData, reviewsData, usersData, dropsData, reviewReportsData, userReportsData] = await Promise.all([
+                const [itemsData, reviewsData, usersData, dropsData, reviewReportsData, userReportsData, articlesData] = await Promise.all([
                     apiService.get<ClothingItem[]>('/v1/items'),
                     apiService.get<Review[]>('/v1/reviews'),
                     apiService.get<User[]>('/v1/users'),
                     apiService.get<UpcomingDrop[]>('/v1/drops'),
                     apiService.get<ReviewReport[]>('/v1/report-reviews'),
                     apiService.get<UserReport[]>('/v1/report-users'),
+                    apiService.get<Article[]>('/v1/articles'),
                 ]);
                 setClothingItems(itemsData);
                 setReviews(reviewsData);
@@ -52,6 +56,7 @@ export const App: React.FC = () => {
                 setDrops(dropsData);
                 setReviewReports(reviewReportsData);
                 setUserReports(userReportsData);
+                setArticles(articlesData);
             } catch (error) {
                 console.error('Failed to load data from API:', error);
             } finally {
@@ -71,16 +76,18 @@ export const App: React.FC = () => {
 
     const refreshData = async () => {
         try {
-            const [itemsData, reviewsData, usersData, dropsData] = await Promise.all([
+            const [itemsData, reviewsData, usersData, dropsData, articlesData] = await Promise.all([
                 apiService.get<ClothingItem[]>('/v1/items'),
                 apiService.get<Review[]>('/v1/reviews'),
                 apiService.get<User[]>('/v1/users'),
                 apiService.get<UpcomingDrop[]>('/v1/drops'),
+                apiService.get<Article[]>('/v1/articles'),
             ]);
             setClothingItems(itemsData);
             setReviews(reviewsData);
             setUsers(usersData);
             setDrops(dropsData);
+            setArticles(articlesData);
         } catch (error) {
             console.error('Failed to refresh data:', error);
         }
@@ -388,6 +395,39 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleCreateArticle = async (data: Partial<Article>) => {
+        try {
+            const created = await apiService.post<Article>('/v1/articles', data);
+            setArticles(prev => [created, ...prev]);
+            addToast('Новость создана');
+        } catch (error) {
+            console.error('Failed to create article:', error);
+            addToast('Ошибка создания новости');
+        }
+    };
+
+    const handleUpdateArticle = async (id: string, data: Partial<Article>) => {
+        try {
+            const updated = await apiService.put<Article>(`/v1/articles/${id}`, data);
+            setArticles(prev => prev.map(a => a.id === id ? updated : a));
+            addToast('Новость обновлена');
+        } catch (error) {
+            console.error('Failed to update article:', error);
+            addToast('Ошибка обновления');
+        }
+    };
+
+    const handleDeleteArticle = async (id: string) => {
+        try {
+            await apiService.delete(`/v1/articles/${id}`);
+            setArticles(prev => prev.filter(a => a.id !== id));
+            addToast('Новость удалена');
+        } catch (error) {
+            console.error('Failed to delete article:', error);
+            addToast('Ошибка удаления');
+        }
+    };
+
     const handleCopDrop = async (id: string) => {
         if (!currentUser) return;
         try {
@@ -449,6 +489,36 @@ export const App: React.FC = () => {
         />
       );
       break;
+    case 'NEWS':
+      content = (
+        <NewsView
+          articles={articles}
+          onBack={() => navigateTo('HOME')}
+          onArticleClick={(id) => navigateTo('ARTICLE_DETAIL', { articleId: id })}
+        />
+      );
+      break;
+    case 'ARTICLE_DETAIL': {
+      const article = articles.find((a) => a.id === viewState.articleId);
+      if (article) {
+        content = (
+          <ArticleDetailView
+            article={article}
+            onBack={() => navigateTo('NEWS')}
+          />
+        );
+      } else {
+        content = (
+          <div className="p-12 text-center font-mono">
+            <p className="mb-4">Статья не найдена.</p>
+            <Button variant="outline" onClick={() => navigateTo('NEWS')}>
+              К новостям
+            </Button>
+          </div>
+        );
+      }
+      break;
+    }
     case 'MANIFESTO':
       content = <ManifestoView />;
       break;
@@ -459,6 +529,7 @@ export const App: React.FC = () => {
                     drops={drops} 
                     reviewReports={reviewReports}
                     userReports={userReports}
+                    articles={articles}
                     onCreateItem={handleCreateItem} 
                     onCreateDrop={handleCreateDrop} 
                     onDeleteItem={handleDeleteItem} 
@@ -469,6 +540,9 @@ export const App: React.FC = () => {
                     onBanUser={handleBanUser}
                     onUpdateItem={handleUpdateItem}
                     onUpdateDrop={handleUpdateDrop}
+                    onCreateArticle={handleCreateArticle}
+                    onUpdateArticle={handleUpdateArticle}
+                    onDeleteArticle={handleDeleteArticle}
                     onBack={() => navigateTo('HOME')} 
                 />;
             } else {

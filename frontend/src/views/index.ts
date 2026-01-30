@@ -9,3 +9,5 @@ export { ItemDetailView } from './ItemDetailView';
 export { ProfileView } from './ProfileView';
 export { AdminPanel } from './AdminPanel';
 export { AuthorshipView } from './AuthorshipView';
+export { NewsView } from './NewsView';
+export { ArticleDetailView } from './ArticleDetailView';

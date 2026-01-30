@@ -72,7 +72,7 @@ export const apiService = {
     }
   },
 
-  async uploadFile(file: File, type: 'avatar' | 'item' | 'drop' = 'avatar'): Promise<{ url: string; path: string }> {
+  async uploadFile(file: File, type: 'avatar' | 'item' | 'drop' | 'article' = 'avatar'): Promise<{ url: string; path: string }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\DropController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\AuthorshipController;
+use App\Http\Controllers\Api\ArticleController;
 
 Route::get('/health', fn () => response()->json(['ok' => true]));
 
@@ -36,4 +37,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/authorship-requests/{authorshipRequest}', [AuthorshipController::class, 'show']);
     Route::post('/authorship-requests/{authorshipRequest}/approve', [AuthorshipController::class, 'approve']);
     Route::post('/authorship-requests/{authorshipRequest}/reject', [AuthorshipController::class, 'reject']);
+
+    Route::apiResource('articles', ArticleController::class)->parameters(['articles' => 'article']);
 });

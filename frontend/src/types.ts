@@ -120,6 +120,17 @@ export interface AuthorshipRequest {
   user?: User;
 }
 
+export interface Article {
+  id: string;
+  title: string;
+  /** HTML-контент; с бэкенда может прийти null */
+  body?: string | null;
+  image?: string | null;
+  publishedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ViewState {
   view:
     | 'HOME'
@@ -135,9 +146,12 @@ export interface ViewState {
     | 'DROP_DETAIL'
     | 'MANIFESTO'
     | 'ADMIN'
-    | 'AUTHORSHIP';
+    | 'AUTHORSHIP'
+    | 'NEWS'
+    | 'ARTICLE_DETAIL';
   itemId?: string;
   userId?: string;
+  articleId?: string;
   designerName?: string;
   dropId?: string;
   conversationId?: string;

@@ -33,6 +33,7 @@ class UploadController extends Controller
             'profile' => 'profiles',
             'item' => 'items',
             'drop' => 'drops',
+            'article' => 'articles',
             default => 'uploads',
         };
 
