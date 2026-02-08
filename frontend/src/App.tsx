@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport, Article } from './types';
 import { ToastContainer, Button } from './components/UI';
 import { Sidebar, Header, Footer, SearchResultsOverlay } from './components/layout';
@@ -66,7 +66,7 @@ export const App: React.FC = () => {
         loadData();
     }, []);
 
-  useEffect(() => {
+    useEffect(() => {
         const savedUserId = localStorage.getItem('currentUserId');
         if (savedUserId && users.length > 0) {
             const user = users.find((u) => u.id === savedUserId);
@@ -74,24 +74,15 @@ export const App: React.FC = () => {
         }
     }, [users]);
 
-    const refreshData = async () => {
-        try {
-            const [itemsData, reviewsData, usersData, dropsData, articlesData] = await Promise.all([
-                apiService.get<ClothingItem[]>('/v1/items'),
-                apiService.get<Review[]>('/v1/reviews'),
-                apiService.get<User[]>('/v1/users'),
-                apiService.get<UpcomingDrop[]>('/v1/drops'),
-                apiService.get<Article[]>('/v1/articles'),
-            ]);
-            setClothingItems(itemsData);
-            setReviews(reviewsData);
-            setUsers(usersData);
-            setDrops(dropsData);
-            setArticles(articlesData);
-        } catch (error) {
-            console.error('Failed to refresh data:', error);
-        }
-    };
+    const enrichedReviews = useMemo(
+        () =>
+            reviews.map(r => ({
+                ...r,
+                clothing: clothingItems.find(c => c.id === r.clothingId),
+                user: users.find(u => u.id === r.userId),
+            })),
+        [reviews, clothingItems, users]
+    );
 
     const handleLogin = async (usernameOrEmail: string, password: string) => {
         setAuthLoading(true);
@@ -129,24 +120,24 @@ export const App: React.FC = () => {
         localStorage.removeItem('currentUserId');
     };
 
-  const addToast = (message: string) => {
-    const id = Date.now().toString();
+    const addToast = (message: string) => {
+        const id = Date.now().toString();
         setToasts(prev => [...prev, { id, message }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-  };
+    };
 
-  const navigateTo = (view: ViewState['view'], params: Partial<ViewState> = {}) => {
-    setViewState({ ...params, view });
-        window.scrollTo(0,0);
-  };
+    const navigateTo = (view: ViewState['view'], params: Partial<ViewState> = {}) => {
+        setViewState({ ...params, view });
+        window.scrollTo(0, 0);
+    };
 
     const handleToggleFollow = async (targetId: string) => {
-    if (!currentUser) return;
+        if (!currentUser) return;
         const following = currentUser.following || [];
         const newFollowing = following.includes(targetId) ? following.filter(id => id !== targetId) : [...following, targetId];
         try {
             const updatedUser = await apiService.put<User>(`/v1/users/${currentUser.id}`, { following: newFollowing });
-    setCurrentUser(updatedUser);
+            setCurrentUser(updatedUser);
             setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
             addToast(newFollowing.includes(targetId) ? "Followed" : "Unfollowed");
         } catch (error) {
@@ -155,10 +146,10 @@ export const App: React.FC = () => {
     };
 
     const handleUpdateProfile = async (data: Partial<User>) => {
-    if (!currentUser) return;
+        if (!currentUser) return;
         try {
             const updatedUser = await apiService.put<User>(`/v1/users/${currentUser.id}`, data);
-    setCurrentUser(updatedUser);
+            setCurrentUser(updatedUser);
             setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
             addToast("Профиль обновлён");
         } catch (error) {
@@ -197,7 +188,7 @@ export const App: React.FC = () => {
             }
             if (currentUser) {
                 const updatedUser = { ...currentUser, reviewsCount: currentUser.reviewsCount + 1, reputation: currentUser.reputation + 5 };
-    setCurrentUser(updatedUser);
+                setCurrentUser(updatedUser);
                 setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
             }
         } catch (err: unknown) {
@@ -456,73 +447,69 @@ export const App: React.FC = () => {
     }
 
     let content;
-  switch (viewState.view) {
-    case 'HOME':
-            content = <HomeView 
-          items={clothingItems}
-                reviews={reviews.map(r => ({ ...r, clothing: clothingItems.find(c => c.id === r.clothingId), user: users.find(u => u.id === r.userId) }))} 
-                drops={drops}
-          onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
-          onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
-          onManifestoClick={() => navigateTo('MANIFESTO')}
-            />;
-      break;
-    case 'EXPLORE':
-    case 'CALENDAR':
+    switch (viewState.view) {
+        case 'HOME':
+            content = (
+                <HomeView
+                    items={clothingItems}
+                    reviews={enrichedReviews}
+                    drops={drops}
+                    onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
+                    onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
+                    onManifestoClick={() => navigateTo('MANIFESTO')}
+                    onCalendarClick={() => navigateTo('EXPLORE')}
+                />
+            );
+            break;
+        case 'EXPLORE':
+        case 'CALENDAR':
             content = <CalendarView drops={drops} onCop={handleCopDrop} currentUserId={currentUser.id} />;
-      break;
-    case 'TOP_RATED':
-      content = <TopRatedView items={clothingItems} onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })} />;
-      break;
-    case 'LEADERBOARD':
-      content = <LeaderboardView users={users} onUserClick={(id) => navigateTo('PROFILE', { userId: id })} />;
-      break;
-    case 'FEEDBACK':
+            break;
+        case 'TOP_RATED':
+            content = <TopRatedView items={clothingItems} onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })} />;
+            break;
+        case 'LEADERBOARD':
+            content = <LeaderboardView users={users} onUserClick={(id) => navigateTo('PROFILE', { userId: id })} />;
+            break;
+        case 'FEEDBACK':
             content = <FeedbackView onToast={addToast} />;
-      break;
-    case 'AUTHORSHIP':
-      content = (
-        <AuthorshipView
-          currentUser={currentUser}
-          onBack={() => navigateTo('PROFILE', { userId: currentUser.id })}
-          onToast={addToast}
-        />
-      );
-      break;
-    case 'NEWS':
-      content = (
-        <NewsView
-          articles={articles}
-          onBack={() => navigateTo('HOME')}
-          onArticleClick={(id) => navigateTo('ARTICLE_DETAIL', { articleId: id })}
-        />
-      );
-      break;
-    case 'ARTICLE_DETAIL': {
-      const article = articles.find((a) => a.id === viewState.articleId);
-      if (article) {
-        content = (
-          <ArticleDetailView
-            article={article}
-            onBack={() => navigateTo('NEWS')}
-          />
-        );
-      } else {
-        content = (
-          <div className="p-12 text-center font-mono">
-            <p className="mb-4">Статья не найдена.</p>
-            <Button variant="outline" onClick={() => navigateTo('NEWS')}>
-              К новостям
-            </Button>
-          </div>
-        );
-      }
-      break;
-    }
-    case 'MANIFESTO':
-      content = <ManifestoView />;
-      break;
-        case 'ADMIN':
+            break;
+        case 'AUTHORSHIP':
+            content = (
+                <AuthorshipView
+                    currentUser={currentUser}
+                    onBack={() => navigateTo('PROFILE', { userId: currentUser.id })}
+                    onToast={addToast}
+                />
+            );
+            break;
+        case 'NEWS':
+            content = (
+                <NewsView
+                    articles={articles}
+                    onBack={() => navigateTo('HOME')}
+                    onArticleClick={(id) => navigateTo('ARTICLE_DETAIL', { articleId: id })}
+                />
+            );
+            break;
+        case 'ARTICLE_DETAIL': {
+            const article = articles.find((a) => a.id === viewState.articleId);
+            if (article) {
+                content = <ArticleDetailView article={article} onBack={() => navigateTo('NEWS')} />;
+            } else {
+                content = (
+                    <div className="p-12 text-center font-mono">
+                        <p className="mb-4">Статья не найдена.</p>
+                        <Button variant="outline" onClick={() => navigateTo('NEWS')}>К новостям</Button>
+                    </div>
+                );
+            }
+            break;
+        }
+        case 'MANIFESTO':
+            content = <ManifestoView />;
+            break;
+        case 'ADMIN': {
             if (currentUser.role === 'ADMIN') {
                 content = <AdminPanel 
                     items={clothingItems} 
@@ -548,99 +535,112 @@ export const App: React.FC = () => {
             } else {
                 content = <HomeView 
                     items={clothingItems} 
-                    reviews={reviews.map(r => ({ ...r, clothing: clothingItems.find(c => c.id === r.clothingId), user: users.find(u => u.id === r.userId) }))} 
+                    reviews={enrichedReviews} 
                     drops={drops}
                     onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
                     onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
                     onManifestoClick={() => navigateTo('MANIFESTO')}
+                    onCalendarClick={() => navigateTo('EXPLORE')}
                 />;
             }
             break;
-        case 'ITEM_DETAIL':
+        }
+        case 'ITEM_DETAIL': {
             const item = clothingItems.find(i => i.id === viewState.itemId);
-      if (item) {
-                const itemReviews = reviews.filter(r => r.clothingId === item.id).map(r => ({ ...r, clothing: item, user: users.find(u => u.id === r.userId) }));
-                content = <ItemDetailView 
-            item={item}
-                    reviews={itemReviews} 
-            currentUser={currentUser}
-            onBack={() => navigateTo('HOME')}
-            onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
-            onToggleFavorite={handleToggleFavorite}
-            isFavorite={currentUser.favorites?.includes(item.id) || false}
-            onAddReview={handleAddReview}
-                    onReportReview={handleReportReview}
-            onToast={addToast}
-                />;
-      } else {
+            if (item) {
+                const itemReviews = reviews
+                    .filter(r => r.clothingId === item.id)
+                    .map(r => ({ ...r, clothing: item, user: users.find(u => u.id === r.userId) }));
+                content = (
+                    <ItemDetailView
+                        item={item}
+                        reviews={itemReviews}
+                        currentUser={currentUser}
+                        onBack={() => navigateTo('HOME')}
+                        onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
+                        onToggleFavorite={handleToggleFavorite}
+                        isFavorite={currentUser.favorites?.includes(item.id) || false}
+                        onAddReview={handleAddReview}
+                        onReportReview={handleReportReview}
+                        onToast={addToast}
+                    />
+                );
+            } else {
                 content = <div className="p-12 text-center font-mono">Item not found</div>;
-      }
-      break;
-        case 'PROFILE':
+            }
+            break;
+        }
+        case 'PROFILE': {
             const targetUser = users.find(u => u.id === (viewState.userId || currentUser.id));
-      if (targetUser) {
-                content = <ProfileView 
-            user={targetUser}
-            currentUser={currentUser}
-            onEditProfile={() => setIsEditProfileOpen(true)}
-            onToggleFollow={handleToggleFollow}
-            items={clothingItems}
-                    reviews={reviews.map(r => ({ ...r, clothing: clothingItems.find(c => c.id === r.clothingId), user: users.find(u => u.id === r.userId) }))}
-            onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
-            onDesignerClick={handleDesignerClick}
-            onLogout={handleLogout}
-            usersList={users}
-                    onReportUser={handleReportUser}
-                    onVerifyUser={handleVerifyUser}
-                    onToast={addToast}
-                />;
-      } else {
+            if (targetUser) {
+                content = (
+                    <ProfileView
+                        user={targetUser}
+                        currentUser={currentUser}
+                        onEditProfile={() => setIsEditProfileOpen(true)}
+                        onToggleFollow={handleToggleFollow}
+                        items={clothingItems}
+                        reviews={enrichedReviews}
+                        onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
+                        onDesignerClick={handleDesignerClick}
+                        onLogout={handleLogout}
+                        usersList={users}
+                        onReportUser={handleReportUser}
+                        onVerifyUser={handleVerifyUser}
+                        onToast={addToast}
+                    />
+                );
+            } else {
                 content = <div className="p-12 text-center font-mono">User not found</div>;
-      }
-      break;
-    default:
-            content = <HomeView 
-                items={clothingItems} 
-                reviews={reviews.map(r => ({ ...r, clothing: clothingItems.find(c => c.id === r.clothingId), user: users.find(u => u.id === r.userId) }))} 
-                drops={drops}
-                onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
-                onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
-                onManifestoClick={() => navigateTo('MANIFESTO')}
-            />;
-  }
+            }
+            break;
+        }
+        default:
+            content = (
+                <HomeView
+                    items={clothingItems}
+                    reviews={enrichedReviews}
+                    drops={drops}
+                    onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
+                    onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
+                    onManifestoClick={() => navigateTo('MANIFESTO')}
+                    onCalendarClick={() => navigateTo('EXPLORE')}
+                />
+            );
+    }
 
-  return (
-    <div className="flex min-h-screen bg-bg font-sans text-black">
+      return (
+        <div className="flex min-h-screen bg-bg font-sans text-black">
             <Sidebar setView={setViewState} activeView={viewState.view} isAdmin={currentUser.role === 'ADMIN'} />
             <div className="flex-1 ml-[88px] flex flex-col min-h-screen">
-        <Header
-          currentUser={currentUser}
-          onSearch={setSearchQuery}
-          onProfileClick={() => navigateTo('PROFILE', { userId: currentUser.id })}
-          onFeedbackClick={() => navigateTo('FEEDBACK')}
-        />
+                <Header
+                    currentUser={currentUser}
+                    onSearch={setSearchQuery}
+                    onProfileClick={() => navigateTo('PROFILE', { userId: currentUser.id })}
+                    onFeedbackClick={() => navigateTo('FEEDBACK')}
+                />
                 <main className="mt-24 p-8 relative flex-1">
-          {content}
-          <SearchResultsOverlay
-            query={searchQuery}
-            items={clothingItems}
-            users={users}
+                    {content}
+                    <SearchResultsOverlay
+                        query={searchQuery}
+                        items={clothingItems}
+                        users={users}
                         onItemClick={(id) => { navigateTo('ITEM_DETAIL', { itemId: id }); setSearchQuery(''); }}
                         onUserClick={(id) => { navigateTo('PROFILE', { userId: id }); setSearchQuery(''); }}
-            onClose={() => setSearchQuery('')}
-          />
-        </main>
-        <Footer />
-      </div>
-      <EditProfileModal
-        isOpen={isEditProfileOpen}
-        onClose={() => setIsEditProfileOpen(false)}
-        user={currentUser}
-        onSave={handleUpdateProfile}
-      />
+                        onClose={() => setSearchQuery('')}
+                    />
+                </main>
+                <Footer />
+            </div>
+            <EditProfileModal
+                isOpen={isEditProfileOpen}
+                onClose={() => setIsEditProfileOpen(false)}
+                user={currentUser}
+                onSave={handleUpdateProfile}
+            />
             <ToastContainer toasts={toasts} onRemove={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
-    </div>
-  );
+        </div>
+    );
 };
 
 export default App;

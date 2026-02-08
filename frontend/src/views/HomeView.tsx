@@ -11,12 +11,14 @@ interface HomeViewProps {
     onItemClick: (id: string) => void;
     onUserClick: (id: string) => void;
     onManifestoClick: () => void;
+    onCalendarClick?: () => void;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onItemClick, onManifestoClick, onUserClick }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onItemClick, onManifestoClick, onUserClick, onCalendarClick }) => {
     const trendingItems = [...items].sort((a,b) => b.averageRating - a.averageRating).slice(0, 5);
     const freshReleases = [...items].sort((a,b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()).slice(0, 5);
     const liveReviews = [...reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4);
+    const upcomingDrops = drops.filter(d => new Date(d.releaseDate) >= new Date()).sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime()).slice(0, 5);
 
     return (
         <div className="animate-fade-in pb-12 space-y-20">
@@ -47,19 +49,19 @@ export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onIte
                     />
                     <div className="absolute bottom-6 left-6 text-white">
                         <div className="text-neo-yellow font-black text-3xl uppercase mb-1">ГОРЯЧЕЕ</div>
-                        <div className="font-mono text-xs text-gray-400">ПОСЛЕДНИЕ РЕЛИЗЫ НЕДЕЛИ →</div>
+                        <div className="font-mono text-xs text-gray-300">ПРЕДСТОЯЩИЕ РЕЛИЗЫ</div>
                     </div>
                 </div>
             </div>
 
-            {drops.length > 0 && (
+            {upcomingDrops.length > 0 && (
                 <div>
-                    <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-2">
-                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><CalendarIcon className="text-neo-blue" /> ПОСЛЕДНИЕ РЕЛИЗЫ</h2>
+                    <div className="mb-8 border-b-2 border-black pb-2">
+                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><CalendarIcon className="text-neo-blue" /> ПРЕДСТОЯЩИЕ РЕЛИЗЫ</h2>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                        {drops.slice(0, 5).map((drop, idx) => (
-                            <div key={drop.id} className="bg-white border-2 border-black shadow-neo hover:-translate-y-1 transition-transform cursor-pointer opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
+                        {upcomingDrops.map((drop, idx) => (
+                            <div key={drop.id} onClick={onCalendarClick} className="bg-white border-2 border-black shadow-neo hover:-translate-y-1 transition-transform cursor-pointer opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
                                 <div className="aspect-square overflow-hidden border-b-2 border-black">
                                     <img src={drop.image || DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover hover:scale-105 transition-transform" />
                                 </div>

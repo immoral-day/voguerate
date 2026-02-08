@@ -86,9 +86,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                     </button>
                 </div>
                 
-                <div className="mt-8 text-[10px] font-mono text-gray-400">
-                    BY ENTERING, YOU AGREE TO THE MANIFESTO.
-                </div>
             </div>
         </div>
     );

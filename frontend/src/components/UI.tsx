@@ -59,7 +59,7 @@ export const Avatar: React.FC<{ src: string; alt: string; size?: 'sm' | 'md' | '
 };
 
 export const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-  <span className={`inline-flex items-center px-2 py-1 text-[10px] font-mono font-bold uppercase border border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${className}`}>
+  <span className={`inline-flex items-center px-2 py-1 text-[10px] font-mono font-bold uppercase border border-black bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${className ?? ''}`}>
     {children}
   </span>
 );

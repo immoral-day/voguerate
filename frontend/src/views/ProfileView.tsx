@@ -178,9 +178,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </div>
                     <div className="bg-white border-2 border-black p-6 shadow-neo mb-6 sticky top-32">
                         <div className="flex items-center justify-between mb-6">
-                            <div className="flex gap-2">
+                            <div className="flex gap-0.5 flex-wrap">
                                 {isVerified && <Badge className="bg-neo-yellow text-black border-black">VERIFIED</Badge>}
-                                {rank > 0 && <Badge className="bg-neo-blue text-white border-black">RANK #{rank}</Badge>}
+                                <Badge className="!bg-[#23a0ff] !text-black border-black">{rank > 0 ? `RANK #${rank}` : 'RANK —'}</Badge>
                             </div>
                             {isCurrentUser && (
                                 <button onClick={onLogout} className="text-[10px] font-bold text-red-500 hover:underline uppercase">Logout</button>
@@ -192,8 +192,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                 <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} size="xl" />
                             </div>
                             <h1 className="text-3xl font-black uppercase leading-none mb-2 break-all">{user.username}</h1>
-                            <div className="flex gap-2 justify-center mb-4 flex-wrap">
-                                {user.badges?.filter(b => b !== 'VERIFIED').map(b => (
+                            <div className="flex gap-0.5 justify-center mb-4 flex-wrap">
+                                {user.badges?.filter(b => b && b !== 'VERIFIED').map(b => (
                                     <Badge key={b} className="bg-neo-yellow text-black">{b}</Badge>
                                 ))}
                             </div>

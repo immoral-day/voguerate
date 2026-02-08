@@ -103,7 +103,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                             </div>
                         </div>
                         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-                        <p className="text-xs text-gray-500 mt-2">Нажмите для загрузки</p>
                     </div>
                     <div>
                         <label className="block text-xs font-black uppercase mb-2">Фон профиля</label>

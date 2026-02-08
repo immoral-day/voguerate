@@ -20,7 +20,7 @@ export const apiService = {
       body: JSON.stringify(data),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({} as any));
+      const error = await response.json().catch(() => ({} as Record<string, unknown>));
       let message: string | undefined = error.message;
 
       // Laravel валидация может возвращать { error: { field: [msg] } }

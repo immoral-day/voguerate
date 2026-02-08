@@ -32,9 +32,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, onUserC
                             <div className="ml-4 flex-1">
                                 <div className="flex items-center gap-2">
                                     <span className="font-bold text-lg uppercase">{user.username}</span>
-                                    {user.badges?.map(b => (
-                                        <Badge key={b} className="bg-neo-yellow text-black scale-75 origin-left">{b}</Badge>
-                                    ))}
+                                    <div className="flex items-center gap-0.5">
+                                        {user.badges?.map(b => (
+                                            <Badge key={b} className="bg-neo-yellow text-black scale-75 origin-left">{b}</Badge>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div className="text-xs font-mono text-gray-500">{user.reviewsCount} REVIEWS</div>
                             </div>
