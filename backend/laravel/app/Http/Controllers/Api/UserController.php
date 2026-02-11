@@ -87,7 +87,7 @@ class UserController extends Controller
             'favorite_designers' => [],
             'favorites' => [],
             'wardrobe' => ['owned' => [], 'wanted' => [], 'sold' => []],
-            'badges' => $isFirstUser ? ['ADMIN'] : [],
+            'badges' => $isFirstUser ? ['АДМИН'] : [],
             'following' => [],
             'followers' => [],
         ]);
@@ -124,7 +124,13 @@ class UserController extends Controller
         if (isset($data['favoriteDesigners'])) $updateData['favorite_designers'] = $data['favoriteDesigners'];
         if (isset($data['favorites'])) $updateData['favorites'] = $data['favorites'];
         if (isset($data['wardrobe'])) $updateData['wardrobe'] = $data['wardrobe'];
-        if (isset($data['badges'])) $updateData['badges'] = $data['badges'];
+        if (isset($data['badges'])) {
+            $allowed = ['АДМИН', 'ВЕРИФИЦИРОВАН', 'ДИЗАЙНЕР'];
+            $updateData['badges'] = array_values(array_unique(array_filter(
+                $data['badges'],
+                fn ($b) => is_string($b) && in_array($b, $allowed, true)
+            )));
+        }
         if (isset($data['following'])) $updateData['following'] = $data['following'];
         if (isset($data['followers'])) $updateData['followers'] = $data['followers'];
 
@@ -191,13 +197,13 @@ class UserController extends Controller
         ]);
 
         $badges = $user->badges ?? [];
-        $hasVerified = in_array('VERIFIED', $badges, true);
+        $hasVerified = in_array('ВЕРИФИЦИРОВАН', $badges, true);
 
         if ($data['verified'] && !$hasVerified) {
-            $badges[] = 'VERIFIED';
+            $badges[] = 'ВЕРИФИЦИРОВАН';
         }
         if (!$data['verified'] && $hasVerified) {
-            $badges = array_values(array_filter($badges, fn ($b) => $b !== 'VERIFIED'));
+            $badges = array_values(array_filter($badges, fn ($b) => $b !== 'ВЕРИФИЦИРОВАН'));
         }
 
         $user->update(['badges' => $badges]);

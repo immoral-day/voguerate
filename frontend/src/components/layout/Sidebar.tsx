@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isAdmin }
                 className="mb-12 font-black text-3xl tracking-tighter cursor-pointer text-black bg-neo-yellow w-14 h-14 flex items-center justify-center border-2 border-black shadow-neo" 
                 onClick={() => setView({ view: 'HOME' })}
             >
-                VR
+                ВР
             </div>
             <div className="flex flex-col gap-4 w-full px-4">
                 {navItems.map(item => (

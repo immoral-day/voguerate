@@ -30,7 +30,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     
     const sortedUsers = [...usersList].sort((a, b) => b.reputation - a.reputation);
     const rank = sortedUsers.findIndex(u => u.id === user.id) + 1;
-    const isVerified = user.badges?.includes('VERIFIED');
+    const isVerified = !!(user.badges?.includes('ВЕРИФИЦИРОВАН') || user.badges?.includes('VERIFIED'));
     const isAdmin = currentUser.role === 'ADMIN';
     
     const avgScoreGiven = userReviews.length > 0 
@@ -39,7 +39,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'REVIEWS' | 'PORTFOLIO' | 'SAVED'>('OVERVIEW');
     // Автор — только роль/бейдж дизайнера, а не просто верификация
-    const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('DESIGNER');
+    const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('ДИЗАЙНЕР') || user.badges?.includes('DESIGNER');
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [reportReason, setReportReason] = useState('');
 
@@ -179,11 +179,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     <div className="bg-white border-2 border-black p-6 shadow-neo mb-6 sticky top-32">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex gap-0.5 flex-wrap">
-                                {isVerified && <Badge className="bg-neo-yellow text-black border-black">VERIFIED</Badge>}
-                                <Badge className="!bg-[#23a0ff] !text-black border-black">{rank > 0 ? `RANK #${rank}` : 'RANK —'}</Badge>
+                                {isVerified && <Badge className="bg-neo-yellow text-black border-black">ВЕРИФИЦИРОВАН</Badge>}
+                                <Badge className="!bg-[#23a0ff] !text-black border-black">{rank > 0 ? `РАНГ #${rank}` : 'РАНГ —'}</Badge>
                             </div>
                             {isCurrentUser && (
-                                <button onClick={onLogout} className="text-[10px] font-bold text-red-500 hover:underline uppercase">Logout</button>
+                                <button onClick={onLogout} className="text-[10px] font-bold text-red-500 hover:underline uppercase">Выйти</button>
                             )}
                         </div>
 
@@ -193,20 +193,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             </div>
                             <h1 className="text-3xl font-black uppercase leading-none mb-2 break-all">{user.username}</h1>
                             <div className="flex gap-0.5 justify-center mb-4 flex-wrap">
-                                {user.badges?.filter(b => b && b !== 'VERIFIED').map(b => (
-                                    <Badge key={b} className="bg-neo-yellow text-black">{b}</Badge>
+                                {user.badges?.filter(b => b && b !== 'ВЕРИФИЦИРОВАН' && b !== 'VERIFIED').map(b => (
+                                    <Badge key={b} className="bg-neo-yellow text-black">{b === 'ADMIN' ? 'АДМИН' : b === 'DESIGNER' ? 'ДИЗАЙНЕР' : b}</Badge>
                                 ))}
                             </div>
                             <p className="text-sm font-mono text-gray-600 leading-relaxed mb-6 px-4">
-                                {user.bio || "No bio established."}
+                                {user.bio || "Нет описания."}
                             </p>
 
                             {isCurrentUser ? (
-                                <Button variant="outline" onClick={onEditProfile} className="w-full text-xs gap-2"><EditIcon /> EDIT PROFILE</Button>
+                                <Button variant="outline" onClick={onEditProfile} className="w-full text-xs gap-2"><EditIcon /> РЕДАКТИРОВАТЬ ПРОФИЛЬ</Button>
                             ) : (
                                 <div className="w-full flex flex-col gap-2">
                                     <Button variant={isFollowing ? 'outline' : 'primary'} onClick={() => onToggleFollow(user.id)} className="w-full text-xs">
-                                        {isFollowing ? 'UNFOLLOW' : 'FOLLOW'}
+                                        {isFollowing ? 'ОТПИСАТЬСЯ' : 'ПОДПИСАТЬСЯ'}
                                     </Button>
                                     <Button variant="ghost" onClick={() => { setReportReason(''); setIsReportOpen(true); }} className="w-full text-xs">
                                         ПОЖАЛОВАТЬСЯ
@@ -227,15 +227,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         <div className="grid grid-cols-3 gap-2 text-center border-t-2 border-black pt-6">
                             <div>
                                 <div className="text-2xl font-black">{user.reputation}</div>
-                                <div className="text-[9px] uppercase font-bold text-gray-500">Rep</div>
+                                <div className="text-[9px] uppercase font-bold text-gray-500">Репутация</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black">{user.reviewsCount}</div>
-                                <div className="text-[9px] uppercase font-bold text-gray-500">Reviews</div>
+                                <div className="text-[9px] uppercase font-bold text-gray-500">Отзывы</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black">{avgScoreGiven}</div>
-                                <div className="text-[9px] uppercase font-bold text-gray-500">Strictness</div>
+                                <div className="text-[9px] uppercase font-bold text-gray-500">Строгость</div>
                             </div>
                         </div>
                     </div>
@@ -243,13 +243,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                 <div className="lg:col-span-8">
                     <div className="flex border-b-2 border-black mb-8 overflow-x-auto no-scrollbar">
-                        {['OVERVIEW', 'REVIEWS', 'SAVED'].map((tab) => (
+                        {(['OVERVIEW', 'REVIEWS', 'SAVED'] as const).map((tab) => (
                             <button 
                                 key={tab}
-                                onClick={() => setActiveTab(tab as 'OVERVIEW' | 'REVIEWS' | 'SAVED')}
+                                onClick={() => setActiveTab(tab)}
                                 className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 flex-shrink-0 ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                             >
-                                {tab}
+                                {tab === 'OVERVIEW' ? 'ОБЗОР' : tab === 'REVIEWS' ? 'ОТЗЫВЫ' : 'СОХРАНЁННОЕ'}
                             </button>
                         ))}
                         {isDesigner && (
@@ -257,7 +257,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                 onClick={() => setActiveTab('PORTFOLIO')}
                                 className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 flex-shrink-0 ${activeTab === 'PORTFOLIO' ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                             >
-                                Portfolio
+                                Портфолио
                             </button>
                         )}
                     </div>
@@ -266,8 +266,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         <div className="space-y-12 animate-fade-in">
                             <div className="mb-8">
                                 <h3 className="text-xl font-black uppercase mb-4 border-b-2 border-black pb-2 flex justify-between items-end">
-                                    <span>FAVORITE DESIGNERS</span>
-                                    <span className="text-xs font-mono text-gray-500">{user.favoriteDesigners?.length || 0} BRANDS</span>
+                                    <span>ЛЮБИМЫЕ ДИЗАЙНЕРЫ</span>
+                                    <span className="text-xs font-mono text-gray-500">{user.favoriteDesigners?.length || 0} брендов</span>
                                 </h3>
                                 {user.favoriteDesigners && user.favoriteDesigners.length > 0 ? (
                                     <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 snap-x">
@@ -282,7 +282,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="p-8 border-2 border-dashed border-gray-300 text-center text-xs font-mono text-gray-400 uppercase">No brands selected.</div>
+                                    <div className="p-8 border-2 border-dashed border-gray-300 text-center text-xs font-mono text-gray-400 uppercase">Нет выбранных брендов.</div>
                                 )}
                             </div>
                         </div>
@@ -312,7 +312,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                 </div>
                             )) : (
                                 <div className="p-12 border-2 border-dashed border-gray-300 text-center font-mono text-sm text-gray-400 uppercase">
-                                    No reviews filed yet.
+                                    Пока нет отзывов.
                                 </div>
                             )}
                         </div>
@@ -366,7 +366,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Цена ($)</label>
+                                                <label className="block text-xs font-black uppercase mb-2">Цена (₽)</label>
                                                 <input
                                                     type="number"
                                                     value={portfolioForm.price}
@@ -507,7 +507,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                                 {item.name}
                                             </h3>
                                             <p className="text-[11px] text-gray-500 font-mono mt-1">
-                                                ${item.price} • {item.category}
+                                                {item.price} ₽ • {item.category}
                                             </p>
                                         </div>
                                     ))

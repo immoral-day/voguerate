@@ -93,8 +93,8 @@ class AuthorshipController extends Controller
         $user = $authorshipRequest->user;
         if ($user) {
             $badges = $user->badges ?? [];
-            if (!in_array('DESIGNER', $badges, true)) {
-                $badges[] = 'DESIGNER';
+            if (!in_array('ДИЗАЙНЕР', $badges, true)) {
+                $badges[] = 'ДИЗАЙНЕР';
             }
 
             $user->update([

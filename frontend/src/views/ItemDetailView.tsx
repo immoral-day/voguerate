@@ -102,14 +102,14 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                         
                         <div className="flex flex-wrap gap-4 mt-6">
                             <Badge>РЕЛИЗ: {new Date(item.releaseDate).getFullYear()}</Badge>
-                            <Badge>ЦЕНА: ${item.price}</Badge>
+                            <Badge>ЦЕНА: {item.price} ₽</Badge>
                             <Badge>ТИП: {item.type || 'SINGLE LOOK'}</Badge>
                         </div>
                     </div>
 
                     <div className="bg-white border-2 border-black shadow-neo relative overflow-hidden">
                         <div className="bg-black text-white p-4 border-b-2 border-black flex justify-between items-center">
-                            <h3 className="font-black uppercase text-xl">RZT STYLE MATH</h3>
+                            <h3 className="font-black uppercase text-xl">V3.0 LIVE</h3>
                             <div className="text-neo-yellow text-xs font-mono">VOGUE_RATE_ALGO_V1</div>
                         </div>
 

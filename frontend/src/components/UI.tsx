@@ -159,7 +159,7 @@ export const UnifiedCard: React.FC<{
               {metrics.map((m, i) => (
                   <div key={i} className="flex flex-col">
                       <span className="font-black text-2xl leading-none">{m.value}</span>
-                      {m.label && <span className="text-[10px] uppercase font-bold bg-neo-green inline-block px-1 mt-1 border border-black">{m.label}</span>}
+                      {m.label && <span className="text-[10px] uppercase font-bold bg-neo-green text-black inline-block px-1 mt-1 border border-black">{m.label}</span>}
                   </div>
               ))}
             </div>
@@ -169,7 +169,7 @@ export const UnifiedCard: React.FC<{
               <div className="flex justify-between items-center pt-2">
                   {onAction && (
                       <button onClick={(e) => { e.stopPropagation(); onAction(); }} className="text-xs font-black uppercase tracking-wider flex items-center gap-1 hover:bg-black hover:text-white px-2 py-1 transition-colors -ml-2">
-                          {actionLabel || 'Check It'} →
+                          {actionLabel || 'Смотреть'} →
                       </button>
                   )}
                   {secondaryIcon && <div className="text-black">{secondaryIcon}</div>}

@@ -28,7 +28,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
             <div className="z-10 bg-white border-2 border-black p-12 shadow-neo-lg max-w-md w-full text-center relative">
                 <div className="bg-neo-yellow border-2 border-black w-20 h-20 flex items-center justify-center text-4xl font-black mx-auto mb-8 shadow-neo absolute -top-10 left-1/2 -translate-x-1/2">
-                    VR
+                    ВР
                 </div>
                 <h1 className="text-4xl font-black uppercase mb-2 mt-8">Vogue Rate</h1>
                 <p className="font-mono text-sm text-gray-500 mb-8 uppercase">
@@ -44,7 +44,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                 <form onSubmit={handleSubmit} className="space-y-4 text-left">
                     {!isLogin && (
                         <div>
-                            <label className="block text-xs font-black uppercase mb-2">USERNAME</label>
+                            <label className="block text-xs font-black uppercase mb-2">ИМЯ ПОЛЬЗОВАТЕЛЯ</label>
                             <input
                                 type="text"
                                 value={username}
@@ -55,7 +55,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                         </div>
                     )}
                     <div>
-                        <label className="block text-xs font-black uppercase mb-2">{isLogin ? 'USERNAME ИЛИ EMAIL' : 'EMAIL'}</label>
+                        <label className="block text-xs font-black uppercase mb-2">{isLogin ? 'ИМЯ ПОЛЬЗОВАТЕЛЯ ИЛИ EMAIL' : 'EMAIL'}</label>
                         <input
                             type={isLogin ? 'text' : 'email'}
                             value={email}

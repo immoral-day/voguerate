@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, AuthorshipRequest, Article } from '../types';
+import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, User, AuthorshipRequest, Article } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
@@ -280,7 +280,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const filteredUserReports = userReports.filter((report) => {
         const reporterName = report.reporter?.username || '';
         const reportedName = report.reportedUser?.username || '';
-        const matchesText = !normalizedQuery || matchesQuery(`${reporterName} ${reportedName}`);
+        const reason = report.reason || '';
+        const matchesText = !normalizedQuery || matchesQuery(`${reporterName} ${reportedName} ${reason}`);
         return matchesText;
     });
 
@@ -413,8 +414,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 className="w-full px-4 py-3 border-2 border-black font-mono"
                             >
                                 <option value="ALL">Все</option>
-                                <option value="SINGLE_LOOK">Single Look</option>
-                                <option value="COLLECTION">Collection</option>
+                                <option value="SINGLE_LOOK">Один образ</option>
+                                <option value="COLLECTION">Коллекция</option>
                             </select>
                         </div>
                     </>
@@ -490,7 +491,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" required />
                         </div>
                         <div>
-                            <label className="block text-xs font-black uppercase mb-2">ЦЕНА ($)</label>
+                            <label className="block text-xs font-black uppercase mb-2">ЦЕНА (₽)</label>
                             <input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })} className="w-full px-4 py-3 border-2 border-black font-mono" />
                         </div>
                         <div>
@@ -511,13 +512,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <div>
                                     <label className="block text-xs font-black uppercase mb-2">ТИП</label>
                                     <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as ClothingItem['type'] })} className="w-full px-4 py-3 border-2 border-black font-mono">
-                                        <option value="SINGLE_LOOK">Single Look</option>
-                                        <option value="COLLECTION">Collection</option>
+                                        <option value="SINGLE_LOOK">Один образ</option>
+                                        <option value="COLLECTION">Коллекция</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black uppercase mb-2">ТЕГИ (через запятую)</label>
-                                    <input type="text" value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="Hype, Limited, Archive" />
+                                    <input type="text" value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="Хайп, Лимит, Архив" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black uppercase mb-2">РАЗМЕРЫ (через запятую)</label>
@@ -525,7 +526,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black uppercase mb-2">ЦВЕТА (через запятую)</label>
-                                    <input type="text" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="Black, White" />
+                                    <input type="text" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="Чёрный, Белый" />
                                 </div>
                             </>
                         )}
@@ -536,7 +537,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <label htmlFor="image-upload" className="px-6 py-3 border-2 border-black cursor-pointer hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">ВЫБРАТЬ ФАЙЛ</label>
                                 {imagePreview && (
                                     <div className="w-20 h-20 border-2 border-black overflow-hidden">
-                                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                        <img src={imagePreview} alt="Превью" className="w-full h-full object-cover" />
                                     </div>
                                 )}
                             </div>
@@ -566,7 +567,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <div className="pr-1">
                                         <span className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black">{item.brand}</span>
                                         <h3 className="font-black text-xs mt-1 line-clamp-2 break-words">{item.name}</h3>
-                                        <p className="text-[11px] text-gray-500 font-mono mt-1">${item.price} • {item.category}</p>
+                                        <p className="text-[11px] text-gray-500 font-mono mt-1">{item.price} ₽ • {item.category}</p>
                                     </div>
                                     <div className="flex gap-1 flex-shrink-0">
                                         <button onClick={() => startEditItem(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 transition-colors">
@@ -600,7 +601,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         <span className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black">{drop.brand}</span>
                                         <h3 className="font-black text-xs mt-1 line-clamp-2 break-words">{drop.name}</h3>
                                         <p className="text-[11px] text-gray-500 font-mono mt-1">
-                                            {typeof drop.price === 'number' ? `$${drop.price}` : drop.price} • {new Date(drop.releaseDate).toLocaleDateString()}
+                                            {typeof drop.price === 'number' ? `${drop.price} ₽` : drop.price} • {new Date(drop.releaseDate).toLocaleDateString()}
                                         </p>
                                     </div>
                                     <div className="flex gap-1 flex-shrink-0">
@@ -690,24 +691,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <p className="text-gray-400 font-mono uppercase">Нет репортов пользователей.</p>
                             </div>
                         ) : (
-                            filteredUserReports.map((report) => (
+                            filteredUserReports.map((report) => {
+                                const r = report as UserReport & { reported_user_id?: string; reported_user?: User; reporter_id?: string; created_at?: string };
+                                const reportedUserId = report.reportedUserId ?? r.reported_user_id;
+                                const reportedUser = report.reportedUser ?? r.reported_user;
+                                const createdAt = report.createdAt ?? r.created_at;
+                                const reporter = report.reporter ?? (r as { reporter?: User }).reporter;
+                                const reporterId = report.reporterId ?? r.reporter_id;
+                                return (
                                 <div key={report.id} className="bg-white border-2 border-black p-4 shadow-neo">
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2 mb-2">
                                                 <span className="text-[10px] font-black uppercase bg-neo-yellow px-1 border border-black">
-                                                    Репорт от: {report.reporter?.username || report.reporterId}
+                                                    Пользователь
                                                 </span>
                                                 <span className="text-[10px] font-black uppercase bg-black text-white px-1 border border-black">
-                                                    На: {report.reportedUser?.username || report.reportedUserId}
+                                                    {reportedUser?.username ?? report.reportedUser?.username ?? reportedUserId ?? report.reportedUserId ?? '—'}
+                                                </span>
+                                                <span className="text-[10px] font-mono text-gray-500">
+                                                    Репорт от: {reporter?.username ?? report.reporter?.username ?? reporterId ?? report.reporterId ?? '—'}
                                                 </span>
                                             </div>
-                                            {report.reason && (
-                                                <p className="text-sm font-mono text-black break-words">{report.reason}</p>
-                                            )}
+                                            <div className="text-xs font-mono text-gray-500 mb-2">
+                                                Репорт на пользователя
+                                                {createdAt ? ` • ${new Date(createdAt).toLocaleDateString()}` : ''}
+                                            </div>
+                                            <p className="text-sm font-mono text-black break-words">
+                                                {report.reason || 'Текст недоступен'}
+                                            </p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {report.reportedUserId && (
+                                            {reportedUserId && (
                                                 <select
                                                     value={userBanDays[report.id] ?? 7}
                                                     onChange={(e) => setUserBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
@@ -722,9 +737,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <button onClick={() => onDeleteUserReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
                                                 <XIcon />
                                             </button>
-                                            {report.reportedUserId && (
+                                            {reportedUserId && (
                                                 <button
-                                                    onClick={() => onBanUser(report.reportedUserId!, userBanDays[report.id] ?? 7)}
+                                                    onClick={() => onBanUser(String(reportedUserId), userBanDays[report.id] ?? 7)}
                                                     className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
                                                 >
                                                     Забанить
@@ -733,7 +748,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         </div>
                                     </div>
                                 </div>
-                            ))
+                                );
+                            })
                         )
                     )}
                 </div>

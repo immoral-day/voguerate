@@ -33,7 +33,7 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
             <div className="max-w-4xl mx-auto space-y-8" onClick={e => e.stopPropagation()}>
                 <div className="bg-white border-2 border-black p-6 shadow-neo-lg">
                     <h2 className="text-2xl font-black uppercase mb-4 border-b-2 border-black pb-2 flex justify-between">
-                        КОЛЛЕКЦИИ & ITEMS <Badge>{filteredItems.length}</Badge>
+                        КОЛЛЕКЦИИ И ПРЕДМЕТЫ <Badge>{filteredItems.length}</Badge>
                     </h2>
                     {filteredItems.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -58,7 +58,7 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
 
                 <div className="bg-white border-2 border-black p-6 shadow-neo-lg">
                     <h2 className="text-2xl font-black uppercase mb-4 border-b-2 border-black pb-2 flex justify-between">
-                        ДИЗАЙНЕРЫ & ЛЮДИ <Badge>{filteredUsers.length}</Badge>
+                        ДИЗАЙНЕРЫ И ЛЮДИ <Badge>{filteredUsers.length}</Badge>
                     </h2>
                     {filteredUsers.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -71,7 +71,7 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
                                     <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} size="sm" />
                                     <div>
                                         <div className="font-bold text-sm uppercase">{user.username}</div>
-                                        <div className="text-[10px] text-gray-500 font-mono">{user.role} • {user.reputation} REP</div>
+                                        <div className="text-[10px] text-gray-500 font-mono">{user.role === 'ADMIN' ? 'Админ' : user.role === 'DESIGNER' ? 'Дизайнер' : 'Пользователь'} • {user.reputation} реп</div>
                                     </div>
                                 </div>
                             ))}

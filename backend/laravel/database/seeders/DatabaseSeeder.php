@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
                 'favorite_designers' => [],
                 'favorites' => [],
                 'wardrobe' => ['owned' => [], 'wanted' => [], 'sold' => []],
-                'badges' => ['ADMIN', 'VERIFIED'],
+                'badges' => ['АДМИН', 'ВЕРИФИЦИРОВАН'],
                 'following' => [],
                 'followers' => [],
             ]);

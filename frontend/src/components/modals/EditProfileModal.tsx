@@ -91,7 +91,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
             <div className="bg-white border-2 border-black shadow-neo-lg w-full max-w-lg relative animate-slide-up" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-4 border-b-2 border-black bg-neo-yellow">
-                    <h3 className="font-black uppercase">Edit Profile</h3>
+                    <h3 className="font-black uppercase">Редактировать профиль</h3>
                     <button onClick={onClose}><XIcon /></button>
                 </div>
                 <div className="p-6 space-y-6">
@@ -109,7 +109,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                         <div className="border-2 border-black bg-bg p-3">
                             {backgroundPreview ? (
                                 <div className="w-full h-32 border-2 border-black overflow-hidden mb-3">
-                                    <img src={backgroundPreview} alt="Profile background" className="w-full h-full object-cover" />
+                                    <img src={backgroundPreview} alt="Фон профиля" className="w-full h-full object-cover" />
                                 </div>
                             ) : (
                                 <div className="w-full h-32 border-2 border-dashed border-black flex items-center justify-center text-xs font-mono text-gray-500 mb-3">
@@ -123,7 +123,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-black uppercase mb-2">Bio</label>
+                        <label className="block text-xs font-black uppercase mb-2">О себе</label>
                         <textarea 
                             value={bio} 
                             onChange={e => setBio(e.target.value)}
@@ -146,9 +146,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                     )}
                     <div className="flex gap-4 pt-4">
                         <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                            {saving ? 'СОХРАНЕНИЕ...' : 'SAVE CHANGES'}
+                            {saving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
                         </Button>
-                        <Button variant="outline" className="flex-1" onClick={onClose}>CANCEL</Button>
+                        <Button variant="outline" className="flex-1" onClick={onClose}>ОТМЕНА</Button>
                     </div>
                 </div>
             </div>

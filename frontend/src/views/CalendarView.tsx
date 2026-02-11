@@ -227,7 +227,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop, curren
                                                 </div>
                                                 <h3 className="text-2xl font-black uppercase mb-2">{drop.name}</h3>
                                                 <div className="flex gap-4 text-xs font-bold uppercase text-gray-600">
-                                                    <span>Цена: {drop.price === 'TBA' ? 'TBA' : `$${drop.price}`}</span>
+                                                    <span>Цена: {drop.price === 'TBA' ? 'TBA' : `${drop.price} ₽`}</span>
                                                     <span>•</span>
                                                     <span>{isReleased ? 'Владельцы' : 'Ждут'}: {drop.copCount || 0}</span>
                                                 </div>

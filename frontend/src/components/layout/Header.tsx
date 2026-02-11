@@ -37,11 +37,11 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfile
                 <div className="text-right hidden sm:block">
                     <div className="flex items-center justify-end gap-2">
                         {currentUser.role === 'ADMIN' && (
-                            <span className="text-[9px] font-black bg-red-500 text-white px-1.5 py-0.5 uppercase">ADMIN</span>
+                            <span className="text-[9px] font-black bg-red-500 text-white px-1.5 py-0.5 uppercase">АДМИН</span>
                         )}
                         <span className="text-xs font-black text-black uppercase tracking-wider">{currentUser.username}</span>
                     </div>
-                    <div className="text-[10px] text-gray-500 font-mono font-bold">{currentUser.reputation} REP</div>
+                    <div className="text-[10px] text-gray-500 font-mono font-bold">{currentUser.reputation} реп</div>
                 </div>
                 <Avatar src={currentUser.avatar || DEFAULT_AVATAR} alt={currentUser.username} size="sm" />
             </div>

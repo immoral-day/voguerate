@@ -68,7 +68,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onIte
                                 <div className="p-4">
                                     <div className="text-[10px] font-bold bg-neo-yellow inline-block px-1 uppercase mb-1 border border-black">{drop.brand}</div>
                                     <div className="font-bold text-sm leading-tight">{drop.name}</div>
-                                    <div className="text-xs text-gray-500 font-mono mt-1">{typeof drop.price === 'number' ? `$${drop.price}` : drop.price}</div>
+                                    <div className="text-xs text-gray-500 font-mono mt-1">{typeof drop.price === 'number' ? `${drop.price} ₽` : drop.price}</div>
                                 </div>
                             </div>
                         ))}
@@ -79,7 +79,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onIte
             <div id="trends-section">
                 <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-2">
                     <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><TrendingIcon className="text-neo-red" /> ТРЕНДЫ СЕЙЧАС</h2>
-                    <Badge className="bg-black text-white">LIVE FEED</Badge>
+                    <Badge className="bg-black text-white">В ЭФИРЕ</Badge>
                 </div>
                 {trendingItems.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -129,7 +129,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onIte
             {liveReviews.length > 0 && (
                 <div>
                     <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-2">
-                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><MessageSquareIcon className="text-neo-green" /> LIVE РЕЦЕНЗИИ</h2>
+                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><MessageSquareIcon className="text-neo-green" /> ЖИВЫЕ РЕЦЕНЗИИ</h2>
                         <div className="animate-pulse flex items-center gap-2">
                             <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                             <span className="text-xs font-mono font-bold text-red-500 uppercase">Live</span>

@@ -38,11 +38,11 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, onUserC
                                         ))}
                                     </div>
                                 </div>
-                                <div className="text-xs font-mono text-gray-500">{user.reviewsCount} REVIEWS</div>
+                                <div className="text-xs font-mono text-gray-500">{user.reviewsCount} отзывов</div>
                             </div>
                             <div className="text-right">
                                 <div className="font-black text-2xl">{user.reputation}</div>
-                                <div className="text-[10px] uppercase font-bold text-gray-400">REP</div>
+                                <div className="text-[10px] uppercase font-bold text-gray-400">репутация</div>
                             </div>
                         </div>
                     ))}

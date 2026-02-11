@@ -353,7 +353,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
 
           <div>
             <label className="block text-xs font-black uppercase mb-1">
-              Почему ты хочешь стать автором VR
+              Почему ты хочешь стать автором ВР
             </label>
             <p className="text-[10px] font-mono text-gray-500 mb-2">
               Обязательно. Зачем тебе авторство и что хочешь привнести. Рекомендуем до 800 символов.
@@ -484,7 +484,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                       </div>
                       <div className="font-black text-xs uppercase truncate">{drop.name}</div>
                       <div className="text-[11px] font-mono text-gray-500 mt-1">
-                        {typeof drop.price === 'number' ? `$${drop.price}` : drop.price}{' '}
+                        {typeof drop.price === 'number' ? `${drop.price} ₽` : drop.price}{' '}
                         • {new Date(drop.releaseDate).toLocaleDateString()}
                       </div>
                     </div>
@@ -519,7 +519,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase mb-2">Цена ($)</label>
+                  <label className="block text-xs font-black uppercase mb-2">Цена (₽)</label>
                   <input
                     type="number"
                     value={itemForm.price}
@@ -655,7 +655,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                       </div>
                       <div className="font-black text-xs uppercase truncate">{item.name}</div>
                       <div className="text-[11px] font-mono text-gray-500 mt-1">
-                        ${item.price} • {item.category}
+                        {item.price} ₽ • {item.category}
                       </div>
                     </div>
                   </div>

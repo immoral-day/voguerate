@@ -435,7 +435,7 @@ export const App: React.FC = () => {
         return (
             <div className="min-h-screen bg-bg flex items-center justify-center">
                 <div className="text-center">
-                    <div className="inline-block font-black text-4xl tracking-tighter text-black bg-neo-yellow px-4 py-2 border-2 border-black shadow-neo mb-4 animate-pulse">VR</div>
+                    <div className="inline-block font-black text-4xl tracking-tighter text-black bg-neo-yellow px-4 py-2 border-2 border-black shadow-neo mb-4 animate-pulse">ВР</div>
                     <p className="text-sm font-mono text-gray-500 uppercase">Загрузка...</p>
                 </div>
             </div>
@@ -566,7 +566,7 @@ export const App: React.FC = () => {
                     />
                 );
             } else {
-                content = <div className="p-12 text-center font-mono">Item not found</div>;
+                content = <div className="p-12 text-center font-mono">Предмет не найден</div>;
             }
             break;
         }
@@ -591,7 +591,7 @@ export const App: React.FC = () => {
                     />
                 );
             } else {
-                content = <div className="p-12 text-center font-mono">User not found</div>;
+                content = <div className="p-12 text-center font-mono">Пользователь не найден</div>;
             }
             break;
         }
