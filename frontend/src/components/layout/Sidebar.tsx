@@ -1,6 +1,14 @@
 import React from 'react';
 import { ViewState } from '../../types';
-import { HomeIcon, CalendarIcon, StarIcon, TrendingIcon, SettingsIcon, AuthorIcon, NewsIcon } from '../icons/Icons';
+import {
+    AuthorIcon,
+    CalendarIcon,
+    HomeIcon,
+    NewsIcon,
+    SettingsIcon,
+    StarIcon,
+    TrendingIcon,
+} from '../icons/Icons';
 
 interface SidebarProps {
     setView: (v: ViewState) => void;
@@ -8,44 +16,39 @@ interface SidebarProps {
     isAdmin?: boolean;
 }
 
+const navItems = [
+    { id: 'HOME', icon: HomeIcon, label: '', title: 'Главная' },
+    { id: 'EXPLORE', icon: CalendarIcon, label: '', title: 'Календарь' },
+    { id: 'TOP_RATED', icon: StarIcon, label: '', title: 'Топ' },
+    { id: 'LEADERBOARD', icon: null, label: '90', title: 'Рейтинг' },
+    { id: 'AUTHORSHIP', icon: AuthorIcon, label: '', title: 'Авторство' },
+    { id: 'NEWS', icon: NewsIcon, label: '', title: 'Новости' },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isAdmin }) => {
-    const navItems = [
-        { id: 'HOME', icon: <HomeIcon />, label: 'Главная' },
-        { id: 'EXPLORE', icon: <CalendarIcon />, label: 'Календарь' },
-        { id: 'TOP_RATED', icon: <StarIcon />, label: 'Топ' },
-        { id: 'LEADERBOARD', icon: <TrendingIcon />, label: 'Рейтинг' },
-        { id: 'AUTHORSHIP', icon: <AuthorIcon />, label: 'Авторство' },
-        { id: 'NEWS', icon: <NewsIcon />, label: 'Новости' },
-    ];
-    
-    if (isAdmin) {
-        navItems.push({ id: 'ADMIN', icon: <SettingsIcon />, label: 'Админ' });
-    }
-    
+    const items = isAdmin ? [...navItems, { id: 'ADMIN', icon: SettingsIcon, label: '', title: 'Админ' }] : navItems;
+
     return (
-        <div className="fixed left-0 top-0 h-full w-[88px] flex flex-col items-center py-8 bg-white border-r-2 border-black z-50">
-            <div 
-                className="mb-12 font-black text-3xl tracking-tighter cursor-pointer text-black bg-neo-yellow w-14 h-14 flex items-center justify-center border-2 border-black shadow-neo" 
-                onClick={() => setView({ view: 'HOME' })}
-            >
-                ВР
-            </div>
-            <div className="flex flex-col gap-4 w-full px-4">
-                {navItems.map(item => (
-                    <button 
-                        key={item.id} 
-                        onClick={() => setView({ view: item.id as ViewState['view'] })}
-                        className={`w-14 h-14 rounded-none transition-all flex items-center justify-center border-2 ${
-                            activeView === item.id 
-                                ? 'bg-black text-white border-black shadow-neo-sm' 
-                                : 'bg-white text-black border-transparent hover:border-black hover:bg-gray-100'
-                        }`}
-                        title={item.label}
-                    >
-                        {item.icon}
-                    </button>
-                ))}
-            </div>
-        </div>
+        <aside className="rail" aria-label="Навигация">
+            {items.map((item, index) => {
+                const Icon = item.icon || TrendingIcon;
+                const isActive = activeView === item.id || (item.id === 'EXPLORE' && activeView === 'CALENDAR');
+
+                return (
+                    <React.Fragment key={item.id}>
+                        {index === 3 && <span className="rail-sep" />}
+                        <button
+                            className={isActive ? 'active' : ''}
+                            type="button"
+                            title={item.title}
+                            aria-label={item.title}
+                            onClick={() => setView({ view: item.id as ViewState['view'] })}
+                        >
+                            {item.label ? <span className="rail-number">{item.label}</span> : <Icon className="rail-icon" />}
+                        </button>
+                    </React.Fragment>
+                );
+            })}
+        </aside>
     );
 };

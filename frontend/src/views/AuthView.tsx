@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Button } from '../components/UI';
 
 interface AuthViewProps {
     onLogin: (email: string, password: string) => void;
@@ -14,79 +13,105 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
         if (isLogin) {
-            onLogin(email, password);
-        } else {
-            onRegister(username, email, password);
+            onLogin(email.trim(), password);
+            return;
         }
+        onRegister(username.trim(), email.trim(), password);
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-bg relative overflow-hidden">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-            <div className="z-10 bg-white border-2 border-black p-12 shadow-neo-lg max-w-md w-full text-center relative">
-                <div className="bg-neo-yellow border-2 border-black w-20 h-20 flex items-center justify-center text-4xl font-black mx-auto mb-8 shadow-neo absolute -top-10 left-1/2 -translate-x-1/2">
-                    ВР
-                </div>
-                <h1 className="text-4xl font-black uppercase mb-2 mt-8">Vogue Rate</h1>
-                <p className="font-mono text-sm text-gray-500 mb-8 uppercase">
-                    {isLogin ? 'Войти в аккаунт' : 'Создать аккаунт'}
-                </p>
-                
-                {error && (
-                    <div className="mb-4 p-3 bg-red-100 border-2 border-red-500 text-red-700 text-xs font-bold uppercase">
-                        {error}
-                    </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="space-y-4 text-left">
-                    {!isLogin && (
-                        <div>
-                            <label className="block text-xs font-black uppercase mb-2">ИМЯ ПОЛЬЗОВАТЕЛЯ</label>
+        <div className="auth-shell">
+            {isLogin ? (
+                <section className="auth-card-login">
+                    <h1>Вход</h1>
+                    <form onSubmit={handleSubmit} className="auth-compact-form">
+                        {error && <div className="auth-error">{error}</div>}
+                        <label>
+                            Имя пользователя или email
                             <input
                                 type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-3 border-2 border-black focus:outline-none focus:shadow-neo transition-shadow font-mono"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                placeholder="admin или email@example.com"
+                                autoComplete="username"
                                 required
                             />
-                        </div>
-                    )}
-                    <div>
-                        <label className="block text-xs font-black uppercase mb-2">{isLogin ? 'ИМЯ ПОЛЬЗОВАТЕЛЯ ИЛИ EMAIL' : 'EMAIL'}</label>
-                        <input
-                            type={isLogin ? 'text' : 'email'}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-black focus:outline-none focus:shadow-neo transition-shadow font-mono"
-                            required
-                            placeholder={isLogin ? 'admin' : 'email@example.com'}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-black uppercase mb-2">ПАРОЛЬ</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-black focus:outline-none focus:shadow-neo transition-shadow font-mono"
-                            required
-                        />
-                    </div>
-                    <Button type="submit" className="w-full py-4 text-lg" disabled={loading}>
-                        {loading ? 'ЗАГРУЗКА...' : isLogin ? 'ВОЙТИ' : 'СОЗДАТЬ АККАУНТ'}
-                    </Button>
-                </form>
-                
-                <div className="mt-6">
-                    <button onClick={() => setIsLogin(!isLogin)} className="text-xs font-bold text-gray-500 hover:text-black transition-colors">
-                        {isLogin ? '→ Нет аккаунта? Создать' : '← Уже есть аккаунт? Войти'}
+                        </label>
+                        <label>
+                            Пароль
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                autoComplete="current-password"
+                                required
+                            />
+                        </label>
+                        <button className="auth-submit" type="submit" disabled={loading}>
+                            {loading ? 'Проверка...' : 'Войти'}
+                        </button>
+                    </form>
+                    <button className="auth-inline-link" type="button" onClick={() => setIsLogin(false)}>
+                        Создать аккаунт
                     </button>
-                </div>
-                
-            </div>
+                </section>
+            ) : (
+                <section className="auth-split">
+                    <div className="auth-form-pane">
+                        <h1>Создать аккаунт</h1>
+                        <form onSubmit={handleSubmit} className="auth-compact-form">
+                            {error && <div className="auth-error">{error}</div>}
+                            <label>
+                                Email
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    placeholder="mail@example.com"
+                                    autoComplete="email"
+                                    required
+                                />
+                            </label>
+                            <label>
+                                Отображаемое имя
+                                <input
+                                    value={username}
+                                    onChange={(event) => setUsername(event.target.value)}
+                                    placeholder="Ваш никнейм"
+                                    autoComplete="username"
+                                    required
+                                />
+                            </label>
+                            <label>
+                                Пароль
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    autoComplete="new-password"
+                                    required
+                                />
+                            </label>
+                            <button className="auth-submit" type="submit" disabled={loading}>
+                                {loading ? 'Создание...' : 'Создать аккаунт'}
+                            </button>
+                        </form>
+                        <button className="auth-inline-link" type="button" onClick={() => setIsLogin(true)}>
+                            Уже есть аккаунт? Войти
+                        </button>
+                    </div>
+                    <div className="auth-side-pane">
+                        <div className="auth-side-logo">ВОЯЖ<br />РЕЙТ</div>
+                        <div>
+                            <strong>Архив оценок и рецензий.</strong>
+                            <span>Предмет, оценка, рецензия, автор, репутация и реакция сообщества.</span>
+                        </div>
+                    </div>
+                </section>
+            )}
         </div>
     );
 };

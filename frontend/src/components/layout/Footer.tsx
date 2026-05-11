@@ -1,22 +1,18 @@
 import React from 'react';
 
 export const Footer: React.FC = () => (
-    <footer className="bg-black text-white py-12 px-8 border-t-2 border-black mt-auto relative z-10">
-        <div className="max-w-[1800px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
+    <footer className="mt-auto border-t border-[var(--line)] pt-6 text-[12px] text-[var(--muted)]">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-                <div className="font-black text-4xl mb-4">ВР</div>
-                <div className="font-mono text-xs text-gray-500 max-w-xs leading-relaxed">
-                    Архивируем модную критику, чтобы завтра не стыдно было за сегодняшний «хайп».
-                    <br />
-                    Все рецензии проходят ручную модерацию и защищены от спама, ботов и копипасты.
-                    <br />
-                    ВР, {new Date().getFullYear()}.
-                </div>
+                <div className="logo !inline-block !justify-self-auto !text-[24px] mb-3">ВОЯЖ<br />РЕЙТ</div>
+                <p className="max-w-xl">
+                    Архив модной критики: предмет, оценка, рецензия, автор, репутация и реакция сообщества.
+                </p>
             </div>
-            <div className="flex gap-8 font-mono text-[10px] font-bold text-gray-500 uppercase">
-                <span>Без рекламы</span>
-                <span>Без реферальных ссылок</span>
-                <span>Без продаж аккаунтов</span>
+            <div className="flex flex-wrap gap-3">
+                <span className="pill">без рекламы</span>
+                <span className="pill">без реферальных ссылок</span>
+                <span className="pill red">«ВОЯЖРЕЙТ» © 2024-{new Date().getFullYear()}</span>
             </div>
         </div>
     </footer>

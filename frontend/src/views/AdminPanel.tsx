@@ -6,6 +6,8 @@ import { Button } from '../components/UI';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { apiService } from '../services/apiService';
 import { stripHtmlToPlain } from '../utils/string';
+import { categoryLabel } from '../utils/labels';
+import { ITEM_COLOR_OPTIONS, ITEM_SIZE_OPTIONS, ITEM_TAG_OPTIONS, ARTICLE_TOPIC_OPTIONS, csvToList, toggleCsvValue } from '../utils/itemOptions';
 
 interface AdminPanelProps {
     items: ClothingItem[];
@@ -38,6 +40,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [loading, setLoading] = useState(false);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string>('');
+    const [itemImageFiles, setItemImageFiles] = useState<Array<File | null>>([]);
+    const [itemImagePreviews, setItemImagePreviews] = useState<string[]>([]);
     const [formError, setFormError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [itemCategoryFilter, setItemCategoryFilter] = useState<'ALL' | ClothingItem['category']>('ALL');
@@ -84,10 +88,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
+    const handleItemImageSlotChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setItemImageFiles((prev) => {
+            const next = [...prev];
+            next[index] = file;
+            return next.slice(0, 3);
+        });
+        setFormError('');
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            setItemImagePreviews((prev) => {
+                const next = [...prev];
+                next[index] = reader.result as string;
+                return next.slice(0, 3);
+            });
+        };
+        reader.readAsDataURL(file);
+    };
+
     const resetForm = () => {
         setFormData({ brand: '', name: '', category: 'Streetwear', type: 'SINGLE_LOOK', price: 0, releaseDate: new Date().toISOString().split('T')[0], tags: '', sizes: '', colors: '' });
         setImageFile(null);
         setImagePreview('');
+        setItemImageFiles([]);
+        setItemImagePreviews([]);
         setFormError('');
         setEditingId(null);
         setShowForm(false);
@@ -135,6 +163,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             }
             const payload = {
                 title: newsForm.title.trim(),
+                topic: newsForm.topic.trim() || undefined,
                 body: newsForm.body,
                 image: imageUrl,
             };
@@ -161,7 +190,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             sizes: item.sizes?.join(', ') || '',
             colors: item.colors?.join(', ') || '',
         });
+        const images = [item.image, ...(item.images || [])].filter(Boolean);
         setImagePreview(item.image || '');
+        setItemImageFiles([]);
+        setItemImagePreviews(Array.from(new Set(images)).slice(0, 3));
         setEditingId(item.id);
         setShowForm(true);
     };
@@ -185,21 +217,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const handleSubmitItem = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editingId && !imageFile) {
+        if (!editingId && itemImageFiles.length === 0 && itemImagePreviews.length === 0) {
             setFormError('Добавьте изображение');
             return;
         }
         setLoading(true);
         try {
-            let imageUrl = imagePreview;
-            if (imageFile) {
-                const upload = await apiService.uploadFile(imageFile, 'item');
-                imageUrl = upload.url;
-            }
+            const imageUrls = (await Promise.all(
+                itemImagePreviews.slice(0, 3).map(async (preview, index) => {
+                    const file = itemImageFiles[index];
+                    if (!file) return preview;
+                    const upload = await apiService.uploadFile(file, 'item');
+                    return upload.url;
+                }),
+            )).filter(Boolean);
             const data = {
                 brand: formData.brand,
                 name: formData.name,
-                image: imageUrl,
+                image: imageUrls[0],
+                images: imageUrls,
                 category: formData.category,
                 type: formData.type,
                 price: formData.price,
@@ -400,10 +436,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 className="w-full px-4 py-3 border-2 border-black font-mono"
                             >
                                 <option value="ALL">Все</option>
-                                <option value="Streetwear">Streetwear</option>
-                                <option value="Luxury">Luxury</option>
-                                <option value="Techwear">Techwear</option>
-                                <option value="Vintage">Vintage</option>
+                                <option value="Streetwear">{categoryLabel('Streetwear')}</option>
+                                <option value="Luxury">{categoryLabel('Luxury')}</option>
+                                <option value="Techwear">{categoryLabel('Techwear')}</option>
+                                <option value="Vintage">{categoryLabel('Vintage')}</option>
                             </select>
                         </div>
                         <div>
@@ -503,10 +539,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <div>
                                     <label className="block text-xs font-black uppercase mb-2">КАТЕГОРИЯ</label>
                                     <select value={formData.category} onChange={(e) => setFormData({ ...formData, category: e.target.value as ClothingItem['category'] })} className="w-full px-4 py-3 border-2 border-black font-mono">
-                                        <option value="Streetwear">Streetwear</option>
-                                        <option value="Luxury">Luxury</option>
-                                        <option value="Techwear">Techwear</option>
-                                        <option value="Vintage">Vintage</option>
+                                        <option value="Streetwear">{categoryLabel('Streetwear')}</option>
+                                        <option value="Luxury">{categoryLabel('Luxury')}</option>
+                                        <option value="Techwear">{categoryLabel('Techwear')}</option>
+                                        <option value="Vintage">{categoryLabel('Vintage')}</option>
                                     </select>
                                 </div>
                                 <div>
@@ -517,30 +553,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black uppercase mb-2">ТЕГИ (через запятую)</label>
-                                    <input type="text" value={formData.tags} onChange={(e) => setFormData({ ...formData, tags: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="Хайп, Лимит, Архив" />
+                                    <label className="block text-xs font-black uppercase mb-2">Теги</label>
+                                    <div className="option-chip-grid">
+                                        {ITEM_TAG_OPTIONS.map((option) => (
+                                            <button type="button" className={csvToList(formData.tags).includes(option) ? 'selected' : ''} key={option} onClick={() => setFormData({ ...formData, tags: toggleCsvValue(formData.tags, option) })}>
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black uppercase mb-2">РАЗМЕРЫ (через запятую)</label>
-                                    <input type="text" value={formData.sizes} onChange={(e) => setFormData({ ...formData, sizes: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="S, M, L, XL" />
+                                    <label className="block text-xs font-black uppercase mb-2">Размеры</label>
+                                    <div className="option-chip-grid compact">
+                                        {ITEM_SIZE_OPTIONS.map((option) => (
+                                            <button type="button" className={csvToList(formData.sizes).includes(option) ? 'selected' : ''} key={option} onClick={() => setFormData({ ...formData, sizes: toggleCsvValue(formData.sizes, option) })}>
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black uppercase mb-2">ЦВЕТА (через запятую)</label>
-                                    <input type="text" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} className="w-full px-4 py-3 border-2 border-black font-mono" placeholder="Чёрный, Белый" />
+                                    <label className="block text-xs font-black uppercase mb-2">Цвета</label>
+                                    <div className="option-chip-grid">
+                                        {ITEM_COLOR_OPTIONS.map((option) => (
+                                            <button type="button" className={csvToList(formData.colors).includes(option) ? 'selected' : ''} key={option} onClick={() => setFormData({ ...formData, colors: toggleCsvValue(formData.colors, option) })}>
+                                                {option}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </>
                         )}
                         <div className="col-span-2">
-                            <label className="block text-xs font-black uppercase mb-2">ИЗОБРАЖЕНИЕ</label>
-                            <div className="flex items-center gap-4">
-                                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" id="image-upload" />
-                                <label htmlFor="image-upload" className="px-6 py-3 border-2 border-black cursor-pointer hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">ВЫБРАТЬ ФАЙЛ</label>
-                                {imagePreview && (
-                                    <div className="w-20 h-20 border-2 border-black overflow-hidden">
-                                        <img src={imagePreview} alt="Превью" className="w-full h-full object-cover" />
-                                    </div>
-                                )}
-                            </div>
+                            <label className="block text-xs font-black uppercase mb-2">{activeTab === 'items' ? 'Фото вещи, до 3 штук' : 'Изображение'}</label>
+                            {activeTab === 'items' ? (
+                                <div className="photo-slot-grid">
+                                    {[0, 1, 2].map((index) => (
+                                        <label className={`photo-slot ${itemImagePreviews[index] ? 'filled' : ''}`} key={index}>
+                                            <input type="file" accept="image/*" onChange={(event) => handleItemImageSlotChange(index, event)} />
+                                            {itemImagePreviews[index] ? (
+                                                <img src={itemImagePreviews[index]} alt={`Превью ${index + 1}`} />
+                                            ) : (
+                                                <span>Фото {index + 1}</span>
+                                            )}
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4">
+                                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" id="image-upload" />
+                                    <label htmlFor="image-upload" className="px-6 py-3 border-2 border-black cursor-pointer hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">Выбрать файл</label>
+                                    {imagePreview && (
+                                        <div className="w-20 h-20 border-2 border-black overflow-hidden">
+                                            <img src={imagePreview} alt="Превью" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         {formError && <div className="col-span-2 text-xs font-bold text-red-600 uppercase">{formError}</div>}
                         <div className="col-span-2 flex gap-4 mt-4">
@@ -567,7 +636,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <div className="pr-1">
                                         <span className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black">{item.brand}</span>
                                         <h3 className="font-black text-xs mt-1 line-clamp-2 break-words">{item.name}</h3>
-                                        <p className="text-[11px] text-gray-500 font-mono mt-1">{item.price} ₽ • {item.category}</p>
+                                        <p className="text-[11px] text-gray-500 font-mono mt-1">{item.price} ₽ • {categoryLabel(item.category)}</p>
                                     </div>
                                     <div className="flex gap-1 flex-shrink-0">
                                         <button onClick={() => startEditItem(item)} className="p-1.5 text-blue-500 hover:bg-blue-50 transition-colors">
@@ -895,6 +964,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         placeholder="Заголовок новости"
                                         required
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black uppercase mb-2">ТЕМА</label>
+                                    <select
+                                        value={newsForm.topic}
+                                        onChange={(e) => setNewsForm({ ...newsForm, topic: e.target.value })}
+                                        className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
+                                    >
+                                        <option value="">Без темы</option>
+                                        {ARTICLE_TOPIC_OPTIONS.map(topic => (
+                                            <option key={topic} value={topic}>{topic}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black uppercase mb-2">ТЕКСТ</label>

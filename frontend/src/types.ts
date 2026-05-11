@@ -115,12 +115,22 @@ export interface AuthorshipRequest {
 export interface Article {
   id: string;
   title: string;
+  topic?: string | null;
   /** HTML-контент; с бэкенда может прийти null */
   body?: string | null;
   image?: string | null;
   publishedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface FeedbackMessage {
+  id: string;
+  userId?: string | null;
+  message: string;
+  page?: string | null;
+  createdAt?: string;
+  user?: User | null;
 }
 
 export interface ViewState {

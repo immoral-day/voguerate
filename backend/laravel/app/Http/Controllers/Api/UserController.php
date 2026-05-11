@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserReport;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UserController extends Controller
 {
@@ -40,10 +41,22 @@ class UserController extends Controller
             'username' => 'required|string',
             'password' => 'required|string',
         ]);
+        $data['username'] = trim($data['username']);
 
         $user = User::where('username', $data['username'])
             ->orWhere('email', $data['username'])
             ->first();
+        if (!$user || !is_string($user->password) || $user->password === '') {
+            return response()->json(['error' => 'Неверный логин или пароль'], 401);
+        }
+
+        try {
+            if (!Hash::check($data['password'], $user->password)) {
+                return response()->json(['error' => 'Неверный логин или пароль'], 401);
+            }
+        } catch (Throwable) {
+            return response()->json(['error' => 'Неверный логин или пароль'], 401);
+        }
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
             return response()->json(['error' => 'Неверный логин или пароль'], 401);

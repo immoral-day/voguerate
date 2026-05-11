@@ -1,0 +1,17 @@
+FROM php:8.4-cli-alpine
+
+WORKDIR /app
+
+RUN apk add --no-cache \
+    curl \
+    git \
+    unzip \
+    sqlite-dev \
+    libzip-dev \
+    && docker-php-ext-install pdo pdo_sqlite zip
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+EXPOSE 8080
+
+CMD ["sh", "-lc", "test -d vendor || composer install --no-interaction && mkdir -p database storage/app/public/avatars storage/app/public/profiles storage/app/public/items storage/app/public/drops storage/app/public/articles && touch database/database.sqlite && php artisan storage:link || true && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080"]

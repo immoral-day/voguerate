@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport, Article } from './types';
+import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport, Article, FeedbackMessage } from './types';
 import { ToastContainer, Button } from './components/UI';
 import { Sidebar, Header, Footer, SearchResultsOverlay } from './components/layout';
 import { EditProfileModal } from './components/modals/EditProfileModal';
@@ -36,32 +36,41 @@ export const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState('');
+    const [likedReviewIds, setLikedReviewIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
+        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
         const loadData = async () => {
-            try {
-                setIsLoading(true);
-                const [itemsData, reviewsData, usersData, dropsData, reviewReportsData, userReportsData, articlesData] = await Promise.all([
-                    apiService.get<ClothingItem[]>('/v1/items'),
-                    apiService.get<Review[]>('/v1/reviews'),
-                    apiService.get<User[]>('/v1/users'),
-                    apiService.get<UpcomingDrop[]>('/v1/drops'),
-                    apiService.get<ReviewReport[]>('/v1/report-reviews'),
-                    apiService.get<UserReport[]>('/v1/report-users'),
-                    apiService.get<Article[]>('/v1/articles'),
-                ]);
-                setClothingItems(itemsData);
-                setReviews(reviewsData);
-                setUsers(usersData);
-                setDrops(dropsData);
-                setReviewReports(reviewReportsData);
-                setUserReports(userReportsData);
-                setArticles(articlesData);
-            } catch (error) {
-                console.error('Failed to load data from API:', error);
-            } finally {
-                setIsLoading(false);
+            setIsLoading(true);
+            for (let attempt = 1; attempt <= 4; attempt += 1) {
+                try {
+                    const [itemsData, reviewsData, usersData, dropsData, reviewReportsData, userReportsData, articlesData] = await Promise.all([
+                        apiService.get<ClothingItem[]>('/v1/items'),
+                        apiService.get<Review[]>('/v1/reviews'),
+                        apiService.get<User[]>('/v1/users'),
+                        apiService.get<UpcomingDrop[]>('/v1/drops'),
+                        apiService.get<ReviewReport[]>('/v1/report-reviews'),
+                        apiService.get<UserReport[]>('/v1/report-users'),
+                        apiService.get<Article[]>('/v1/articles'),
+                    ]);
+                    setClothingItems(itemsData);
+                    setReviews(reviewsData);
+                    setUsers(usersData);
+                    setDrops(dropsData);
+                    setReviewReports(reviewReportsData);
+                    setUserReports(userReportsData);
+                    setArticles(articlesData);
+                    setIsLoading(false);
+                    return;
+                } catch (error) {
+                    console.error(`Failed to load data from API, attempt ${attempt}:`, error);
+                    if (attempt < 4) {
+                        await wait(900);
+                    }
+                }
             }
+            setIsLoading(false);
         };
         loadData();
     }, []);
@@ -73,6 +82,41 @@ export const App: React.FC = () => {
             if (user) setCurrentUser(user);
         }
     }, [users]);
+
+    useEffect(() => {
+        if (!currentUser) {
+            setLikedReviewIds(new Set());
+            return;
+        }
+
+        try {
+            const stored = localStorage.getItem(`likedReviews:${currentUser.id}`);
+            setLikedReviewIds(new Set(stored ? JSON.parse(stored) as string[] : []));
+        } catch {
+            localStorage.removeItem(`likedReviews:${currentUser.id}`);
+            setLikedReviewIds(new Set());
+        }
+    }, [currentUser?.id]);
+
+    const rememberLikedReview = (reviewId: string) => {
+        if (!currentUser) return;
+        setLikedReviewIds((prev) => {
+            const next = new Set(prev);
+            next.add(reviewId);
+            localStorage.setItem(`likedReviews:${currentUser.id}`, JSON.stringify([...next]));
+            return next;
+        });
+    };
+
+    const forgetLikedReview = (reviewId: string) => {
+        if (!currentUser) return;
+        setLikedReviewIds((prev) => {
+            const next = new Set(prev);
+            next.delete(reviewId);
+            localStorage.setItem(`likedReviews:${currentUser.id}`, JSON.stringify([...next]));
+            return next;
+        });
+    };
 
     const enrichedReviews = useMemo(
         () =>
@@ -134,14 +178,51 @@ export const App: React.FC = () => {
     const handleToggleFollow = async (targetId: string) => {
         if (!currentUser) return;
         const following = currentUser.following || [];
+        const wasFollowing = following.includes(targetId);
         const newFollowing = following.includes(targetId) ? following.filter(id => id !== targetId) : [...following, targetId];
+        const optimisticUser = { ...currentUser, following: newFollowing };
+
+        setCurrentUser(optimisticUser);
+        setUsers(prev => prev.map(user => {
+            if (user.id === currentUser.id) return optimisticUser;
+            if (user.id === targetId) {
+                const followers = user.followers || [];
+                return {
+                    ...user,
+                    followers: wasFollowing
+                        ? followers.filter(id => id !== currentUser.id)
+                        : followers.includes(currentUser.id)
+                            ? followers
+                            : [...followers, currentUser.id],
+                };
+            }
+            return user;
+        }));
+        addToast(wasFollowing ? 'Подписка отменена' : 'Вы подписались');
+
         try {
             const updatedUser = await apiService.put<User>(`/v1/users/${currentUser.id}`, { following: newFollowing });
             setCurrentUser(updatedUser);
-            setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
-            addToast(newFollowing.includes(targetId) ? "Followed" : "Unfollowed");
+            setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
         } catch (error) {
             console.error('Failed to toggle follow:', error);
+            setCurrentUser(currentUser);
+            setUsers(prev => prev.map(user => {
+                if (user.id === currentUser.id) return currentUser;
+                if (user.id === targetId) {
+                    const followers = user.followers || [];
+                    return {
+                        ...user,
+                        followers: wasFollowing
+                            ? followers.includes(currentUser.id)
+                                ? followers
+                                : [...followers, currentUser.id]
+                            : followers.filter(id => id !== currentUser.id),
+                    };
+                }
+                return user;
+            }));
+            addToast('Ошибка подписки');
         }
     };
 
@@ -162,13 +243,22 @@ export const App: React.FC = () => {
     const handleToggleFavorite = async (id: string) => {
     if (!currentUser) return;
         const favorites = currentUser.favorites || [];
+        const wasFavorite = favorites.includes(id);
         const newFavorites = favorites.includes(id) ? favorites.filter(f => f !== id) : [...favorites, id];
+        const optimisticUser = { ...currentUser, favorites: newFavorites };
+
+        setCurrentUser(optimisticUser);
+        setUsers(prev => prev.map(u => u.id === currentUser.id ? optimisticUser : u));
+
         try {
             const updatedUser = await apiService.put<User>(`/v1/users/${currentUser.id}`, { favorites: newFavorites });
             setCurrentUser(updatedUser);
-            setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
+            setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
         } catch (error) {
             console.error('Failed to toggle favorite:', error);
+            setCurrentUser(currentUser);
+            setUsers(prev => prev.map(u => u.id === currentUser.id ? currentUser : u));
+            addToast(wasFavorite ? 'Не удалось убрать из избранного' : 'Не удалось добавить в избранное');
         }
     };
 
@@ -249,6 +339,60 @@ export const App: React.FC = () => {
         } catch (err: unknown) {
             const error = err as Error;
             addToast(error.message || 'Ошибка репорта');
+        }
+    };
+
+    const handleLikeReview = async (reviewId: string) => {
+        if (!currentUser) return;
+        if (likedReviewIds.has(reviewId)) {
+            addToast('Вы уже лайкнули эту рецензию');
+            return;
+        }
+
+        const previousReview = reviews.find(review => review.id === reviewId);
+        if (!previousReview) return;
+
+        rememberLikedReview(reviewId);
+        setReviews(prev => prev.map(review => (
+            review.id === reviewId
+                ? { ...review, likes: review.likes + 1 }
+                : review
+        )));
+        if (previousReview.userId !== currentUser.id) {
+            setUsers(prev => prev.map(user => (
+                user.id === previousReview.userId
+                    ? { ...user, reputation: user.reputation + 1 }
+                    : user
+            )));
+        }
+        addToast('Лайк засчитан');
+
+        try {
+            const updatedReview = await apiService.post<Review>(`/v1/reviews/${reviewId}/like`, { userId: currentUser.id });
+            setReviews(prev => prev.map(review => review.id === reviewId ? updatedReview : review));
+            if (updatedReview.user) {
+                setUsers(prev => prev.map(user => user.id === updatedReview.userId ? updatedReview.user! : user));
+                if (currentUser?.id === updatedReview.userId) {
+                    setCurrentUser(updatedReview.user);
+                }
+            }
+        } catch (err: unknown) {
+            const error = err as Error;
+            if ((error.message || '').toLowerCase().includes('уже лайкали')) {
+                rememberLikedReview(reviewId);
+                setReviews(prev => prev.map(review => review.id === reviewId ? { ...review, likes: Math.max(review.likes, previousReview.likes + 1) } : review));
+                return;
+            }
+            forgetLikedReview(reviewId);
+            setReviews(prev => prev.map(review => review.id === reviewId ? previousReview : review));
+            if (previousReview.userId !== currentUser.id) {
+                setUsers(prev => prev.map(user => (
+                    user.id === previousReview.userId
+                        ? { ...user, reputation: Math.max(0, user.reputation - 1) }
+                        : user
+                )));
+            }
+            addToast(error.message || 'Ошибка лайка');
         }
     };
 
@@ -421,22 +565,54 @@ export const App: React.FC = () => {
 
     const handleCopDrop = async (id: string) => {
         if (!currentUser) return;
+        const previousDrop = drops.find(drop => drop.id === id);
+        if (!previousDrop) return;
+
+        if (previousDrop.coppedBy?.includes(currentUser.id)) {
+            addToast('Уже в ожидании');
+            return;
+        }
+
+        const optimisticDrop: UpcomingDrop = {
+            ...previousDrop,
+            copCount: (previousDrop.copCount || 0) + 1,
+            coppedBy: [...(previousDrop.coppedBy || []), currentUser.id],
+        };
+
+        setDrops(prev => prev.map(drop => drop.id === id ? optimisticDrop : drop));
+        addToast('Добавлено в ожидание');
+
         try {
             const updated = await apiService.post<UpcomingDrop>(`/v1/drops/${id}/cop`, { userId: currentUser.id });
             setDrops(prev => prev.map(d => d.id === id ? updated : d));
-            addToast('Добавлено в ожидание!');
         } catch (err: unknown) {
             const error = err as Error;
+            setDrops(prev => prev.map(drop => drop.id === id ? previousDrop : drop));
             addToast(error.message || 'Ошибка');
+        }
+    };
+
+    const handleSubmitFeedback = async (message: string) => {
+        if (!currentUser) return;
+        try {
+            await apiService.post<FeedbackMessage>('/v1/feedback', {
+                userId: currentUser.id,
+                message,
+                page: viewState.view,
+            });
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка отправки обратной связи');
+            throw error;
         }
     };
 
     if (isLoading) {
         return (
             <div className="min-h-screen bg-bg flex items-center justify-center">
-                <div className="text-center">
-                    <div className="inline-block font-black text-4xl tracking-tighter text-black bg-neo-yellow px-4 py-2 border-2 border-black shadow-neo mb-4 animate-pulse">ВР</div>
-                    <p className="text-sm font-mono text-gray-500 uppercase">Загрузка...</p>
+                <div className="text-center flex flex-col items-center">
+                    <div className="w-16 h-16 border-4 border-[var(--line)] border-t-[var(--lime)] rounded-full animate-spin mb-6"></div>
+                    <p className="text-sm font-mono text-[var(--muted)] uppercase tracking-widest animate-pulse">Загрузка системы...</p>
                 </div>
             </div>
         );
@@ -469,10 +645,10 @@ export const App: React.FC = () => {
             content = <TopRatedView items={clothingItems} onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })} />;
             break;
         case 'LEADERBOARD':
-            content = <LeaderboardView users={users} onUserClick={(id) => navigateTo('PROFILE', { userId: id })} />;
+            content = <LeaderboardView users={users} reviews={enrichedReviews} onUserClick={(id) => navigateTo('PROFILE', { userId: id })} />;
             break;
         case 'FEEDBACK':
-            content = <FeedbackView onToast={addToast} />;
+            content = <FeedbackView onSubmit={handleSubmitFeedback} onToast={addToast} />;
             break;
         case 'AUTHORSHIP':
             content = (
@@ -561,6 +737,8 @@ export const App: React.FC = () => {
                         onToggleFavorite={handleToggleFavorite}
                         isFavorite={currentUser.favorites?.includes(item.id) || false}
                         onAddReview={handleAddReview}
+                        onLikeReview={handleLikeReview}
+                        likedReviewIds={likedReviewIds}
                         onReportReview={handleReportReview}
                         onToast={addToast}
                     />
@@ -610,16 +788,34 @@ export const App: React.FC = () => {
     }
 
       return (
-        <div className="flex min-h-screen bg-bg font-sans text-black">
+        <div className="app">
             <Sidebar setView={setViewState} activeView={viewState.view} isAdmin={currentUser.role === 'ADMIN'} />
-            <div className="flex-1 ml-[88px] flex flex-col min-h-screen">
+            <div className="page">
                 <Header
                     currentUser={currentUser}
                     onSearch={setSearchQuery}
+                    onHomeClick={() => navigateTo('HOME')}
                     onProfileClick={() => navigateTo('PROFILE', { userId: currentUser.id })}
                     onFeedbackClick={() => navigateTo('FEEDBACK')}
                 />
-                <main className="mt-24 p-8 relative flex-1">
+                <nav className="mobile-nav" aria-label="Мобильная навигация">
+                    {[
+                        ['HOME', 'Главная'],
+                        ['EXPLORE', 'Календарь'],
+                        ['TOP_RATED', 'Топ'],
+                        ['LEADERBOARD', 'Рейтинг'],
+                    ].map(([view, label]) => (
+                        <button
+                            key={view}
+                            type="button"
+                            className={viewState.view === view || (view === 'EXPLORE' && viewState.view === 'CALENDAR') ? 'active' : ''}
+                            onClick={() => setViewState({ view: view as ViewState['view'] })}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </nav>
+                <main className="relative flex-1">
                     {content}
                     <SearchResultsOverlay
                         query={searchQuery}

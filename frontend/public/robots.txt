@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /articles/
+Allow: /items/
+Allow: /drops/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /storage/framework/
+Disallow: /storage/logs/
+
+# Sitemap placeholder (update when domain is ready)
+# Sitemap: https://yourdomain.com/sitemap.xml

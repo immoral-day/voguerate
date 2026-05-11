@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\AuthorshipController;
 use App\Http\Controllers\Api\ArticleController;
+use App\Http\Controllers\Api\FeedbackController;
 
 Route::get('/health', fn () => response()->json(['ok' => true]));
 
@@ -39,4 +40,6 @@ Route::prefix('v1')->group(function () {
     Route::post('/authorship-requests/{authorshipRequest}/reject', [AuthorshipController::class, 'reject']);
 
     Route::apiResource('articles', ArticleController::class)->parameters(['articles' => 'article']);
+    Route::get('/feedback', [FeedbackController::class, 'index']);
+    Route::post('/feedback', [FeedbackController::class, 'store']);
 });

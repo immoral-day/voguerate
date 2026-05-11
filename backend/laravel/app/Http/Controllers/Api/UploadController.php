@@ -41,10 +41,8 @@ class UploadController extends Controller
         $path = $file->storeAs($folder, $filename, 'public');
         
         $relativePath = "/storage/{$folder}/{$filename}";
-        $url = "http://localhost:8080{$relativePath}";
-
         return response()->json([
-            'url' => $url,
+            'url' => $relativePath,
             'path' => $path,
             'relativePath' => $relativePath,
         ]);
@@ -54,11 +52,11 @@ class UploadController extends Controller
     {
         $path = $request->input('path');
         
-        if (!$path || !Storage::exists($path)) {
+        if (!$path || !Storage::disk('public')->exists($path)) {
             return response()->json(['error' => 'File not found'], 404);
         }
 
-        Storage::delete($path);
+        Storage::disk('public')->delete($path);
         
         return response()->json(['success' => true]);
     }

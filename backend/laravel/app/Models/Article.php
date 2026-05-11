@@ -11,6 +11,7 @@ class Article extends Model
 
     protected $fillable = [
         'title',
+        'topic',
         'body',
         'image',
         'published_at',
@@ -28,6 +29,7 @@ class Article extends Model
         return [
             'id' => (string) $this->id,
             'title' => $this->title,
+            'topic' => $this->topic,
             'body' => $this->body,
             'image' => $this->image,
             'publishedAt' => $this->published_at?->toIso8601String(),

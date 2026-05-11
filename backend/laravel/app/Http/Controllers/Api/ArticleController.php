@@ -18,6 +18,10 @@ class ArticleController extends Controller
             $query->whereNotNull('published_at')->where('published_at', '<=', now());
         }
 
+        if ($request->filled('topic')) {
+            $query->where('topic', $request->input('topic'));
+        }
+
         return response()->json($query->get());
     }
 
@@ -31,6 +35,7 @@ class ArticleController extends Controller
         try {
             $data = $request->validate([
                 'title' => 'required|string|max:255',
+                'topic' => 'nullable|string|max:255',
                 'body' => 'required|string',
                 'image' => 'nullable|string|max:500',
             ]);
@@ -40,6 +45,7 @@ class ArticleController extends Controller
 
         $article = Article::create([
             'title' => $data['title'],
+            'topic' => $data['topic'] ?? null,
             'body' => $data['body'],
             'image' => $data['image'] ?? null,
         ]);
@@ -52,6 +58,7 @@ class ArticleController extends Controller
         try {
             $data = $request->validate([
                 'title' => 'sometimes|string|max:255',
+                'topic' => 'nullable|string|max:255',
                 'body' => 'sometimes|string',
                 'image' => 'nullable|string|max:500',
             ]);
@@ -61,6 +68,9 @@ class ArticleController extends Controller
 
         if (array_key_exists('title', $data)) {
             $article->title = $data['title'];
+        }
+        if (array_key_exists('topic', $data)) {
+            $article->topic = $data['topic'];
         }
         if (array_key_exists('body', $data)) {
             $article->body = $data['body'];

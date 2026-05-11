@@ -7,6 +7,7 @@ use App\Models\Review;
 use App\Models\ClothingItem;
 use App\Models\User;
 use App\Models\ReviewReport;
+use App\Models\ReviewLike;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -39,7 +40,7 @@ class ReviewController extends Controller
                 'clothingId' => 'required|exists:clothing_items,id',
                 'rating' => 'required|integer|min:0|max:90',
                 'ratingBreakdown' => 'nullable|array',
-                'text' => 'required|string|min:100',
+                'text' => 'required|string|min:10',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -83,7 +84,7 @@ class ReviewController extends Controller
             $data = $request->validate([
                 'rating' => 'sometimes|integer|min:0|max:90',
                 'ratingBreakdown' => 'nullable|array',
-                'text' => 'sometimes|string|min:100',
+                'text' => 'sometimes|string|min:10',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -144,8 +145,29 @@ class ReviewController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function like(Review $review): JsonResponse
+    public function like(Request $request, Review $review): JsonResponse
     {
+        $data = $request->validate([
+            'userId' => 'required|exists:users,id',
+        ]);
+
+        if ((string) $review->user_id === (string) $data['userId']) {
+            return response()->json(['error' => 'Нельзя лайкать свою рецензию'], 400);
+        }
+
+        $exists = ReviewLike::where('review_id', $review->id)
+            ->where('user_id', $data['userId'])
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['error' => 'Вы уже лайкали эту рецензию'], 400);
+        }
+
+        ReviewLike::create([
+            'review_id' => $review->id,
+            'user_id' => $data['userId'],
+        ]);
+
         $review->increment('likes');
         $review->user->increment('reputation');
         $review->load(['user', 'clothingItem']);

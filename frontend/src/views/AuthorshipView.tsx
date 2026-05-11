@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { AuthorshipRequest, ClothingItem, UpcomingDrop, User } from '../types';
 import { apiService } from '../services/apiService';
 import { Button } from '../components/UI';
+import { categoryLabel, typeLabel } from '../utils/labels';
+import { ITEM_COLOR_OPTIONS, ITEM_SIZE_OPTIONS, ITEM_TAG_OPTIONS, csvToList, toggleCsvValue } from '../utils/itemOptions';
 
 interface AuthorshipViewProps {
   currentUser: User;
@@ -27,8 +29,8 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
   const [itemFormOpen, setItemFormOpen] = useState(false);
   const [dropFormOpen, setDropFormOpen] = useState(false);
 
-  const [itemImageFile, setItemImageFile] = useState<File | null>(null);
-  const [itemImagePreview, setItemImagePreview] = useState('');
+  const [itemImageFiles, setItemImageFiles] = useState<Array<File | null>>([]);
+  const [itemImagePreviews, setItemImagePreviews] = useState<string[]>([]);
 
   const [dropImageFile, setDropImageFile] = useState<File | null>(null);
   const [dropImagePreview, setDropImagePreview] = useState('');
@@ -93,15 +95,26 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingRequest?.status]);
 
-  const handleItemImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleItemImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setItemImageFile(file);
-      const reader = new FileReader();
-      reader.onload = () => setItemImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-      setDashboardError('');
-    }
+    if (!file) return;
+
+    setItemImageFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next.slice(0, 3);
+    });
+    setDashboardError('');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setItemImagePreviews((prev) => {
+        const next = [...prev];
+        next[index] = reader.result as string;
+        return next.slice(0, 3);
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDropImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,8 +139,8 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
       sizes: '',
       colors: '',
     });
-    setItemImageFile(null);
-    setItemImagePreview('');
+    setItemImageFiles([]);
+    setItemImagePreviews([]);
     setDashboardError('');
     setItemFormOpen(false);
   };
@@ -146,7 +159,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
 
   const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemImageFile) {
+    if (itemImageFiles.length === 0) {
       setDashboardError('Добавь изображение предмета.');
       return;
     }
@@ -157,11 +170,19 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
     setItemSaving(true);
     setDashboardError('');
     try {
-      const upload = await apiService.uploadFile(itemImageFile, 'item');
+      const imageUrls = (await Promise.all(
+        itemImagePreviews.slice(0, 3).map(async (_preview, index) => {
+          const file = itemImageFiles[index];
+          if (!file) return null;
+          const upload = await apiService.uploadFile(file, 'item');
+          return upload.url;
+        }),
+      )).filter(Boolean) as string[];
       const payload = {
         brand: currentUser.username,
         name: itemForm.name.trim(),
-        image: upload.url,
+        image: imageUrls[0],
+        images: imageUrls,
         releaseDate: itemForm.releaseDate,
         type: itemForm.type,
         category: itemForm.category,
@@ -274,24 +295,27 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
   };
 
   return (
-    <div className="animate-fade-in pb-20 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-black uppercase">
+    <div className="authorship-page animate-fade-in">
+      <div className="authorship-head">
+        <div>
+          <h1 className="vr-h1">
           {existingRequest && existingRequest.status === 'APPROVED'
             ? 'Кабинет автора'
             : 'Заявка на авторство'}
-        </h1>
+          </h1>
+          <p>Авторство открывает инструменты для публикации релизов и вещей. Заявка нужна, чтобы понять твой опыт, вкус и пользу для архива.</p>
+        </div>
         {onBack && (
-          <Button variant="outline" onClick={onBack}>
+          <Button variant="outline" onClick={onBack} className="btn">
             Назад
           </Button>
         )}
       </div>
 
       {existingRequest && (
-        <div className="mb-8 border-2 border-black p-4 shadow-neo bg-white">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black uppercase">
+        <div className="authorship-status">
+          <div className="authorship-status-row">
+            <span>
               Текущий статус:{' '}
               {existingRequest.status === 'PENDING'
                 ? 'На рассмотрении'
@@ -300,22 +324,22 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                 : 'Отклонена'}
             </span>
             {existingRequest.createdAt && (
-              <span className="text-xs font-mono text-gray-500">
+              <time>
                 от {new Date(existingRequest.createdAt).toLocaleDateString()}
-              </span>
+              </time>
             )}
           </div>
           {existingRequest.adminComment && (
-            <div className="mt-2">
-              <div className="text-xs font-black uppercase mb-1">Комментарий администратора:</div>
-              <p className="text-sm font-mono text-gray-800 whitespace-pre-wrap">{existingRequest.adminComment}</p>
+            <div className="authorship-comment">
+              <strong>Комментарий администратора</strong>
+              <p>{existingRequest.adminComment}</p>
             </div>
           )}
         </div>
       )}
 
       {existingRequest && existingRequest.status === 'PENDING' && (
-        <p className="text-sm font-mono text-gray-600">
+        <p className="authorship-note">
           Ваша заявка уже отправлена. Дождитесь решения администратора.
         </p>
       )}
@@ -323,65 +347,62 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
       {!existingRequest && (
         <form
           onSubmit={handleSubmit}
-          className="border-2 border-black p-6 bg-white shadow-neo space-y-4"
+          className="authorship-form"
         >
-          <div>
-            <label className="block text-xs font-black uppercase mb-1">Опыт и бэкграунд</label>
-            <p className="text-[10px] font-mono text-gray-500 mb-2">
+          <div className="authorship-field">
+            <label>Опыт и бэкграунд</label>
+            <p>
               Обязательно. Опиши опыт, бренды, обучение. Рекомендуем до 1000 символов.
             </p>
             <textarea
               value={experience}
               onChange={e => setExperience(e.target.value)}
-              className="w-full border-2 border-black p-3 font-mono text-sm min-h-[120px]"
               placeholder="Расскажи, чем занимался(ась), с кем работал(а), образование и т.п."
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-black uppercase mb-1">Стиль / направления</label>
-            <p className="text-[10px] font-mono text-gray-500 mb-2">
+          <div className="authorship-field">
+            <label>Стиль / направления</label>
+            <p>
               Обязательно. Какие стили и темы раскрываешь. Рекомендуем до 600 символов.
             </p>
             <textarea
               value={styles}
               onChange={e => setStyles(e.target.value)}
-              className="w-full border-2 border-black p-3 font-mono text-sm min-h-[80px]"
               placeholder="Какие стили, жанры, форматы тебе ближе?"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-black uppercase mb-1">
+          <div className="authorship-field">
+            <label>
               Почему ты хочешь стать автором ВР
             </label>
-            <p className="text-[10px] font-mono text-gray-500 mb-2">
+            <p>
               Обязательно. Зачем тебе авторство и что хочешь привнести. Рекомендуем до 800 символов.
             </p>
             <textarea
               value={motivation}
               onChange={e => setMotivation(e.target.value)}
-              className="w-full border-2 border-black p-3 font-mono text-sm min-h-[100px]"
               placeholder="Что хочешь привнести в архив, какая у тебя философия и цели?"
             />
           </div>
 
           {error && (
-            <p className="text-[11px] font-mono text-red-600 mt-2">
+            <p className="authorship-error">
               {error}
             </p>
           )}
-          <div className="flex gap-3">
+          <div className="authorship-actions">
             <Button type="submit" disabled={loading}>
-              {loading ? 'ОТПРАВКА...' : 'ОТПРАВИТЬ ЗАЯВКУ'}
+              {loading ? 'Отправка...' : 'Отправить заявку'}
             </Button>
           </div>
         </form>
       )}
 
       {existingRequest && existingRequest.status === 'APPROVED' && (
-        <div className="space-y-10">
-          <p className="text-sm font-mono text-gray-600">
+        <div className="authorship-dashboard">
+          <p className="authorship-note">
             Ты автор. Ниже — инструменты для анонсов и вещей.
           </p>
 
@@ -550,10 +571,10 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                     }
                     className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
                   >
-                    <option value="Streetwear">Streetwear</option>
-                    <option value="Luxury">Luxury</option>
-                    <option value="Techwear">Techwear</option>
-                    <option value="Vintage">Vintage</option>
+                    <option value="Streetwear">{categoryLabel('Streetwear')}</option>
+                    <option value="Luxury">{categoryLabel('Luxury')}</option>
+                    <option value="Techwear">{categoryLabel('Techwear')}</option>
+                    <option value="Vintage">{categoryLabel('Vintage')}</option>
                   </select>
                 </div>
                 <div>
@@ -565,39 +586,39 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                     }
                     className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
                   >
-                    <option value="SINGLE_LOOK">Single Look</option>
-                    <option value="COLLECTION">Collection</option>
+                    <option value="SINGLE_LOOK">{typeLabel('SINGLE_LOOK')}</option>
+                    <option value="COLLECTION">{typeLabel('COLLECTION')}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-black uppercase mb-2">Теги (через запятую)</label>
-                  <input
-                    type="text"
-                    value={itemForm.tags}
-                    onChange={e => setItemForm({ ...itemForm, tags: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                    placeholder="Runway, Archive, Limited"
-                  />
+                  <div className="option-chip-grid">
+                    {ITEM_TAG_OPTIONS.map((option) => (
+                      <button type="button" className={csvToList(itemForm.tags).includes(option) ? 'selected' : ''} key={option} onClick={() => setItemForm({ ...itemForm, tags: toggleCsvValue(itemForm.tags, option) })}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-black uppercase mb-2">Размеры (через запятую)</label>
-                  <input
-                    type="text"
-                    value={itemForm.sizes}
-                    onChange={e => setItemForm({ ...itemForm, sizes: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                    placeholder="S, M, L, XL"
-                  />
+                  <div className="option-chip-grid compact">
+                    {ITEM_SIZE_OPTIONS.map((option) => (
+                      <button type="button" className={csvToList(itemForm.sizes).includes(option) ? 'selected' : ''} key={option} onClick={() => setItemForm({ ...itemForm, sizes: toggleCsvValue(itemForm.sizes, option) })}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-black uppercase mb-2">Цвета (через запятую)</label>
-                  <input
-                    type="text"
-                    value={itemForm.colors}
-                    onChange={e => setItemForm({ ...itemForm, colors: e.target.value })}
-                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                    placeholder="Black, White"
-                  />
+                  <div className="option-chip-grid">
+                    {ITEM_COLOR_OPTIONS.map((option) => (
+                      <button type="button" className={csvToList(itemForm.colors).includes(option) ? 'selected' : ''} key={option} onClick={() => setItemForm({ ...itemForm, colors: toggleCsvValue(itemForm.colors, option) })}>
+                        {option}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-black uppercase mb-2">Изображение</label>
@@ -607,7 +628,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                       accept="image/*"
                       id="author-item-image"
                       className="hidden"
-                      onChange={handleItemImageChange}
+                      onChange={(event) => handleItemImageChange(0, event)}
                     />
                     <label
                       htmlFor="author-item-image"
@@ -615,11 +636,11 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                     >
                       Выбрать файл
                     </label>
-                    {itemImagePreview && (
-                      <div className="w-16 h-16 border-2 border-black overflow-hidden">
-                        <img src={itemImagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    {itemImagePreviews.map((preview, index) => (
+                      <div className="w-16 h-16 border-2 border-black overflow-hidden" key={preview}>
+                        <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
                 <div className="md:col-span-2 flex gap-3 mt-2">
@@ -655,7 +676,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
                       </div>
                       <div className="font-black text-xs uppercase truncate">{item.name}</div>
                       <div className="text-[11px] font-mono text-gray-500 mt-1">
-                        {item.price} ₽ • {item.category}
+                        {item.price} ₽ • {categoryLabel(item.category)}
                       </div>
                     </div>
                   </div>

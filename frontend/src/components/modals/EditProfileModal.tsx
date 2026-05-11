@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../../types';
 import { DEFAULT_AVATAR } from '../../constants';
 import { XIcon } from '../icons/Icons';
-import { Button, Avatar } from '../UI';
+import { Avatar, Button } from '../UI';
 import { apiService } from '../../services/apiService';
 
 interface EditProfileModalProps {
@@ -33,24 +33,24 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
     if (!isOpen) return null;
 
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setAvatarFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setAvatarPreview(reader.result as string);
-            reader.readAsDataURL(file);
-        }
+    const previewFile = (file: File, onLoad: (value: string) => void) => {
+        const reader = new FileReader();
+        reader.onload = () => onLoad(reader.result as string);
+        reader.readAsDataURL(file);
     };
 
-    const handleBackgroundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setBackgroundFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setBackgroundPreview(reader.result as string);
-            reader.readAsDataURL(file);
-        }
+    const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        setAvatarFile(file);
+        previewFile(file, setAvatarPreview);
+    };
+
+    const handleBackgroundChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        setBackgroundFile(file);
+        previewFile(file, setBackgroundPreview);
     };
 
     const handleSave = async () => {
@@ -59,28 +59,25 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         try {
             let avatarUrl = user.avatar;
             let backgroundUrl = user.profileBackground || '';
+
             if (avatarFile) {
-                console.log('Uploading avatar...', avatarFile.name);
                 const upload = await apiService.uploadFile(avatarFile, 'avatar');
-                console.log('Upload result:', upload);
                 avatarUrl = upload.url;
             }
+
             if (backgroundFile) {
-                console.log('Uploading profile background...', backgroundFile.name);
                 const upload = await apiService.uploadFile(backgroundFile, 'profile');
-                console.log('Upload result:', upload);
                 backgroundUrl = upload.url;
             }
-            console.log('Saving profile with avatar:', avatarUrl);
+
             await onSave({
                 bio,
                 avatar: avatarUrl,
                 profileBackground: backgroundUrl,
-                favoriteDesigners: favoriteDesigners.split(',').map(d => d.trim()).filter(Boolean),
+                favoriteDesigners: favoriteDesigners.split(',').map((item) => item.trim()).filter(Boolean),
             });
             onClose();
         } catch (err) {
-            console.error('Error saving profile:', err);
             setError(err instanceof Error ? err.message : 'Ошибка сохранения');
         } finally {
             setSaving(false);
@@ -88,68 +85,45 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-white border-2 border-black shadow-neo-lg w-full max-w-lg relative animate-slide-up" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center p-4 border-b-2 border-black bg-neo-yellow">
-                    <h3 className="font-black uppercase">Редактировать профиль</h3>
-                    <button onClick={onClose}><XIcon /></button>
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="form-box modal-card" onClick={(event) => event.stopPropagation()}>
+                <div className="section-head !m-0">
+                    <div className="section-title"><h3 className="vr-h2">Редактировать профиль</h3></div>
+                    <button className="item-btn" type="button" onClick={onClose} aria-label="Закрыть"><XIcon /></button>
                 </div>
-                <div className="p-6 space-y-6">
-                    <div className="flex flex-col items-center">
-                        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                            <Avatar src={avatarPreview} alt={user.username} size="lg" />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
-                                <span className="text-white text-xs font-bold uppercase">ИЗМЕНИТЬ</span>
-                            </div>
-                        </div>
-                        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+
+                <div className="grid justify-items-center gap-2">
+                    <button className="profile-avatar !m-0 !border-[var(--line)]" type="button" onClick={() => fileInputRef.current?.click()}>
+                        <Avatar src={avatarPreview} alt={user.username} size="xl" />
+                    </button>
+                    <Button type="button" variant="ghost" onClick={() => fileInputRef.current?.click()}>Изменить аватар</Button>
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                </div>
+
+                <label>
+                    Фон профиля
+                    <div className="profile-bg rounded-[6px] overflow-hidden">
+                        {backgroundPreview ? <img src={backgroundPreview} alt="Фон профиля" /> : <span className="empty-box !min-h-full">Фон не выбран</span>}
                     </div>
-                    <div>
-                        <label className="block text-xs font-black uppercase mb-2">Фон профиля</label>
-                        <div className="border-2 border-black bg-bg p-3">
-                            {backgroundPreview ? (
-                                <div className="w-full h-32 border-2 border-black overflow-hidden mb-3">
-                                    <img src={backgroundPreview} alt="Фон профиля" className="w-full h-full object-cover" />
-                                </div>
-                            ) : (
-                                <div className="w-full h-32 border-2 border-dashed border-black flex items-center justify-center text-xs font-mono text-gray-500 mb-3">
-                                    Нет фона
-                                </div>
-                            )}
-                            <Button variant="outline" className="w-full" onClick={() => backgroundInputRef.current?.click()}>
-                                ВЫБРАТЬ ФОН
-                            </Button>
-                            <input ref={backgroundInputRef} type="file" accept="image/*" onChange={handleBackgroundChange} className="hidden" />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-black uppercase mb-2">О себе</label>
-                        <textarea 
-                            value={bio} 
-                            onChange={e => setBio(e.target.value)}
-                            className="w-full border-2 border-black p-3 font-mono text-sm focus:outline-none focus:shadow-neo transition-shadow bg-bg min-h-[100px]"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-black uppercase mb-2">Любимые бренды (через запятую)</label>
-                        <input 
-                            value={favoriteDesigners} 
-                            onChange={e => setFavoriteDesigners(e.target.value)}
-                            className="w-full border-2 border-black p-3 font-mono text-xs focus:outline-none focus:shadow-neo transition-shadow bg-bg"
-                            placeholder="Rick Owens, Balenciaga, Acronym"
-                        />
-                    </div>
-                    {error && (
-                        <div className="p-3 bg-red-100 border-2 border-red-500 text-red-700 text-xs font-bold">
-                            {error}
-                        </div>
-                    )}
-                    <div className="flex gap-4 pt-4">
-                        <Button className="flex-1" onClick={handleSave} disabled={saving}>
-                            {saving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ'}
-                        </Button>
-                        <Button variant="outline" className="flex-1" onClick={onClose}>ОТМЕНА</Button>
-                    </div>
+                    <Button type="button" variant="ghost" onClick={() => backgroundInputRef.current?.click()}>Выбрать фон</Button>
+                    <input ref={backgroundInputRef} type="file" accept="image/*" onChange={handleBackgroundChange} className="hidden" />
+                </label>
+
+                <label>
+                    О себе
+                    <textarea value={bio} onChange={(event) => setBio(event.target.value)} className="vr-input" />
+                </label>
+
+                <label>
+                    Любимые бренды через запятую
+                    <input value={favoriteDesigners} onChange={(event) => setFavoriteDesigners(event.target.value)} className="vr-input" placeholder="Rick Owens, Balenciaga, Acronym" />
+                </label>
+
+                {error && <div className="pill red">{error}</div>}
+
+                <div className="actions justify-start">
+                    <Button type="button" onClick={handleSave} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</Button>
+                    <Button type="button" variant="ghost" onClick={onClose}>Отмена</Button>
                 </div>
             </div>
         </div>

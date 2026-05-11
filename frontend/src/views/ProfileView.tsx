@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ClothingItem, Review, User } from '../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
-import { EditIcon, HeartIcon, BookmarkIcon, PlusIcon } from '../components/icons/Icons';
-import { Button, Badge, Avatar, RatingCircle, UnifiedCard } from '../components/UI';
+import { BookmarkIcon, HeartIcon, PlusIcon } from '../components/icons/Icons';
+import { Avatar, Badge, Button, RatingCircle, UnifiedCard } from '../components/UI';
 import { apiService } from '../services/apiService';
+import { badgeLabel, categoryLabel, typeLabel } from '../utils/labels';
 
 interface ProfileViewProps {
     user: User;
@@ -21,37 +22,49 @@ interface ProfileViewProps {
     onToast: (msg: string) => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ 
-    user, currentUser, onEditProfile, onToggleFollow, items, reviews, onItemClick, onDesignerClick, onLogout, usersList = [], onReportUser, onVerifyUser, onToast 
+type ProfileTab = 'OVERVIEW' | 'REVIEWS' | 'SAVED' | 'PORTFOLIO';
+
+const portfolioCategoryOptions: ClothingItem['category'][] = ['Streetwear', 'Luxury', 'Techwear', 'Vintage'];
+const PROFILE_REVIEW_PAGE_SIZE = 6;
+
+export const ProfileView: React.FC<ProfileViewProps> = ({
+    user,
+    currentUser,
+    onEditProfile,
+    onToggleFollow,
+    items,
+    reviews,
+    onItemClick,
+    onDesignerClick,
+    onLogout,
+    usersList = [],
+    onReportUser,
+    onVerifyUser,
+    onToast,
 }) => {
     const isCurrentUser = user.id === currentUser.id;
     const isFollowing = currentUser.following?.includes(user.id) || false;
-    const userReviews = reviews.filter(r => r.userId === user.id);
-    
+    const userReviews = reviews.filter((review) => review.userId === user.id);
     const sortedUsers = [...usersList].sort((a, b) => b.reputation - a.reputation);
-    const rank = sortedUsers.findIndex(u => u.id === user.id) + 1;
+    const rank = sortedUsers.findIndex((entry) => entry.id === user.id) + 1;
     const isVerified = !!(user.badges?.includes('ВЕРИФИЦИРОВАН') || user.badges?.includes('VERIFIED'));
     const isAdmin = currentUser.role === 'ADMIN';
-    
-    const avgScoreGiven = userReviews.length > 0 
-        ? Math.round(userReviews.reduce((acc, r) => acc + r.rating, 0) / userReviews.length) 
-        : 0;
-
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'REVIEWS' | 'PORTFOLIO' | 'SAVED'>('OVERVIEW');
-    // Автор — только роль/бейдж дизайнера, а не просто верификация
     const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('ДИЗАЙНЕР') || user.badges?.includes('DESIGNER');
+    const avgScoreGiven = userReviews.length
+        ? Math.round(userReviews.reduce((sum, review) => sum + review.rating, 0) / userReviews.length)
+        : 0;
+    const savedItems = items.filter((item) => user.favorites?.includes(item.id) || user.wardrobe?.wanted?.includes(item.id));
+
+    const [activeTab, setActiveTab] = useState<ProfileTab>('OVERVIEW');
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [reportReason, setReportReason] = useState('');
-
-    const savedItems = items.filter(i => user.favorites?.includes(i.id) || user.wardrobe?.wanted?.includes(i.id));
-
-    // Портфолио автора (вещи, созданные под его брендом)
     const [authorItems, setAuthorItems] = useState<ClothingItem[]>([]);
     const [portfolioFormOpen, setPortfolioFormOpen] = useState(false);
-    const [portfolioImageFile, setPortfolioImageFile] = useState<File | null>(null);
-    const [portfolioImagePreview, setPortfolioImagePreview] = useState('');
+    const [portfolioImageFiles, setPortfolioImageFiles] = useState<File[]>([]);
+    const [portfolioImagePreviews, setPortfolioImagePreviews] = useState<string[]>([]);
     const [portfolioSaving, setPortfolioSaving] = useState(false);
     const [portfolioError, setPortfolioError] = useState('');
+    const [reviewPage, setReviewPage] = useState(1);
     const [portfolioForm, setPortfolioForm] = useState({
         name: '',
         price: 0,
@@ -64,21 +77,26 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     });
 
     useEffect(() => {
-        // Фильтруем глобальные предметы по бренду = ник автора
-        const mine = items.filter(i => i.brand === user.username);
-        setAuthorItems(mine);
+        setAuthorItems(items.filter((item) => item.brand === user.username));
     }, [items, user.username]);
 
-    const handlePortfolioImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setPortfolioImageFile(file);
-            const reader = new FileReader();
-            reader.onload = () => setPortfolioImagePreview(reader.result as string);
-            reader.readAsDataURL(file);
-            setPortfolioError('');
-        }
-    };
+    const sortedUserReviews = useMemo(
+        () => [...userReviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+        [userReviews],
+    );
+    const reviewTotalPages = Math.max(1, Math.ceil(sortedUserReviews.length / PROFILE_REVIEW_PAGE_SIZE));
+    const visibleUserReviews = sortedUserReviews.slice(
+        (reviewPage - 1) * PROFILE_REVIEW_PAGE_SIZE,
+        reviewPage * PROFILE_REVIEW_PAGE_SIZE,
+    );
+
+    useEffect(() => {
+        setReviewPage(1);
+    }, [user.id, activeTab]);
+
+    useEffect(() => {
+        setReviewPage((current) => Math.min(current, reviewTotalPages));
+    }, [reviewTotalPages]);
 
     const resetPortfolioForm = () => {
         setPortfolioForm({
@@ -91,431 +109,323 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             sizes: '',
             colors: '',
         });
-        setPortfolioImageFile(null);
-        setPortfolioImagePreview('');
+        setPortfolioImageFiles([]);
+        setPortfolioImagePreviews([]);
         setPortfolioError('');
         setPortfolioFormOpen(false);
     };
 
-    const handleCreatePortfolioItem = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!portfolioImageFile) {
-            setPortfolioError('Добавь изображение вещи.');
+    const handlePortfolioImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []).slice(0, 3);
+        if (files.length === 0) return;
+        setPortfolioImageFiles(files);
+        Promise.all(files.map((file) => new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+        }))).then(setPortfolioImagePreviews);
+        setPortfolioError('');
+    };
+
+    const handleCreatePortfolioItem = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (portfolioImageFiles.length === 0) {
+            setPortfolioError('Добавьте изображение вещи.');
             return;
         }
         if (!portfolioForm.name.trim()) {
-            setPortfolioError('Укажи название вещи.');
+            setPortfolioError('Укажите название вещи.');
             return;
         }
+
         setPortfolioSaving(true);
         setPortfolioError('');
         try {
-            const upload = await apiService.uploadFile(portfolioImageFile, 'item');
+            const uploads = await Promise.all(portfolioImageFiles.map((file) => apiService.uploadFile(file, 'item')));
+            const imageUrls = uploads.map((upload) => upload.url);
             const payload = {
                 brand: user.username,
                 name: portfolioForm.name.trim(),
-                image: upload.url,
+                image: imageUrls[0],
+                images: imageUrls,
                 releaseDate: portfolioForm.releaseDate,
                 type: portfolioForm.type,
                 category: portfolioForm.category,
                 price: portfolioForm.price || 0,
-                tags: portfolioForm.tags.split(',').map(t => t.trim()).filter(Boolean),
-                sizes: portfolioForm.sizes.split(',').map(s => s.trim()).filter(Boolean),
-                colors: portfolioForm.colors.split(',').map(c => c.trim()).filter(Boolean),
+                tags: portfolioForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+                sizes: portfolioForm.sizes.split(',').map((size) => size.trim()).filter(Boolean),
+                colors: portfolioForm.colors.split(',').map((color) => color.trim()).filter(Boolean),
             };
             const created = await apiService.post<ClothingItem>('/v1/items', payload);
-            setAuthorItems(prev => [created, ...prev]);
+            setAuthorItems((prev) => [created, ...prev]);
             onToast('Предмет добавлен в портфолио');
             resetPortfolioForm();
-        } catch (e) {
-            const err = e as Error;
+        } catch (error) {
+            const err = error as Error;
             setPortfolioError(err.message || 'Ошибка сохранения предмета.');
         } finally {
             setPortfolioSaving(false);
         }
     };
 
+    const submitReport = () => {
+        if (reportReason.trim().length < 3) {
+            onToast('Укажите причину: минимум 3 символа');
+            return;
+        }
+        onReportUser(user.id, reportReason.trim());
+        setIsReportOpen(false);
+    };
+
+    const visibleBadges = (user.badges || [])
+        .filter((badge) => badge && !['ADMIN', 'DESIGNER', 'USER'].includes(badge.toUpperCase()))
+        .map(badgeLabel);
+
     return (
         <div className="animate-fade-in pb-20">
             {isReportOpen && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white border-2 border-black shadow-neo p-6 w-full max-w-lg">
-                        <h3 className="text-lg font-black uppercase mb-4">Жалоба на пользователя</h3>
+                <div className="modal-backdrop" onClick={() => setIsReportOpen(false)}>
+                    <div className="form-box modal-card" onClick={(event) => event.stopPropagation()}>
+                        <h3 className="vr-h3">Жалоба на пользователя</h3>
                         <textarea
                             value={reportReason}
-                            onChange={(e) => setReportReason(e.target.value)}
-                            className="w-full border-2 border-black p-3 font-mono text-sm min-h-[120px]"
-                            placeholder="Опиши причину жалобы..."
+                            onChange={(event) => setReportReason(event.target.value)}
+                            className="vr-input"
+                            placeholder="Опишите причину жалобы..."
                         />
-                        <div className="flex gap-3 mt-4">
-                            <Button
-                                onClick={() => {
-                                    if (reportReason.trim().length < 3) {
-                                        onToast('Укажи причину (минимум 3 символа)');
-                                        return;
-                                    }
-                                    onReportUser(user.id, reportReason.trim());
-                                    setIsReportOpen(false);
-                                }}
-                            >
-                                ОТПРАВИТЬ
-                            </Button>
-                            <Button variant="ghost" onClick={() => setIsReportOpen(false)}>ОТМЕНА</Button>
+                        <div className="actions justify-start">
+                            <Button type="button" onClick={submitReport}>Отправить</Button>
+                            <Button type="button" variant="ghost" onClick={() => setIsReportOpen(false)}>Отмена</Button>
                         </div>
                     </div>
                 </div>
             )}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-4">
-                    <div className="border-2 border-black bg-white shadow-neo mb-6 overflow-hidden">
-                        {user.profileBackground ? (
-                            <div className="h-40 w-full">
-                                <img src={user.profileBackground} alt="Profile background" className="w-full h-full object-cover" />
-                            </div>
-                        ) : (
-                            <div className="h-40 w-full bg-bg" />
-                        )}
-                    </div>
-                    <div className="bg-white border-2 border-black p-6 shadow-neo mb-6 sticky top-32">
-                        <div className="flex items-center justify-between mb-6">
-                            <div className="flex gap-0.5 flex-wrap">
-                                {isVerified && <Badge className="bg-neo-yellow text-black border-black">ВЕРИФИЦИРОВАН</Badge>}
-                                <Badge className="!bg-[#23a0ff] !text-black border-black">{rank > 0 ? `РАНГ #${rank}` : 'РАНГ —'}</Badge>
-                            </div>
-                            {isCurrentUser && (
-                                <button onClick={onLogout} className="text-[10px] font-bold text-red-500 hover:underline uppercase">Выйти</button>
-                            )}
+
+            <div className="profile-layout">
+                <aside className="grid gap-2">
+                    <section className="profile-card profile-hero-card">
+                        <div className="profile-bg">
+                            {user.profileBackground && <img src={user.profileBackground} alt="Фон профиля" />}
                         </div>
-
-                        <div className="flex flex-col items-center text-center mb-6">
-                            <div className="w-32 h-32 mb-4 overflow-hidden relative">
-                                <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} size="xl" />
+                        <div className="profile-inner">
+                            <div className="profile-avatar">
+                                <img src={user.avatar || DEFAULT_AVATAR} alt={user.username} />
                             </div>
-                            <h1 className="text-3xl font-black uppercase leading-none mb-2 break-all">{user.username}</h1>
-                            <div className="flex gap-0.5 justify-center mb-4 flex-wrap">
-                                {user.badges?.filter(b => b && b !== 'ВЕРИФИЦИРОВАН' && b !== 'VERIFIED').map(b => (
-                                    <Badge key={b} className="bg-neo-yellow text-black">{b === 'ADMIN' ? 'АДМИН' : b === 'DESIGNER' ? 'ДИЗАЙНЕР' : b}</Badge>
-                                ))}
+                            <h1 className="profile-name">{user.username}</h1>
+                            <div className="profile-badges">
+                                {isVerified && <Badge>Верифицирован</Badge>}
+                                {rank > 0 && <Badge>Ранг #{rank}</Badge>}
+                                {visibleBadges.map((badge) => <Badge key={badge}>{badge}</Badge>)}
                             </div>
-                            <p className="text-sm font-mono text-gray-600 leading-relaxed mb-6 px-4">
-                                {user.bio || "Нет описания."}
-                            </p>
-
-                            {isCurrentUser ? (
-                                <Button variant="outline" onClick={onEditProfile} className="w-full text-xs gap-2"><EditIcon /> РЕДАКТИРОВАТЬ ПРОФИЛЬ</Button>
-                            ) : (
-                                <div className="w-full flex flex-col gap-2">
-                                    <Button variant={isFollowing ? 'outline' : 'primary'} onClick={() => onToggleFollow(user.id)} className="w-full text-xs">
-                                        {isFollowing ? 'ОТПИСАТЬСЯ' : 'ПОДПИСАТЬСЯ'}
-                                    </Button>
-                                    <Button variant="ghost" onClick={() => { setReportReason(''); setIsReportOpen(true); }} className="w-full text-xs">
-                                        ПОЖАЛОВАТЬСЯ
-                                    </Button>
-                                    {isAdmin && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => onVerifyUser(user.id, !isVerified)}
-                                            className="w-full text-xs"
-                                        >
-                                            {isVerified ? 'СНЯТЬ ВЕРИФИКАЦИЮ' : 'ВЕРИФИЦИРОВАТЬ'}
+                            <p className="muted text-center">{user.bio || 'Описание пока не заполнено.'}</p>
+                            <div className="profile-actions">
+                                {isCurrentUser ? (
+                                    <>
+                                        <Button type="button" onClick={onEditProfile}>Редактировать профиль</Button>
+                                        {onLogout && <Button type="button" variant="ghost" onClick={onLogout}>Выйти</Button>}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button type="button" onClick={() => onToggleFollow(user.id)}>
+                                            {isFollowing ? 'Отписаться' : 'Подписаться'}
                                         </Button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 text-center border-t-2 border-black pt-6">
-                            <div>
-                                <div className="text-2xl font-black">{user.reputation}</div>
-                                <div className="text-[9px] uppercase font-bold text-gray-500">Репутация</div>
-                            </div>
-                            <div>
-                                <div className="text-2xl font-black">{user.reviewsCount}</div>
-                                <div className="text-[9px] uppercase font-bold text-gray-500">Отзывы</div>
-                            </div>
-                            <div>
-                                <div className="text-2xl font-black">{avgScoreGiven}</div>
-                                <div className="text-[9px] uppercase font-bold text-gray-500">Строгость</div>
+                                        <Button type="button" variant="ghost" onClick={() => { setReportReason(''); setIsReportOpen(true); }}>
+                                            Пожаловаться
+                                        </Button>
+                                        {isAdmin && (
+                                            <Button type="button" variant="ghost" onClick={() => onVerifyUser(user.id, !isVerified)}>
+                                                {isVerified ? 'Снять верификацию' : 'Верифицировать'}
+                                            </Button>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </section>
 
-                <div className="lg:col-span-8">
-                    <div className="flex border-b-2 border-black mb-8 overflow-x-auto no-scrollbar">
+                    <section className="profile-card profile-inner">
+                        <h2 className="vr-h3">Статистика</h2>
+                        <div className="profile-stats">
+                            <span><strong>{user.reputation}</strong><small>репутация</small></span>
+                            <span><strong>{user.reviewsCount}</strong><small>рецензии</small></span>
+                            <span><strong>{avgScoreGiven}</strong><small>средняя</small></span>
+                        </div>
+                    </section>
+                </aside>
+
+                <main className="profile-main">
+                    <div className="tabs profile-tabs">
                         {(['OVERVIEW', 'REVIEWS', 'SAVED'] as const).map((tab) => (
-                            <button 
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 flex-shrink-0 ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
-                            >
-                                {tab === 'OVERVIEW' ? 'ОБЗОР' : tab === 'REVIEWS' ? 'ОТЗЫВЫ' : 'СОХРАНЁННОЕ'}
+                            <button key={tab} type="button" className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
+                                {tab === 'OVERVIEW' ? 'Обзор' : tab === 'REVIEWS' ? 'Рецензии' : 'Сохранённое'}
                             </button>
                         ))}
                         {isDesigner && (
-                            <button 
-                                onClick={() => setActiveTab('PORTFOLIO')}
-                                className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 flex-shrink-0 ${activeTab === 'PORTFOLIO' ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
-                            >
+                            <button type="button" className={activeTab === 'PORTFOLIO' ? 'active' : ''} onClick={() => setActiveTab('PORTFOLIO')}>
                                 Портфолио
                             </button>
                         )}
                     </div>
 
                     {activeTab === 'OVERVIEW' && (
-                        <div className="space-y-12 animate-fade-in">
-                            <div className="mb-8">
-                                <h3 className="text-xl font-black uppercase mb-4 border-b-2 border-black pb-2 flex justify-between items-end">
-                                    <span>ЛЮБИМЫЕ ДИЗАЙНЕРЫ</span>
-                                    <span className="text-xs font-mono text-gray-500">{user.favoriteDesigners?.length || 0} брендов</span>
-                                </h3>
-                                {user.favoriteDesigners && user.favoriteDesigners.length > 0 ? (
-                                    <div className="flex gap-6 overflow-x-auto pb-4 no-scrollbar -mx-4 px-4 snap-x">
-                                        {user.favoriteDesigners.map(brand => (
-                                            <div 
-                                                key={brand} 
-                                                onClick={() => onDesignerClick(brand)}
-                                                className="flex-shrink-0 w-32 h-32 rounded-full border-2 border-black bg-white flex flex-col items-center justify-center p-2 shadow-neo hover:scale-105 transition-transform cursor-pointer group snap-start"
-                                            >
-                                                <div className="w-full text-center font-black text-xs uppercase break-words group-hover:text-neo-blue transition-colors">{brand}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="p-8 border-2 border-dashed border-gray-300 text-center text-xs font-mono text-gray-400 uppercase">Нет выбранных брендов.</div>
-                                )}
+                        <section className="profile-section">
+                            <div className="section-head">
+                                <div className="section-title"><h2 className="vr-h2">Любимые бренды</h2></div>
+                                <span className="pill">{user.favoriteDesigners?.length || 0} брендов</span>
                             </div>
-                        </div>
-                    )}
-                    
-                    {activeTab === 'REVIEWS' && (
-                        <div className="space-y-4 animate-fade-in">
-                            {userReviews.length > 0 ? userReviews.map((review, idx) => (
-                                <div key={review.id} className="bg-white border-2 border-black p-6 shadow-neo hover:-translate-y-1 transition-transform cursor-pointer opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 50}ms` }} onClick={() => onItemClick(review.clothingId)}>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-gray-100 border border-black overflow-hidden">
-                                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} className="w-full h-full object-cover" />
-                                            </div>
-                                            <div>
-                                                <span className="text-[10px] font-black uppercase bg-neo-yellow text-black px-1 border border-black">{review.clothing?.brand}</span>
-                                                <h3 className="font-black text-lg leading-tight mt-1 group-hover:underline">{review.clothing?.name}</h3>
-                                            </div>
-                                        </div>
-                                        <RatingCircle rating={review.rating} />
-                                    </div>
-                                    <p className="text-sm font-mono text-gray-700 break-words">"{review.text}"</p>
-                                    <div className="mt-3 text-[10px] font-bold text-gray-400 uppercase flex gap-4 items-center">
-                                        <span>{new Date(review.date).toLocaleDateString()}</span>
-                                        <span className="flex items-center gap-1"><HeartIcon className="w-3 h-3"/> {review.likes}</span>
-                                    </div>
+                            {user.favoriteDesigners?.length ? (
+                                <div className="brand-list">
+                                    {user.favoriteDesigners.map((brand) => (
+                                        <button className="brand-pill" type="button" key={brand} onClick={() => onDesignerClick(brand)}>
+                                            {brand}
+                                        </button>
+                                    ))}
                                 </div>
-                            )) : (
-                                <div className="p-12 border-2 border-dashed border-gray-300 text-center font-mono text-sm text-gray-400 uppercase">
-                                    Пока нет отзывов.
-                                </div>
+                            ) : (
+                                <div className="empty-box">Нет выбранных брендов.</div>
                             )}
-                        </div>
+                        </section>
+                    )}
+
+                    {activeTab === 'REVIEWS' && (
+                        <section className="profile-section">
+                            <div className="section-head">
+                                <div className="section-title"><h2 className="vr-h2">Рецензии пользователя</h2></div>
+                                <span className="pill">{userReviews.length}</span>
+                            </div>
+                            {userReviews.length ? (
+                                <div className="profile-review-list">
+                                    {visibleUserReviews.map((review) => (
+                                        <article className="review-card" key={review.id} onClick={() => onItemClick(review.clothingId)}>
+                                            <div className="review-top">
+                                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Вещь'} />
+                                                <strong>{review.clothing?.name || 'Вещь'}</strong>
+                                                <RatingCircle rating={review.rating} />
+                                            </div>
+                                            <p>{review.text}</p>
+                                            <div className="review-actions">
+                                                <span>{new Date(review.date).toLocaleDateString('ru-RU')}</span>
+                                                <span className="review-like-chip"><HeartIcon filled /> {review.likes}</span>
+                                            </div>
+                                        </article>
+                                    ))}
+                                    {sortedUserReviews.length > PROFILE_REVIEW_PAGE_SIZE && (
+                                        <div className="compact-pagination profile-pagination">
+                                            <button className="btn" type="button" disabled={reviewPage === 1} onClick={() => setReviewPage((current) => Math.max(1, current - 1))}>
+                                                Назад
+                                            </button>
+                                            <span>{reviewPage} / {reviewTotalPages}</span>
+                                            <button className="btn" type="button" disabled={reviewPage === reviewTotalPages} onClick={() => setReviewPage((current) => Math.min(reviewTotalPages, current + 1))}>
+                                                Вперёд
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="empty-box">Пока нет рецензий.</div>
+                            )}
+                        </section>
                     )}
 
                     {activeTab === 'SAVED' && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 animate-fade-in">
-                            {savedItems.length > 0 ? savedItems.map((item, idx) => (
-                                <div key={item.id} className="opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 50}ms` }}>
-                                    <UnifiedCard
-                                        image={item.image || DEFAULT_ITEM_IMAGE}
-                                        title={item.name}
-                                        subtitle={item.brand}
-                                        metrics={[{ value: item.averageRating, type: 'filled', label: 'AVG' }]}
-                                        onClick={() => onItemClick(item.id)}
-                                        secondaryIcon={<BookmarkIcon filled />}
-                                    />
+                        <section className="profile-section">
+                            <div className="section-head">
+                                <div className="section-title"><h2 className="vr-h2">Сохранённое</h2></div>
+                                <span className="pill">{savedItems.length}</span>
+                            </div>
+                            {savedItems.length ? (
+                                <div className="grid cards-3">
+                                    {savedItems.map((item) => (
+                                        <UnifiedCard
+                                            key={item.id}
+                                            image={item.image || DEFAULT_ITEM_IMAGE}
+                                            title={item.name}
+                                            subtitle={item.brand}
+                                            metrics={[{ value: item.averageRating, type: 'filled' }]}
+                                            onClick={() => onItemClick(item.id)}
+                                            secondaryIcon={<BookmarkIcon filled />}
+                                        />
+                                    ))}
                                 </div>
-                            )) : (
-                                <div className="col-span-full p-12 border-2 border-dashed border-gray-300 text-center font-mono text-sm text-gray-400 uppercase">
-                                    No saved items.
-                                </div>
+                            ) : (
+                                <div className="empty-box">Сохранённых вещей пока нет.</div>
                             )}
-                        </div>
+                        </section>
                     )}
-                    
+
                     {activeTab === 'PORTFOLIO' && (
-                        <div className="space-y-8 animate-fade-in">
+                        <section className="profile-section">
                             {isDesigner && isCurrentUser && (
-                                <div className="bg-white border-2 border-black p-6 shadow-neo">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-xl font-black uppercase">Создать предмет</h3>
-                                        <Button
-                                            variant={portfolioFormOpen ? 'ghost' : 'primary'}
-                                            onClick={() => setPortfolioFormOpen(v => !v)}
-                                            className="text-xs"
-                                        >
-                                            <PlusIcon className="mr-2" /> {portfolioFormOpen ? 'Скрыть форму' : 'Новый предмет'}
+                                <div className="form-box mb-4">
+                                    <div className="section-head !m-0 !border-0">
+                                        <div className="section-title"><h2 className="vr-h2">Создать предмет</h2></div>
+                                        <Button type="button" onClick={() => setPortfolioFormOpen((open) => !open)}>
+                                            <PlusIcon /> {portfolioFormOpen ? 'Скрыть форму' : 'Новый предмет'}
                                         </Button>
                                     </div>
                                     {portfolioFormOpen && (
-                                        <form onSubmit={handleCreatePortfolioItem} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Название</label>
-                                                <input
-                                                    type="text"
-                                                    value={portfolioForm.name}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, name: e.target.value })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                    placeholder="Название вещи"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Цена (₽)</label>
-                                                <input
-                                                    type="number"
-                                                    value={portfolioForm.price}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, price: parseInt(e.target.value, 10) || 0 })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Дата релиза</label>
-                                                <input
-                                                    type="date"
-                                                    value={portfolioForm.releaseDate}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, releaseDate: e.target.value })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Категория</label>
-                                                <select
-                                                    value={portfolioForm.category}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, category: e.target.value as ClothingItem['category'] })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                >
-                                                    <option value="Streetwear">Streetwear</option>
-                                                    <option value="Luxury">Luxury</option>
-                                                    <option value="Techwear">Techwear</option>
-                                                    <option value="Vintage">Vintage</option>
+                                        <form className="portfolio-form-grid" onSubmit={handleCreatePortfolioItem}>
+                                            <label>Название<input className="vr-input" value={portfolioForm.name} onChange={(event) => setPortfolioForm({ ...portfolioForm, name: event.target.value })} placeholder="Название вещи" /></label>
+                                            <label>Цена, ₽<input className="vr-input" type="number" value={portfolioForm.price} onChange={(event) => setPortfolioForm({ ...portfolioForm, price: parseInt(event.target.value, 10) || 0 })} /></label>
+                                            <label>Дата релиза<input className="vr-input" type="date" value={portfolioForm.releaseDate} onChange={(event) => setPortfolioForm({ ...portfolioForm, releaseDate: event.target.value })} /></label>
+                                            <label>
+                                                Категория
+                                                <select className="vr-input" value={portfolioForm.category} onChange={(event) => setPortfolioForm({ ...portfolioForm, category: event.target.value as ClothingItem['category'] })}>
+                                                    {portfolioCategoryOptions.map((category) => <option value={category} key={category}>{categoryLabel(category)}</option>)}
                                                 </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Тип</label>
-                                                <select
-                                                    value={portfolioForm.type}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, type: e.target.value as ClothingItem['type'] })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                >
-                                                    <option value="SINGLE_LOOK">Single Look</option>
-                                                    <option value="COLLECTION">Collection</option>
+                                            </label>
+                                            <label>
+                                                Тип
+                                                <select className="vr-input" value={portfolioForm.type} onChange={(event) => setPortfolioForm({ ...portfolioForm, type: event.target.value as ClothingItem['type'] })}>
+                                                    <option value="SINGLE_LOOK">{typeLabel('SINGLE_LOOK')}</option>
+                                                    <option value="COLLECTION">{typeLabel('COLLECTION')}</option>
                                                 </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Теги (через запятую)</label>
-                                                <input
-                                                    type="text"
-                                                    value={portfolioForm.tags}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, tags: e.target.value })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                    placeholder="Runway, Archive, Limited"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Размеры (через запятую)</label>
-                                                <input
-                                                    type="text"
-                                                    value={portfolioForm.sizes}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, sizes: e.target.value })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                    placeholder="S, M, L, XL"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black uppercase mb-2">Цвета (через запятую)</label>
-                                                <input
-                                                    type="text"
-                                                    value={portfolioForm.colors}
-                                                    onChange={(e) => setPortfolioForm({ ...portfolioForm, colors: e.target.value })}
-                                                    className="w-full px-4 py-3 border-2 border-black font-mono text-sm"
-                                                    placeholder="Black, White"
-                                                />
-                                            </div>
-                                            <div className="md:col-span-2">
-                                                <label className="block text-xs font-black uppercase mb-2">Изображение</label>
-                                                <div className="flex items-center gap-4">
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        id="portfolio-image-upload"
-                                                        className="hidden"
-                                                        onChange={handlePortfolioImageChange}
-                                                    />
-                                                    <label
-                                                        htmlFor="portfolio-image-upload"
-                                                        className="px-6 py-3 border-2 border-black cursor-pointer hover:bg-black hover:text-white transition-colors font-bold uppercase text-xs"
-                                                    >
-                                                        Выбрать файл
-                                                    </label>
-                                                    {portfolioImagePreview && (
-                                                        <div className="w-16 h-16 border-2 border-black overflow-hidden">
-                                                            <img src={portfolioImagePreview} alt="Preview" className="w-full h-full object-cover" />
-                                                        </div>
-                                                    )}
+                                            </label>
+                                            <label>Теги<input className="vr-input" value={portfolioForm.tags} onChange={(event) => setPortfolioForm({ ...portfolioForm, tags: event.target.value })} placeholder="Архив, лимит, показ" /></label>
+                                            <label>Размеры<input className="vr-input" value={portfolioForm.sizes} onChange={(event) => setPortfolioForm({ ...portfolioForm, sizes: event.target.value })} placeholder="S, M, L" /></label>
+                                            <label>Цвета<input className="vr-input" value={portfolioForm.colors} onChange={(event) => setPortfolioForm({ ...portfolioForm, colors: event.target.value })} placeholder="Чёрный, белый" /></label>
+                                            <label className="portfolio-file">
+                                                Изображение
+                                                <input type="file" accept="image/*" multiple onChange={handlePortfolioImageChange} />
+                                                <div className="portfolio-preview-row">
+                                                    {portfolioImagePreviews.map((preview, index) => (
+                                                        <img src={preview} alt={`Превью ${index + 1}`} key={preview} />
+                                                    ))}
                                                 </div>
-                                            </div>
-                                            {portfolioError && (
-                                                <div className="md:col-span-2 text-[11px] font-mono text-red-600">
-                                                    {portfolioError}
-                                                </div>
-                                            )}
-                                            <div className="md:col-span-2 flex gap-3 mt-2">
-                                                <Button type="submit" disabled={portfolioSaving} className="text-xs">
-                                                    {portfolioSaving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ В ПОРТФОЛИО'}
-                                                </Button>
-                                                <Button variant="ghost" type="button" onClick={resetPortfolioForm} className="text-xs">
-                                                    ОТМЕНА
-                                                </Button>
+                                            </label>
+                                            {portfolioError && <div className="pill red">{portfolioError}</div>}
+                                            <div className="actions justify-start">
+                                                <Button type="submit" disabled={portfolioSaving}>{portfolioSaving ? 'Сохранение...' : 'Сохранить'}</Button>
+                                                <Button type="button" variant="ghost" onClick={resetPortfolioForm}>Отмена</Button>
                                             </div>
                                         </form>
                                     )}
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                {authorItems.length === 0 ? (
-                                    <div className="col-span-full p-12 border-2 border-dashed border-gray-200 text-center font-mono font-bold text-gray-400 uppercase">
-                                        {isDesigner
-                                            ? 'У этого автора ещё нет предметов.'
-                                            : "This designer hasn't released any drops yet."}
-                                    </div>
-                                ) : (
-                                    authorItems.map((item, idx) => (
-                                        <div
-                                            key={item.id}
-                                            className="bg-white border-2 border-black p-3 shadow-neo opacity-0 animate-slide-up cursor-pointer"
-                                            style={{ animationDelay: `${idx * 40}ms` }}
-                                            onClick={() => onItemClick(item.id)}
-                                        >
-                                            <div className="aspect-[3/4] bg-gray-100 mb-3 overflow-hidden">
-                                                <img
-                                                    src={item.image || DEFAULT_ITEM_IMAGE}
-                                                    alt={item.name}
-                                                    className="w-full h-full object-cover"
-                                                />
+                            {authorItems.length ? (
+                                <div className="release-grid">
+                                    {authorItems.map((item, index) => (
+                                        <article className="release-card" key={item.id} onClick={() => onItemClick(item.id)}>
+                                            <div className="release-cover">
+                                                <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} />
+                                                <div className="cover-meta"><span className="tiny">#{index + 1}</span></div>
                                             </div>
-                                            <span className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black">
-                                                {item.brand}
-                                            </span>
-                                            <h3 className="font-black text-xs mt-1 line-clamp-2 break-words">
-                                                {item.name}
-                                            </h3>
-                                            <p className="text-[11px] text-gray-500 font-mono mt-1">
-                                                {item.price} ₽ • {item.category}
-                                            </p>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                                            <div className="release-title">{item.name}</div>
+                                            <div className="release-meta">{item.brand}</div>
+                                            <div className="review-actions">
+                                                <span>{item.price.toLocaleString('ru-RU')} ₽</span>
+                                                <span>{categoryLabel(item.category)}</span>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="empty-box">У автора пока нет предметов.</div>
+                            )}
+                        </section>
                     )}
-                </div>
+                </main>
             </div>
         </div>
     );

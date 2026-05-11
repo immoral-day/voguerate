@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { ClothingItem, Review, UpcomingDrop } from '../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
-import { CalendarIcon, TrendingIcon, MessageSquareIcon, HeartIcon } from '../components/icons/Icons';
-import { Button, Badge, UnifiedCard, Avatar, RatingCircle } from '../components/UI';
+import { Avatar } from '../components/UI';
+import { categoryLabel } from '../utils/labels';
 
 interface HomeViewProps {
     items: ClothingItem[];
@@ -14,162 +14,298 @@ interface HomeViewProps {
     onCalendarClick?: () => void;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({ items, reviews, drops, onItemClick, onManifestoClick, onUserClick, onCalendarClick }) => {
-    const trendingItems = [...items].sort((a,b) => b.averageRating - a.averageRating).slice(0, 5);
-    const freshReleases = [...items].sort((a,b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()).slice(0, 5);
-    const liveReviews = [...reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 4);
-    const upcomingDrops = drops.filter(d => new Date(d.releaseDate) >= new Date()).sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime()).slice(0, 5);
+const formatPrice = (price: number | string) => (
+    typeof price === 'number' ? `${price.toLocaleString('ru-RU')} руб.` : price
+);
+
+const uniqueItems = (items: ClothingItem[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+    });
+};
+
+type ReleaseFilter = 'ALL' | 'RECENT' | 'TOP' | ClothingItem['category'];
+
+export const HomeView: React.FC<HomeViewProps> = ({
+    items,
+    reviews,
+    drops,
+    onItemClick,
+    onManifestoClick,
+    onUserClick,
+    onCalendarClick,
+}) => {
+    const [discussedIndex, setDiscussedIndex] = useState(0);
+    const [discussedDirection, setDiscussedDirection] = useState<1 | -1>(1);
+    const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>('RECENT');
+    const topItems = useMemo(() => [...items].sort((a, b) => b.averageRating - a.averageRating).slice(0, 12), [items]);
+    const recentItems = useMemo(() => [...items].sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime()).slice(0, 12), [items]);
+    const discussedItems = useMemo(() => [...items].sort((a, b) => b.ratingCount - a.ratingCount).slice(0, 8), [items]);
+    const releaseDeck = useMemo(() => uniqueItems([...recentItems, ...topItems]).slice(0, 12), [recentItems, topItems]);
+    const releaseCategories = useMemo(() => Array.from(new Set(items.map((item) => item.category))), [items]);
+    const releaseFilters: Array<{ id: ReleaseFilter; label: string }> = useMemo(() => [
+        { id: 'RECENT', label: 'Новые' },
+        { id: 'TOP', label: 'Топ' },
+        { id: 'ALL', label: 'Все' },
+        ...releaseCategories.map((category) => ({ id: category, label: categoryLabel(category) })),
+    ], [releaseCategories]);
+    const filteredReleaseDeck = useMemo(() => (
+        releaseFilter === 'RECENT'
+            ? recentItems
+            : releaseFilter === 'TOP'
+                ? topItems
+                : releaseFilter === 'ALL'
+                    ? releaseDeck
+                    : [...items]
+                        .filter((item) => item.category === releaseFilter)
+                        .sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime())
+    ).slice(0, 12), [items, recentItems, releaseDeck, releaseFilter, topItems]);
+    const liveReviews = useMemo(() => [...reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6), [reviews]);
+    const upcomingDrops = useMemo(() => drops
+        .filter((drop) => new Date(drop.releaseDate) >= new Date())
+        .sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime())
+        .slice(0, 6), [drops]);
+
+    const averageScore = useMemo(() => (
+        items.length
+            ? Math.round(items.reduce((sum, item) => sum + item.averageRating, 0) / items.length)
+            : 0
+    ), [items]);
+    const topPodium = topItems.slice(0, 3);
+    const topRows = topItems.slice(3, 10);
+    const normalizedDiscussedIndex = discussedItems.length
+        ? ((discussedIndex % discussedItems.length) + discussedItems.length) % discussedItems.length
+        : 0;
+    const discussedVisibleCount = Math.min(5, discussedItems.length);
+    const discussedHalf = Math.floor(discussedVisibleCount / 2);
+    const discussedOffsets = Array.from({ length: discussedVisibleCount }, (_, index) => index - discussedHalf);
+
+    const getDiscussedItem = (offset: number) => {
+        if (!discussedItems.length) return null;
+        return discussedItems[(normalizedDiscussedIndex + offset + discussedItems.length) % discussedItems.length];
+    };
+
+    const shiftDiscussed = (direction: -1 | 1) => {
+        if (!discussedItems.length) return;
+        setDiscussedDirection(direction);
+        setDiscussedIndex((current) => current + direction);
+    };
+
+    const renderReleaseCard = (item: ClothingItem, index: number) => (
+        <article className="release-card" key={`${item.id}-${index}`} onClick={() => onItemClick(item.id)}>
+            <div className="release-cover">
+                <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
+                <div className="cover-meta">
+                    <span className="tiny">{item.ratingCount}</span>
+                    <span className="tiny">#{index + 1}</span>
+                </div>
+            </div>
+            <div className="release-title">{item.name}</div>
+            <div className="release-meta">{item.brand}</div>
+            <div className="rating-pair">
+                <span>{item.averageRating}</span>
+                <span>{item.ratingCount}</span>
+            </div>
+            <div className="listen-row">
+                <button type="button" onClick={(event) => { event.stopPropagation(); onItemClick(item.id); }}>Открыть</button>
+                <span>{categoryLabel(item.category)}</span>
+            </div>
+        </article>
+    );
 
     return (
-        <div className="animate-fade-in pb-12 space-y-20">
-            <div className="bg-white border-2 border-black shadow-neo-lg relative overflow-hidden flex flex-col md:flex-row h-auto md:h-[500px]">
-                <div className="p-12 md:w-2/3 flex flex-col justify-center relative z-10">
-                    <Badge className="bg-neo-green text-black self-start mb-6">V3.0 LIVE</Badge>
-                    <h1 className="text-7xl md:text-9xl font-black uppercase leading-[0.85] tracking-tighter mb-6">
-                        ОЦЕНИ<br/>
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-neo-blue to-neo-pink">КУЛЬТУРУ</span>
-                    </h1>
-                    <p className="font-mono font-bold text-sm md:text-base mb-10 max-w-md uppercase text-gray-600 leading-relaxed">
-                        Глобальный архив модной критики. Твой голос против машины хайпа.
-                    </p>
-                    <div className="flex gap-4">
-                        <Button variant="primary" className="px-8 py-4 text-base" onClick={() => document.getElementById('trends-section')?.scrollIntoView({ behavior: 'smooth' })}>
-                            ОЦЕНИТЬ ДРОП
-                        </Button>
-                        <Button variant="outline" className="px-8 py-4 text-base" onClick={onManifestoClick}>
-                            МАНИФЕСТ
-                        </Button>
-                    </div>
-                </div>
-                <div className="md:w-1/3 bg-black relative overflow-hidden">
-                    <img 
-                        src="https://images.unsplash.com/photo-1537832816519-689ad163238b?q=80&w=1000&auto=format&fit=crop" 
-                        className="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-700 scale-105 hover:scale-110" 
-                        alt="Hero"
-                    />
-                    <div className="absolute bottom-6 left-6 text-white">
-                        <div className="text-neo-yellow font-black text-3xl uppercase mb-1">ГОРЯЧЕЕ</div>
-                        <div className="font-mono text-xs text-gray-300">ПРЕДСТОЯЩИЕ РЕЛИЗЫ</div>
-                    </div>
+        <div className="animate-fade-in">
+            <div className="top-strip-wrap">
+                <span className="top-strip-label">топ по оценкам и рецензиям сообщества</span>
+                <div className="top-strip">
+                    {topItems.map((item) => (
+                        <button className="round-release" type="button" key={item.id} onClick={() => onItemClick(item.id)}>
+                            <span className="round-cover"><img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" /></span>
+                            <span>{item.name}</span>
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {upcomingDrops.length > 0 && (
-                <div>
-                    <div className="mb-8 border-b-2 border-black pb-2">
-                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><CalendarIcon className="text-neo-blue" /> ПРЕДСТОЯЩИЕ РЕЛИЗЫ</h2>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                        {upcomingDrops.map((drop, idx) => (
-                            <div key={drop.id} onClick={onCalendarClick} className="bg-white border-2 border-black shadow-neo hover:-translate-y-1 transition-transform cursor-pointer opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
-                                <div className="aspect-square overflow-hidden border-b-2 border-black">
-                                    <img src={drop.image || DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover hover:scale-105 transition-transform" />
-                                </div>
-                                <div className="p-4">
-                                    <div className="text-[10px] font-bold bg-neo-yellow inline-block px-1 uppercase mb-1 border border-black">{drop.brand}</div>
-                                    <div className="font-bold text-sm leading-tight">{drop.name}</div>
-                                    <div className="text-xs text-gray-500 font-mono mt-1">{typeof drop.price === 'number' ? `${drop.price} ₽` : drop.price}</div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <section className="summary-line">
+                <button className="logo summary-logo" type="button" onClick={onManifestoClick}>ВОЯЖРЕЙТ</button>
+                <span>Архив оценок, рецензий и релизов. Контент важнее оболочки.</span>
+                <strong>{averageScore}/90</strong>
+            </section>
 
-            <div id="trends-section">
-                <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-2">
-                    <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><TrendingIcon className="text-neo-red" /> ТРЕНДЫ СЕЙЧАС</h2>
-                    <Badge className="bg-black text-white">В ЭФИРЕ</Badge>
+            <section>
+                <div className="section-head">
+                    <div className="section-title"><span className="section-icon">HOT</span><h2 className="vr-h2">Самые обсуждаемые</h2></div>
+                    <span className="pill">по количеству оценок · {discussedItems.reduce((sum, item) => sum + item.ratingCount, 0)}</span>
                 </div>
-                {trendingItems.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                        {trendingItems.map((item, idx) => (
-                            <div key={item.id} className="opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
-                                <UnifiedCard
-                                    image={item.image || DEFAULT_ITEM_IMAGE}
-                                    title={item.name}
-                                    subtitle={item.brand}
-                                    metrics={[
-                                        { value: item.averageRating, type: 'filled', label: 'РЕЙТИНГ' },
-                                        { value: item.ratingCount, type: 'dim', label: 'ОТЗЫВЫ' }
-                                    ]}
-                                    onClick={() => onItemClick(item.id)}
-                                />
-                            </div>
-                        ))}
+                {discussedItems.length > 0 ? (
+                    <div className={`hot-carousel ${discussedDirection === 1 ? 'next' : 'prev'}`}>
+                        <button className="hot-arrow" type="button" aria-label="Предыдущий" onClick={() => shiftDiscussed(-1)}>‹</button>
+                        <div className="hot-carousel-track">
+                            {discussedOffsets.map((offset) => {
+                                const item = getDiscussedItem(offset);
+                                if (!item) return null;
+                                const originalIndex = discussedItems.findIndex((entry) => entry.id === item.id);
+                                const tone = offset === 0 ? 'active' : Math.abs(offset) === 1 ? 'side' : 'edge';
+
+                                return (
+                                    <article
+                                        className={`hot-card ${tone}`}
+                                        key={`${item.id}-${offset}`}
+                                        onClick={() => {
+                                            if (offset === 0) {
+                                                onItemClick(item.id);
+                                                return;
+                                            }
+                                            setDiscussedDirection(offset > 0 ? 1 : -1);
+                                            setDiscussedIndex((current) => current + offset);
+                                        }}
+                                    >
+                                        <div className="hot-cover">
+                                            <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} />
+                                            <span>#{originalIndex + 1}</span>
+                                        </div>
+                                        <div className="hot-copy">
+                                            <strong>{item.name}</strong>
+                                            <span>{item.brand}</span>
+                                            <small>{categoryLabel(item.category)}</small>
+                                        </div>
+                                        <div className="hot-stats">
+                                            <b>{item.averageRating}</b>
+                                            <span>{item.ratingCount} оценок</span>
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                        <button className="hot-arrow" type="button" aria-label="Следующий" onClick={() => shiftDiscussed(1)}>›</button>
                     </div>
                 ) : (
-                    <div className="p-12 border-2 border-dashed border-black text-center font-mono font-bold text-gray-500 uppercase">
-                        Нет предметов для отображения.
-                    </div>
+                    <div className="card p-8 muted">Пока нет обсуждаемых вещей.</div>
                 )}
+            </section>
+
+            <section>
+                <div className="section-head">
+                    <div className="section-title"><span className="section-icon">REV</span><h2 className="vr-h2">Последние рецензии</h2></div>
+                    <span className="pill">всего рецензий · {reviews.length}</span>
+                </div>
+                <div className="grid cards-3">
+                    {liveReviews.map((review) => (
+                        <article className="comment-card" key={review.id} onClick={() => onItemClick(review.clothingId)}>
+                            <div className="comment-head">
+                                <Avatar src={review.user?.avatar || DEFAULT_AVATAR} alt={review.user?.username || 'Автор'} onClick={(event) => { event?.stopPropagation(); onUserClick(review.userId); }} />
+                                <div className="min-w-0">
+                                    <strong>{review.user?.username || 'Автор'}</strong>
+                                    <span>{review.clothing?.name || 'Рецензия'}</span>
+                                </div>
+                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Предмет'} loading="lazy" />
+                            </div>
+                            <h3>{review.clothing?.name || 'Новая рецензия'}</h3>
+                            <p>{review.text}</p>
+                            <div className="review-actions">
+                                <span>{review.likes} лайков</span>
+                                <span>{review.rating}/90</span>
+                            </div>
+                        </article>
+                    ))}
+                    {liveReviews.length === 0 && <div className="card p-8 muted">Рецензий пока нет.</div>}
+                </div>
+            </section>
+
+            <section>
+                <div className="section-head">
+                    <div className="section-title"><h2 className="vr-h2">Добавленные релизы</h2></div>
+                    <span className="pill">всего релизов · {items.length}</span>
+                </div>
+                <div className="release-filter-row" aria-label="Фильтры релизов">
+                    {releaseFilters.map((filter) => (
+                        <button
+                            key={filter.id}
+                            type="button"
+                            className={releaseFilter === filter.id ? 'active' : ''}
+                            onClick={() => setReleaseFilter(filter.id)}
+                        >
+                            {filter.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="release-grid release-row">
+                    {filteredReleaseDeck.map(renderReleaseCard)}
+                </div>
+            </section>
+
+            <div className="dashboard-grid mt-4">
+                <section className="card top-board">
+                    <div className="section-head !m-0 px-3 py-2">
+                        <div className="section-title"><span className="section-icon">TOP</span><h2 className="vr-h2">Рейтинг вещей</h2></div>
+                        <span className="pill">{topItems.length}</span>
+                    </div>
+                    <div className="top-board-podium">
+                        {topPodium.map((item, index) => (
+                            <button className={`top-release-card place-${index + 1}`} key={item.id} type="button" onClick={() => onItemClick(item.id)}>
+                                <span className="top-release-cover">
+                                    <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
+                                    <span className="cover-meta">
+                                        <span className="tiny">{item.ratingCount}</span>
+                                        <span className="tiny">#{index + 1}</span>
+                                    </span>
+                                </span>
+                                <strong className="top-release-title">{item.name}</strong>
+                                <span className="top-release-brand">{item.brand}</span>
+                                <span className="rating-pair top-release-rating">
+                                    <span>{item.averageRating}</span>
+                                    <span>{item.ratingCount}</span>
+                                </span>
+                                <span className="listen-row top-release-actions">
+                                    <span>Открыть</span>
+                                    <span>{categoryLabel(item.category)}</span>
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="top-board-list">
+                        {topRows.map((item, index) => (
+                            <button className="top-board-row" key={item.id} type="button" onClick={() => onItemClick(item.id)}>
+                                <span>{index + 4}</span>
+                                <strong>{item.name}</strong>
+                                <small>{item.brand} · {item.ratingCount} оценок</small>
+                                <b>{item.averageRating}</b>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                <aside className="grid gap-2">
+                    <section className="card p-3">
+                        <div className="section-title mb-3"><span className="section-icon">NOW</span><h2 className="vr-h2">Срез сообщества</h2></div>
+                        <div className="grid gap-2">
+                            <div className="review-actions"><span>Средняя оценка</span><strong>{averageScore}/90</strong></div>
+                            <div className="review-actions"><span>Последний отзыв</span><strong>{liveReviews[0] ? new Date(liveReviews[0].date).toLocaleDateString('ru-RU') : 'нет'}</strong></div>
+                            <div className="review-actions"><span>Следующий релиз</span><strong>{upcomingDrops[0] ? new Date(upcomingDrops[0].releaseDate).toLocaleDateString('ru-RU') : 'нет'}</strong></div>
+                        </div>
+                    </section>
+                    <section className="card p-3">
+                        <div className="section-title mb-3"><span className="section-icon">DROP</span><h2 className="vr-h2">Ближайшие</h2></div>
+                        <div className="feed-list">
+                            {upcomingDrops.slice(0, 4).map((drop) => (
+                                <button key={drop.id} className="data-row !grid-cols-[1fr_auto] !min-h-[46px] text-left" onClick={onCalendarClick}>
+                                    <span className="min-w-0 flex flex-col justify-center">
+                                        <span className="row-title leading-tight">{drop.name}</span>
+                                        <span className="row-meta mt-1 leading-tight">{drop.brand} · {new Date(drop.releaseDate).toLocaleDateString('ru-RU')} · {formatPrice(drop.price)}</span>
+                                    </span>
+                                    <span className="score-badge lime">{drop.copCount || 0}</span>
+                                </button>
+                            ))}
+                            {upcomingDrops.length === 0 && <div className="data-row !grid-cols-[1fr] muted">Ближайших релизов нет.</div>}
+                        </div>
+                    </section>
+                </aside>
             </div>
 
-            {freshReleases.length > 0 && (
-                <div>
-                    <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-2">
-                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><CalendarIcon className="text-neo-blue" /> СВЕЖИЕ РЕЛИЗЫ</h2>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                        {freshReleases.map((item, idx) => (
-                            <div key={item.id} className="opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100}ms` }}>
-                                <UnifiedCard
-                                    image={item.image || DEFAULT_ITEM_IMAGE}
-                                    title={item.name}
-                                    subtitle={item.brand}
-                                    badge="NEW"
-                                    onClick={() => onItemClick(item.id)}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {liveReviews.length > 0 && (
-                <div>
-                    <div className="flex items-center justify-between mb-8 border-b-2 border-black pb-2">
-                        <h2 className="text-3xl font-black text-black flex items-center gap-3 uppercase tracking-tighter"><MessageSquareIcon className="text-neo-green" /> ЖИВЫЕ РЕЦЕНЗИИ</h2>
-                        <div className="animate-pulse flex items-center gap-2">
-                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                            <span className="text-xs font-mono font-bold text-red-500 uppercase">Live</span>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {liveReviews.map((review, idx) => (
-                            <div key={review.id} className="bg-white border-2 border-black p-4 shadow-neo hover:-translate-y-1 transition-transform cursor-pointer flex flex-col h-full opacity-0 animate-slide-up" style={{ animationDelay: `${idx * 100 + 200}ms` }} onClick={() => onItemClick(review.clothingId)}>
-                                <div className="flex items-center justify-between mb-4 pb-4 border-b-2 border-gray-100">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar src={review.user?.avatar || DEFAULT_AVATAR} alt={review.user?.username || 'User'} size="sm" onClick={(e) => { e?.stopPropagation(); if (review.userId) onUserClick(review.userId); }} />
-                                        <div className="text-xs font-bold uppercase truncate max-w-[100px]">{review.user?.username}</div>
-                                    </div>
-                                    <RatingCircle rating={review.rating} />
-                                </div>
-                                
-                                <div className="flex gap-4 mb-4 flex-1">
-                                    <div className="w-16 h-16 border border-black flex-shrink-0">
-                                        <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-[10px] font-bold bg-gray-100 px-1 inline-block mb-1">{review.clothing?.brand}</div>
-                                        <div className="font-bold text-sm leading-tight line-clamp-2">{review.clothing?.name}</div>
-                                    </div>
-                                </div>
-
-                                <p className="text-xs font-mono text-gray-600 line-clamp-3 mb-4 flex-1 bg-bg p-2 border border-transparent hover:border-black transition-colors break-words">
-                                    "{review.text}"
-                                </p>
-                                
-                                <div className="text-[10px] font-bold text-gray-400 uppercase flex justify-between mt-auto pt-2 border-t border-gray-100">
-                                    <span>{new Date(review.date).toLocaleDateString()}</span>
-                                    <span className="flex items-center gap-1 text-neo-pink"><HeartIcon filled className="w-3 h-3"/> {review.likes}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
