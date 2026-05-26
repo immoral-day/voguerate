@@ -4,6 +4,7 @@ import {
     AuthorIcon,
     CalendarIcon,
     HomeIcon,
+    MessageSquareIcon,
     NewsIcon,
     SettingsIcon,
     StarIcon,
@@ -23,6 +24,7 @@ const navItems = [
     { id: 'LEADERBOARD', icon: null, label: '90', title: 'Рейтинг' },
     { id: 'AUTHORSHIP', icon: AuthorIcon, label: '', title: 'Авторство' },
     { id: 'NEWS', icon: NewsIcon, label: '', title: 'Новости' },
+    { id: 'MESSAGES', icon: MessageSquareIcon, label: '', title: 'Сообщения' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ setView, activeView, isAdmin }) => {

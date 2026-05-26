@@ -18,9 +18,35 @@ const normalizeApiPayload = <T>(payload: T): T => {
   return payload;
 };
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const transientStatuses = new Set([500, 502, 503, 504]);
+
+const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 2): Promise<Response> => {
+  let lastResponse: Response | null = null;
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(input, init);
+      if (!transientStatuses.has(response.status) || attempt === retries) {
+        return response;
+      }
+      lastResponse = response;
+    } catch (error) {
+      lastError = error;
+      if (attempt === retries) throw error;
+    }
+
+    await wait(350 * (attempt + 1));
+  }
+
+  if (lastResponse) return lastResponse;
+  throw lastError;
+};
+
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`);
+    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`);
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.message || `API Error: ${response.statusText}`);
@@ -29,14 +55,14 @@ export const apiService = {
   },
 
   async post<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
       body: JSON.stringify(data),
-    });
+    }, endpoint.endsWith('/login') ? 2 : 0);
     if (!response.ok) {
       const error = await response.json().catch(() => ({} as Record<string, unknown>));
       let message: string | undefined = error.message;

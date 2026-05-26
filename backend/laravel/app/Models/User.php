@@ -69,6 +69,16 @@ class User extends Authenticatable
         return $this->hasMany(AuthorshipRequest::class);
     }
 
+    public function sentChatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_id');
+    }
+
+    public function receivedChatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class, 'recipient_id');
+    }
+
     public function toArray(): array
     {
         return [
@@ -91,4 +101,3 @@ class User extends Authenticatable
         ];
     }
 }
-

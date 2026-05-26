@@ -133,6 +133,26 @@ export interface FeedbackMessage {
   user?: User | null;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  readAt?: string | null;
+  createdAt?: string;
+  sender?: User | null;
+  recipient?: User | null;
+}
+
+export interface ChatConversation {
+  id: string;
+  userId: string;
+  otherUser: User;
+  lastMessage: ChatMessage;
+  unreadCount: number;
+  updatedAt?: string;
+}
+
 export interface ViewState {
   view:
     | 'HOME'
@@ -150,11 +170,13 @@ export interface ViewState {
     | 'ADMIN'
     | 'AUTHORSHIP'
     | 'NEWS'
-    | 'ARTICLE_DETAIL';
+    | 'ARTICLE_DETAIL'
+    | 'MESSAGES';
   itemId?: string;
   userId?: string;
   articleId?: string;
   designerName?: string;
   dropId?: string;
   conversationId?: string;
+  recipientId?: string;
 }

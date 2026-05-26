@@ -11,3 +11,4 @@ export { AdminPanel } from './AdminPanel';
 export { AuthorshipView } from './AuthorshipView';
 export { NewsView } from './NewsView';
 export { ArticleDetailView } from './ArticleDetailView';
+export { ChatView } from './ChatView';

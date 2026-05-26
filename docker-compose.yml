@@ -14,7 +14,8 @@ services:
       - VITE_API_URL=/api
       - VITE_API_PROXY_TARGET=http://backend:8080
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   # Backend (Laravel + Nginx + PHP-FPM 8.4)
   backend:
@@ -31,6 +32,12 @@ services:
       APP_URL: http://localhost:8080
       FRONTEND_URL: http://localhost:3000
       DB_CONNECTION: sqlite
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
 
 networks:
   default:

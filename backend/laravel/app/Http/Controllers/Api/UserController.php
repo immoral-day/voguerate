@@ -58,10 +58,6 @@ class UserController extends Controller
             return response()->json(['error' => 'Неверный логин или пароль'], 401);
         }
 
-        if (!$user || !Hash::check($data['password'], $user->password)) {
-            return response()->json(['error' => 'Неверный логин или пароль'], 401);
-        }
-
         if ($user->banned_until && $user->banned_until->isFuture()) {
             return response()->json(['error' => 'Пользователь заблокирован'], 403);
         }

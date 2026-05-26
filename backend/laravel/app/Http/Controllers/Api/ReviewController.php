@@ -14,16 +14,20 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $reviews = Review::with(['user', 'clothingItem'])
+        $query = Review::query()
             ->withCount('reports')
             ->whereHas('user', function ($q) {
                 $q->whereNull('banned_until')
                     ->orWhere('banned_until', '<=', now());
-            })
-            ->get();
-        return response()->json($reviews);
+            });
+
+        if (!$request->boolean('compact')) {
+            $query->with(['user', 'clothingItem']);
+        }
+
+        return response()->json($query->latest()->get());
     }
 
     public function show(Review $review): JsonResponse

@@ -10,13 +10,17 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\AuthorshipController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\BootstrapController;
+use App\Http\Controllers\Api\HealthController;
 
-Route::get('/health', fn () => response()->json(['ok' => true]));
+Route::get('/health', HealthController::class);
 
 Route::post('/upload', [UploadController::class, 'upload']);
 Route::delete('/upload', [UploadController::class, 'delete']);
 
 Route::prefix('v1')->group(function () {
+    Route::get('/bootstrap', BootstrapController::class);
     Route::post('/login', [UserController::class, 'login']);
     Route::apiResource('users', UserController::class);
     Route::post('/users/{user}/report', [UserController::class, 'report']);
@@ -42,4 +46,8 @@ Route::prefix('v1')->group(function () {
     Route::apiResource('articles', ArticleController::class)->parameters(['articles' => 'article']);
     Route::get('/feedback', [FeedbackController::class, 'index']);
     Route::post('/feedback', [FeedbackController::class, 'store']);
+
+    Route::get('/chats', [ChatController::class, 'conversations']);
+    Route::get('/chats/{user}/messages', [ChatController::class, 'messages']);
+    Route::post('/chats/messages', [ChatController::class, 'send']);
 });

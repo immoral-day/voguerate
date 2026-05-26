@@ -17,8 +17,17 @@ import {
     AuthorshipView,
     NewsView,
     ArticleDetailView,
+    ChatView,
 } from './views';
 import { apiService } from './services/apiService';
+
+interface BootstrapPayload {
+    items: ClothingItem[];
+    reviews: Review[];
+    users: User[];
+    drops: UpcomingDrop[];
+    articles: Article[];
+}
 
 export const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -30,6 +39,8 @@ export const App: React.FC = () => {
     const [reviewReports, setReviewReports] = useState<ReviewReport[]>([]);
     const [userReports, setUserReports] = useState<UserReport[]>([]);
     const [articles, setArticles] = useState<Article[]>([]);
+    const [articleDetails, setArticleDetails] = useState<Record<string, Article>>({});
+    const [articleLoading, setArticleLoading] = useState(false);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [toasts, setToasts] = useState<{ id: string, message: string }[]>([]);
@@ -39,49 +50,122 @@ export const App: React.FC = () => {
     const [likedReviewIds, setLikedReviewIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        let cancelled = false;
+        const savedUserId = localStorage.getItem('currentUserId');
 
-        const loadData = async () => {
-            setIsLoading(true);
-            for (let attempt = 1; attempt <= 4; attempt += 1) {
-                try {
-                    const [itemsData, reviewsData, usersData, dropsData, reviewReportsData, userReportsData, articlesData] = await Promise.all([
-                        apiService.get<ClothingItem[]>('/v1/items'),
-                        apiService.get<Review[]>('/v1/reviews'),
-                        apiService.get<User[]>('/v1/users'),
-                        apiService.get<UpcomingDrop[]>('/v1/drops'),
-                        apiService.get<ReviewReport[]>('/v1/report-reviews'),
-                        apiService.get<UserReport[]>('/v1/report-users'),
-                        apiService.get<Article[]>('/v1/articles'),
-                    ]);
-                    setClothingItems(itemsData);
-                    setReviews(reviewsData);
-                    setUsers(usersData);
-                    setDrops(dropsData);
-                    setReviewReports(reviewReportsData);
-                    setUserReports(userReportsData);
-                    setArticles(articlesData);
-                    setIsLoading(false);
-                    return;
-                } catch (error) {
-                    console.error(`Failed to load data from API, attempt ${attempt}:`, error);
-                    if (attempt < 4) {
-                        await wait(900);
-                    }
-                }
-            }
+        if (!savedUserId) {
             setIsLoading(false);
+            return;
+        }
+
+        apiService.get<User>(`/v1/users/${savedUserId}`)
+            .then((user) => {
+                if (cancelled) return;
+                setCurrentUser(user);
+                setUsers([user]);
+            })
+            .catch((error) => {
+                console.error('Failed to restore saved user:', error);
+                localStorage.removeItem('currentUserId');
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
         };
-        loadData();
     }, []);
 
     useEffect(() => {
-        const savedUserId = localStorage.getItem('currentUserId');
-        if (savedUserId && users.length > 0) {
-            const user = users.find((u) => u.id === savedUserId);
-            if (user) setCurrentUser(user);
+        if (!currentUser) return;
+
+        let cancelled = false;
+
+        const loadData = async () => {
+            try {
+                setIsLoading(true);
+                const payload = await apiService.get<BootstrapPayload>('/v1/bootstrap');
+                if (cancelled) return;
+
+                setClothingItems(payload.items);
+                setReviews(payload.reviews);
+                setUsers(payload.users);
+                setDrops(payload.drops);
+                setArticles(payload.articles);
+
+                const refreshedCurrentUser = payload.users.find((user) => user.id === currentUser.id);
+                if (refreshedCurrentUser) {
+                    setCurrentUser(refreshedCurrentUser);
+                }
+            } catch (error) {
+                console.error('Failed to load bootstrap data:', error);
+                if (!cancelled) {
+                    addToast('Не удалось загрузить данные приложения');
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser?.id]);
+
+    useEffect(() => {
+        if (currentUser?.role !== 'ADMIN') {
+            setReviewReports([]);
+            setUserReports([]);
+            return;
         }
-    }, [users]);
+
+        const loadReports = async () => {
+            try {
+                const [reviewReportsData, userReportsData, articlesData] = await Promise.all([
+                    apiService.get<ReviewReport[]>('/v1/report-reviews'),
+                    apiService.get<UserReport[]>('/v1/report-users'),
+                    apiService.get<Article[]>('/v1/articles'),
+                ]);
+                setReviewReports(reviewReportsData);
+                setUserReports(userReportsData);
+                setArticles(articlesData);
+            } catch (error) {
+                console.error('Failed to load report data:', error);
+                addToast('Не удалось загрузить репорты');
+            }
+        };
+
+        loadReports();
+    }, [currentUser?.id, currentUser?.role]);
+
+    useEffect(() => {
+        const articleId = viewState.view === 'ARTICLE_DETAIL' ? viewState.articleId : undefined;
+        if (!articleId || articleDetails[articleId]) return;
+
+        let cancelled = false;
+        setArticleLoading(true);
+        apiService.get<Article>(`/v1/articles/${articleId}`)
+            .then((article) => {
+                if (cancelled) return;
+                setArticleDetails((prev) => ({ ...prev, [article.id]: article }));
+            })
+            .catch((error) => {
+                console.error('Failed to load article detail:', error);
+                if (!cancelled) addToast('Не удалось загрузить статью');
+            })
+            .finally(() => {
+                if (!cancelled) setArticleLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [viewState.view, viewState.articleId, articleDetails]);
 
     useEffect(() => {
         if (!currentUser) {
@@ -534,6 +618,7 @@ export const App: React.FC = () => {
         try {
             const created = await apiService.post<Article>('/v1/articles', data);
             setArticles(prev => [created, ...prev]);
+            setArticleDetails(prev => ({ ...prev, [created.id]: created }));
             addToast('Новость создана');
         } catch (error) {
             console.error('Failed to create article:', error);
@@ -545,6 +630,7 @@ export const App: React.FC = () => {
         try {
             const updated = await apiService.put<Article>(`/v1/articles/${id}`, data);
             setArticles(prev => prev.map(a => a.id === id ? updated : a));
+            setArticleDetails(prev => ({ ...prev, [updated.id]: updated }));
             addToast('Новость обновлена');
         } catch (error) {
             console.error('Failed to update article:', error);
@@ -556,6 +642,11 @@ export const App: React.FC = () => {
         try {
             await apiService.delete(`/v1/articles/${id}`);
             setArticles(prev => prev.filter(a => a.id !== id));
+            setArticleDetails(prev => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
             addToast('Новость удалена');
         } catch (error) {
             console.error('Failed to delete article:', error);
@@ -668,10 +759,29 @@ export const App: React.FC = () => {
                 />
             );
             break;
+        case 'MESSAGES':
+            content = (
+                <ChatView
+                    currentUser={currentUser}
+                    users={users}
+                    initialRecipientId={viewState.recipientId}
+                    onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
+                    onToast={addToast}
+                />
+            );
+            break;
         case 'ARTICLE_DETAIL': {
-            const article = articles.find((a) => a.id === viewState.articleId);
+            const summaryArticle = articles.find((a) => a.id === viewState.articleId);
+            const article = viewState.articleId ? articleDetails[viewState.articleId] : undefined;
             if (article) {
                 content = <ArticleDetailView article={article} onBack={() => navigateTo('NEWS')} />;
+            } else if (summaryArticle || articleLoading) {
+                content = (
+                    <div className="p-12 text-center font-mono">
+                        <p className="mb-4">Загрузка статьи...</p>
+                        <Button variant="outline" onClick={() => navigateTo('NEWS')}>К статьям</Button>
+                    </div>
+                );
             } else {
                 content = (
                     <div className="p-12 text-center font-mono">
@@ -765,6 +875,7 @@ export const App: React.FC = () => {
                         usersList={users}
                         onReportUser={handleReportUser}
                         onVerifyUser={handleVerifyUser}
+                        onMessage={(id) => navigateTo('MESSAGES', { recipientId: id })}
                         onToast={addToast}
                     />
                 );
@@ -797,6 +908,7 @@ export const App: React.FC = () => {
                     onHomeClick={() => navigateTo('HOME')}
                     onProfileClick={() => navigateTo('PROFILE', { userId: currentUser.id })}
                     onFeedbackClick={() => navigateTo('FEEDBACK')}
+                    onMessagesClick={() => navigateTo('MESSAGES')}
                 />
                 <nav className="mobile-nav" aria-label="Мобильная навигация">
                     {[
@@ -804,6 +916,7 @@ export const App: React.FC = () => {
                         ['EXPLORE', 'Календарь'],
                         ['TOP_RATED', 'Топ'],
                         ['LEADERBOARD', 'Рейтинг'],
+                        ['MESSAGES', 'Чат'],
                     ].map(([view, label]) => (
                         <button
                             key={view}

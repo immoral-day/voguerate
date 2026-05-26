@@ -22,7 +22,24 @@ class ArticleController extends Controller
             $query->where('topic', $request->input('topic'));
         }
 
-        return response()->json($query->get());
+        $articles = $query->get();
+
+        if ($request->boolean('summary')) {
+            return response()->json($articles->map(function (Article $article) {
+                return [
+                    'id' => (string) $article->id,
+                    'title' => $article->title,
+                    'topic' => $article->topic,
+                    'body' => $this->excerpt($article->body),
+                    'image' => $article->image,
+                    'publishedAt' => $article->published_at?->toIso8601String(),
+                    'createdAt' => $article->created_at?->toIso8601String(),
+                    'updatedAt' => $article->updated_at?->toIso8601String(),
+                ];
+            }));
+        }
+
+        return response()->json($articles);
     }
 
     public function show(Article $article): JsonResponse
@@ -87,5 +104,14 @@ class ArticleController extends Controller
     {
         $article->delete();
         return response()->json(null, 204);
+    }
+
+    private function excerpt(?string $body): string
+    {
+        $plain = trim(strip_tags($body ?? ''));
+
+        return function_exists('mb_substr')
+            ? mb_substr($plain, 0, 260)
+            : substr($plain, 0, 260);
     }
 }

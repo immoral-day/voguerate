@@ -7,10 +7,11 @@ interface HeaderProps {
     onSearch: (q: string) => void;
     onProfileClick: () => void;
     onFeedbackClick: () => void;
+    onMessagesClick: () => void;
     onHomeClick: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfileClick, onFeedbackClick, onHomeClick }) => (
+export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfileClick, onFeedbackClick, onMessagesClick, onHomeClick }) => (
     <header className="topbar">
         <button className="logo" type="button" onClick={onHomeClick}>
             ВОЯЖРЕЙТ
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfile
             </select>
         </div>
         <div className="actions">
+            <button className="btn" type="button" onClick={onMessagesClick}>Чат</button>
             <button className="btn" type="button" onClick={onFeedbackClick}>Связь</button>
             <button className="btn" type="button" onClick={onProfileClick}>
                 <span className="hidden sm:inline">{currentUser.username}</span>

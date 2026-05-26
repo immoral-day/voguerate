@@ -16,6 +16,7 @@ interface ProfileViewProps {
     onItemClick: (id: string) => void;
     onDesignerClick: (name: string) => void;
     onLogout?: () => void;
+    onMessage?: (userId: string) => void;
     usersList?: User[];
     onReportUser: (userId: string, reason: string) => void;
     onVerifyUser: (userId: string, verified: boolean) => void;
@@ -37,6 +38,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     onItemClick,
     onDesignerClick,
     onLogout,
+    onMessage,
     usersList = [],
     onReportUser,
     onVerifyUser,
@@ -229,6 +231,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                         <Button type="button" onClick={() => onToggleFollow(user.id)}>
                                             {isFollowing ? 'Отписаться' : 'Подписаться'}
                                         </Button>
+                                        {onMessage && (
+                                            <Button type="button" variant="ghost" onClick={() => onMessage(user.id)}>
+                                                Написать
+                                            </Button>
+                                        )}
                                         <Button type="button" variant="ghost" onClick={() => { setReportReason(''); setIsReportOpen(true); }}>
                                             Пожаловаться
                                         </Button>
