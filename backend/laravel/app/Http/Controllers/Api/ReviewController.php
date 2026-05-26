@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Review;
 use App\Models\ClothingItem;
-use App\Models\User;
 use App\Models\ReviewReport;
 use App\Models\ReviewLike;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -38,9 +38,13 @@ class ReviewController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         try {
             $data = $request->validate([
-                'userId' => 'required|exists:users,id',
                 'clothingId' => 'required|exists:clothing_items,id',
                 'rating' => 'required|integer|min:0|max:90',
                 'ratingBreakdown' => 'nullable|array',
@@ -50,7 +54,7 @@ class ReviewController extends Controller
             return response()->json(['error' => $e->errors()], 422);
         }
 
-        $existingReview = Review::where('user_id', $data['userId'])
+        $existingReview = Review::where('user_id', $authUser->id)
             ->where('clothing_item_id', $data['clothingId'])
             ->first();
 
@@ -59,7 +63,7 @@ class ReviewController extends Controller
         }
 
         $review = Review::create([
-            'user_id' => $data['userId'],
+            'user_id' => $authUser->id,
             'clothing_item_id' => $data['clothingId'],
             'rating' => $data['rating'],
             'rating_breakdown' => $data['ratingBreakdown'] ?? null,
@@ -72,7 +76,7 @@ class ReviewController extends Controller
         $newAvg = (int) round((($item->average_rating * $item->rating_count) + $data['rating']) / $newCount);
         $item->update(['rating_count' => $newCount, 'average_rating' => $newAvg]);
 
-        $user = User::find($data['userId']);
+        $user = $authUser;
         $user->update([
             'reviews_count' => $user->reviews_count + 1,
             'reputation' => $user->reputation + 5,
@@ -84,6 +88,14 @@ class ReviewController extends Controller
 
     public function update(Request $request, Review $review): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        if (!ApiAuth::isAdmin($authUser) && (int) $review->user_id !== (int) $authUser->id) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'rating' => 'sometimes|integer|min:0|max:90',
@@ -106,6 +118,14 @@ class ReviewController extends Controller
 
     public function destroy(Review $review): JsonResponse
     {
+        $authUser = ApiAuth::user(request());
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        if (!ApiAuth::isAdmin($authUser) && (int) $review->user_id !== (int) $authUser->id) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $user = $review->user;
         $item = $review->clothingItem;
 
@@ -127,13 +147,21 @@ class ReviewController extends Controller
 
     public function report(Request $request, Review $review): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $data = $request->validate([
-            'reporterId' => 'required|exists:users,id',
             'reason' => 'nullable|string',
         ]);
 
+        if ((int) $review->user_id === (int) $authUser->id) {
+            return response()->json(['error' => 'Cannot report yourself'], 400);
+        }
+
         $exists = ReviewReport::where('review_id', $review->id)
-            ->where('reporter_id', $data['reporterId'])
+            ->where('reporter_id', $authUser->id)
             ->exists();
 
         if ($exists) {
@@ -142,7 +170,7 @@ class ReviewController extends Controller
 
         ReviewReport::create([
             'review_id' => $review->id,
-            'reporter_id' => $data['reporterId'],
+            'reporter_id' => $authUser->id,
             'reason' => $data['reason'] ?? null,
         ]);
 
@@ -151,16 +179,17 @@ class ReviewController extends Controller
 
     public function like(Request $request, Review $review): JsonResponse
     {
-        $data = $request->validate([
-            'userId' => 'required|exists:users,id',
-        ]);
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
-        if ((string) $review->user_id === (string) $data['userId']) {
+        if ((int) $review->user_id === (int) $authUser->id) {
             return response()->json(['error' => 'Нельзя лайкать свою рецензию'], 400);
         }
 
         $exists = ReviewLike::where('review_id', $review->id)
-            ->where('user_id', $data['userId'])
+            ->where('user_id', $authUser->id)
             ->exists();
 
         if ($exists) {
@@ -169,7 +198,7 @@ class ReviewController extends Controller
 
         ReviewLike::create([
             'review_id' => $review->id,
-            'user_id' => $data['userId'],
+            'user_id' => $authUser->id,
         ]);
 
         $review->increment('likes');

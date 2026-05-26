@@ -18,6 +18,7 @@ export interface User {
   badges: string[];
   following: string[];
   followers: string[];
+  authToken?: string;
 }
 
 export interface Comment {

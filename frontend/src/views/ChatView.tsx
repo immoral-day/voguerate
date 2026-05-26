@@ -124,7 +124,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         setSending(true);
         try {
             const message = await apiService.post<ChatMessage>('/v1/chats/messages', {
-                senderId: currentUser.id,
                 recipientId: selectedUserId,
                 body,
             });

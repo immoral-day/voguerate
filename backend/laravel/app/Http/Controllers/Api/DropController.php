@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Drop;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -83,11 +84,12 @@ class DropController extends Controller
 
     public function cop(Request $request, Drop $drop): JsonResponse
     {
-        $userId = $request->input('userId');
-        if (!$userId) {
-            return response()->json(['error' => 'userId required'], 400);
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        $userId = (string) $authUser->id;
         $coppedBy = $drop->copped_by ?? [];
         if (in_array($userId, $coppedBy)) {
             return response()->json(['error' => 'Вы уже ждёте этот релиз'], 400);

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use App\Models\UserReport;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -62,7 +64,7 @@ class UserController extends Controller
             return response()->json(['error' => 'Пользователь заблокирован'], 403);
         }
 
-        return response()->json($user);
+        return response()->json($this->issueAuthToken($user));
     }
 
     public function store(Request $request): JsonResponse
@@ -74,7 +76,6 @@ class UserController extends Controller
                 'password' => 'required|string|min:6',
                 'avatar' => 'nullable|string',
                 'bio' => 'nullable|string',
-                'role' => 'nullable|in:USER,DESIGNER,ADMIN',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
@@ -89,7 +90,7 @@ class UserController extends Controller
             'password' => Hash::make($data['password']),
             'avatar' => $data['avatar'] ?? null,
             'bio' => $data['bio'] ?? null,
-            'role' => $isFirstUser ? 'ADMIN' : ($data['role'] ?? 'USER'),
+            'role' => $isFirstUser ? 'ADMIN' : 'USER',
             'reputation' => 0,
             'reviews_count' => 0,
             'joined_date' => now(),
@@ -101,11 +102,31 @@ class UserController extends Controller
             'followers' => [],
         ]);
 
-        return response()->json($user, 201);
+        return response()->json($this->issueAuthToken($user), 201);
+    }
+
+    private function issueAuthToken(User $user): array
+    {
+        $token = Str::random(64);
+        $user->forceFill([
+            'api_token_hash' => hash('sha256', $token),
+        ])->save();
+
+        return array_merge($user->fresh()->toArray(), [
+            'authToken' => $token,
+        ]);
     }
 
     public function update(Request $request, User $user): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        if (!ApiAuth::isAdmin($authUser) && (int) $authUser->id !== (int) $user->id) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'username' => 'sometimes|string|unique:users,username,' . $user->id,
@@ -129,11 +150,11 @@ class UserController extends Controller
         if (array_key_exists('avatar', $data)) $updateData['avatar'] = $data['avatar'];
         if (array_key_exists('profileBackground', $data)) $updateData['profile_background'] = $data['profileBackground'];
         if (array_key_exists('bio', $data)) $updateData['bio'] = $data['bio'];
-        if (isset($data['role'])) $updateData['role'] = $data['role'];
+        if (isset($data['role']) && ApiAuth::isAdmin($authUser)) $updateData['role'] = $data['role'];
         if (isset($data['favoriteDesigners'])) $updateData['favorite_designers'] = $data['favoriteDesigners'];
         if (isset($data['favorites'])) $updateData['favorites'] = $data['favorites'];
         if (isset($data['wardrobe'])) $updateData['wardrobe'] = $data['wardrobe'];
-        if (isset($data['badges'])) {
+        if (isset($data['badges']) && ApiAuth::isAdmin($authUser)) {
             $allowed = ['АДМИН', 'ВЕРИФИЦИРОВАН', 'ДИЗАЙНЕР'];
             $updateData['badges'] = array_values(array_unique(array_filter(
                 $data['badges'],
@@ -149,23 +170,35 @@ class UserController extends Controller
 
     public function destroy(User $user): JsonResponse
     {
+        $authUser = ApiAuth::user(request());
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        if (!ApiAuth::isAdmin($authUser) && (int) $authUser->id !== (int) $user->id) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $user->delete();
         return response()->json(null, 204);
     }
 
     public function report(Request $request, User $user): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $data = $request->validate([
-            'reporterId' => 'required|exists:users,id',
             'reason' => 'required|string|min:3',
         ]);
 
-        if ((string) $data['reporterId'] === (string) $user->id) {
+        if ((int) $authUser->id === (int) $user->id) {
             return response()->json(['error' => 'Нельзя репортить себя'], 400);
         }
 
         $exists = UserReport::where('reported_user_id', $user->id)
-            ->where('reporter_id', $data['reporterId'])
+            ->where('reporter_id', $authUser->id)
             ->exists();
 
         if ($exists) {
@@ -174,7 +207,7 @@ class UserController extends Controller
 
         UserReport::create([
             'reported_user_id' => $user->id,
-            'reporter_id' => $data['reporterId'],
+            'reporter_id' => $authUser->id,
             'reason' => $data['reason'],
         ]);
 
@@ -183,6 +216,11 @@ class UserController extends Controller
 
     public function ban(Request $request, User $user): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser || !ApiAuth::isAdmin($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $data = $request->validate([
             'days' => 'required|integer|min:1|max:365',
             'reporterId' => 'nullable|exists:users,id',
@@ -201,6 +239,11 @@ class UserController extends Controller
 
     public function verify(Request $request, User $user): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser || !ApiAuth::isAdmin($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $data = $request->validate([
             'verified' => 'required|boolean',
         ]);

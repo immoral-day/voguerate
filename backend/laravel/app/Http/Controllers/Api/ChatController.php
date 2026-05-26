@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ChatMessage;
 use App\Models\User;
+use App\Support\ApiAuth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,15 +16,12 @@ class ChatController extends Controller
 {
     public function conversations(Request $request): JsonResponse
     {
-        try {
-            $data = $request->validate([
-                'userId' => 'required|exists:users,id',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['error' => $e->errors()], 422);
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $userId = (int) $data['userId'];
+        $userId = (int) $authUser->id;
 
         $limit = min(100, max(1, (int) $request->integer('limit', 50)));
 
@@ -92,15 +90,12 @@ class ChatController extends Controller
 
     public function messages(Request $request, User $user): JsonResponse
     {
-        try {
-            $data = $request->validate([
-                'userId' => 'required|exists:users,id',
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json(['error' => $e->errors()], 422);
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $currentUserId = (int) $data['userId'];
+        $currentUserId = (int) $authUser->id;
         if ($currentUserId === (int) $user->id) {
             return response()->json(['error' => 'Нельзя открыть диалог с собой'], 400);
         }
@@ -133,19 +128,27 @@ class ChatController extends Controller
 
     public function send(Request $request): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         try {
             $data = $request->validate([
-                'senderId' => 'required|exists:users,id',
-                'recipientId' => 'required|exists:users,id|different:senderId',
+                'recipientId' => 'required|exists:users,id',
                 'body' => 'required|string|min:1|max:2000',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
         }
 
-        $message = DB::transaction(function () use ($data) {
+        if ((int) $data['recipientId'] === (int) $authUser->id) {
+            return response()->json(['error' => 'Cannot message yourself'], 400);
+        }
+
+        $message = DB::transaction(function () use ($data, $authUser) {
             return ChatMessage::create([
-                'sender_id' => $data['senderId'],
+                'sender_id' => $authUser->id,
                 'recipient_id' => $data['recipientId'],
                 'body' => trim($data['body']),
             ]);

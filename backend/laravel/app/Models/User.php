@@ -30,11 +30,13 @@ class User extends Authenticatable
         'following',
         'followers',
         'banned_until',
+        'api_token_hash',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'api_token_hash',
         'email_verified_at',
     ];
 

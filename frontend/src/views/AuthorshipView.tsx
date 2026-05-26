@@ -281,7 +281,6 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
 
     try {
       const created = await apiService.post<AuthorshipRequest>('/v1/authorship-requests', {
-        userId: currentUser.id,
         message,
       });
       setExistingRequest(created);

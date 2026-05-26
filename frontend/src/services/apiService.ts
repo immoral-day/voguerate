@@ -21,6 +21,20 @@ const normalizeApiPayload = <T>(payload: T): T => {
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const transientStatuses = new Set([500, 502, 503, 504]);
 
+const authHeaders = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
+
+  const userId = localStorage.getItem('currentUserId');
+  const token = localStorage.getItem('authToken');
+
+  if (!userId || !token) return {};
+
+  return {
+    'X-User-Id': userId,
+    'X-Auth-Token': token,
+  };
+};
+
 const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 2): Promise<Response> => {
   let lastResponse: Response | null = null;
   let lastError: unknown = null;
@@ -46,7 +60,12 @@ const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retr
 
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
-    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`);
+    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Accept': 'application/json',
+        ...authHeaders(),
+      },
+    });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(error.message || `API Error: ${response.statusText}`);
@@ -60,6 +79,7 @@ export const apiService = {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify(data),
     }, endpoint.endsWith('/login') ? 2 : 0);
@@ -93,6 +113,7 @@ export const apiService = {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify(data),
     });
@@ -108,6 +129,7 @@ export const apiService = {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
+        ...authHeaders(),
       },
     });
     if (!response.ok) {
@@ -123,6 +145,7 @@ export const apiService = {
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
+      headers: authHeaders(),
       body: formData,
     });
 

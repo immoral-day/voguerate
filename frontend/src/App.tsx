@@ -52,8 +52,11 @@ export const App: React.FC = () => {
     useEffect(() => {
         let cancelled = false;
         const savedUserId = localStorage.getItem('currentUserId');
+        const savedAuthToken = localStorage.getItem('authToken');
 
-        if (!savedUserId) {
+        if (!savedUserId || !savedAuthToken) {
+            localStorage.removeItem('currentUserId');
+            localStorage.removeItem('authToken');
             setIsLoading(false);
             return;
         }
@@ -67,6 +70,7 @@ export const App: React.FC = () => {
             .catch((error) => {
                 console.error('Failed to restore saved user:', error);
                 localStorage.removeItem('currentUserId');
+                localStorage.removeItem('authToken');
             })
             .finally(() => {
                 if (!cancelled) setIsLoading(false);
@@ -219,6 +223,7 @@ export const App: React.FC = () => {
             const user = await apiService.post<User>('/v1/login', { username: usernameOrEmail, password });
             setCurrentUser(user);
             localStorage.setItem('currentUserId', user.id);
+            if (user.authToken) localStorage.setItem('authToken', user.authToken);
         } catch (err: unknown) {
             const error = err as Error;
             setAuthError(error.message || 'Неверный логин или пароль');
@@ -235,6 +240,7 @@ export const App: React.FC = () => {
             setUsers((prev) => [...prev, newUser]);
             setCurrentUser(newUser);
             localStorage.setItem('currentUserId', newUser.id);
+            if (newUser.authToken) localStorage.setItem('authToken', newUser.authToken);
         } catch (err: unknown) {
             const error = err as Error;
             setAuthError(error.message || 'Ошибка регистрации.');
@@ -246,6 +252,7 @@ export const App: React.FC = () => {
     const handleLogout = () => {
         setCurrentUser(null);
         localStorage.removeItem('currentUserId');
+        localStorage.removeItem('authToken');
     };
 
     const addToast = (message: string) => {

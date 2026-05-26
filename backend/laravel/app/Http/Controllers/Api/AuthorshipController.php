@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuthorshipRequest;
-use App\Models\User;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -13,14 +13,23 @@ class AuthorshipController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         $query = AuthorshipRequest::with('user')->orderByDesc('created_at');
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
         }
 
-        if ($userId = $request->query('userId')) {
-            $query->where('user_id', $userId);
+        if (ApiAuth::isAdmin($authUser)) {
+            if ($userId = $request->query('userId')) {
+                $query->where('user_id', $userId);
+            }
+        } else {
+            $query->where('user_id', $authUser->id);
         }
 
         return response()->json($query->get());
@@ -28,17 +37,19 @@ class AuthorshipController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $user = ApiAuth::user($request);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
         try {
             $data = $request->validate([
-                'userId' => 'required|exists:users,id',
                 // Заявка должна быть содержательной
                 'message' => 'required|string|min:80|max:4000',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
         }
-
-        $user = User::findOrFail($data['userId']);
 
         $hasActive = $user->authorshipRequests()
             ->whereIn('status', ['PENDING', 'APPROVED'])
@@ -66,7 +77,7 @@ class AuthorshipController extends Controller
             'status' => 'PENDING',
             // бренд и описание заполняем автоматически по пользователю и сообщению
             'brand_name' => $user->username ?? 'Unknown',
-            'description' => mb_substr($data['message'], 0, 255),
+            'description' => $this->shortText($data['message'], 0, 255),
             'reason' => 'AUTHORSHIP_REQUEST',
             'message' => $data['message'] ?? null,
             'portfolio_link' => null,
@@ -77,11 +88,24 @@ class AuthorshipController extends Controller
 
     public function show(AuthorshipRequest $authorshipRequest): JsonResponse
     {
+        $authUser = ApiAuth::user(request());
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        if (!ApiAuth::isAdmin($authUser) && (int) $authorshipRequest->user_id !== (int) $authUser->id) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         return response()->json($authorshipRequest->load('user'));
     }
 
     public function approve(AuthorshipRequest $authorshipRequest): JsonResponse
     {
+        $authUser = ApiAuth::user(request());
+        if (!$authUser || !ApiAuth::isAdmin($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         if ($authorshipRequest->status === 'APPROVED') {
             return response()->json($authorshipRequest->load('user'));
         }
@@ -108,6 +132,11 @@ class AuthorshipController extends Controller
 
     public function reject(Request $request, AuthorshipRequest $authorshipRequest): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser || !ApiAuth::isAdmin($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'adminComment' => 'nullable|string|max:2000',
@@ -121,6 +150,15 @@ class AuthorshipController extends Controller
         $authorshipRequest->save();
 
         return response()->json($authorshipRequest->fresh()->load('user'));
+    }
+
+    private function shortText(string $value, int $start, int $length): string
+    {
+        if (function_exists('mb_substr')) {
+            return mb_substr($value, $start, $length);
+        }
+
+        return substr($value, $start, $length);
     }
 }
 
