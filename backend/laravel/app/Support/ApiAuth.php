@@ -9,19 +9,8 @@ class ApiAuth
 {
     public static function user(Request $request): ?User
     {
-        $userId = (int) $request->header('X-User-Id', 0);
-        $token = (string) $request->header('X-Auth-Token', '');
-
-        if ($userId <= 0 || $token === '') {
-            return null;
-        }
-
-        $user = User::find($userId);
-        if (!$user || !$user->api_token_hash) {
-            return null;
-        }
-
-        if (!hash_equals((string) $user->api_token_hash, hash('sha256', $token))) {
+        $user = $request->user();
+        if (!$user instanceof User) {
             return null;
         }
 
@@ -32,8 +21,17 @@ class ApiAuth
         return $user;
     }
 
-    public static function isAdmin(User $user): bool
+    public static function issueToken(User $user): string
     {
-        return $user->role === 'ADMIN';
+        $user->tokens()->delete();
+
+        return $user
+            ->createToken('web', ['*'], now()->addDays(14))
+            ->plainTextToken;
+    }
+
+    public static function isAdmin(?User $user): bool
+    {
+        return $user?->role === 'ADMIN';
     }
 }

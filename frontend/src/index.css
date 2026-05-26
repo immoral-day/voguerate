@@ -3149,12 +3149,38 @@ input, textarea, select { color: var(--text); background: #111; }
   .value-layout { grid-template-columns: 1fr; }
   .value-filter { position: relative; top: auto; }
   .value-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .value-card { min-height: 0; border-radius: 10px; }
+  .value-cover { border-radius: 8px; }
+  .value-card h2,
+  .value-card > span { text-align: left; }
+  .value-score { grid-template-columns: 24px minmax(0, 1fr) 22px; gap: 7px; padding: 7px; }
+  .value-score i { width: 22px; height: 22px; }
+  .value-score i::after { inset: 6px; }
+  .value-score strong { font-size: 18px; }
+  .value-breakdown,
+  .value-card .review-actions { min-width: 0; }
+  .value-card .review-actions span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .value-pagination { grid-column: auto; }
   .calendar-layout { grid-template-columns: 1fr; }
   .calendar-drop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .season-card { grid-template-columns: 1fr; }
   .season-big-stats { text-align: left; }
   .season-stat-grid { grid-template-columns: 1fr; }
+  .leaderboard-showcase { grid-template-columns: 1fr; }
+  .podium-grid { gap: 6px; }
+  .podium-user { min-height: 144px; padding: 16px 6px 10px; }
+  .podium-user.rank-1 { min-height: 166px; }
+  .podium-user .avatar { width: 48px !important; height: 48px !important; }
+  .podium-user.rank-1 .avatar { width: 58px !important; height: 58px !important; }
+  .podium-user small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-line { gap: 10px; font-size: 12px; }
+  .stat-line span { min-width: 0; overflow-wrap: anywhere; }
+  .stat-line strong { font-size: 18px; }
+  .leaderboard-row { grid-template-columns: 34px minmax(0, 1fr) 74px; }
+  .leaderboard-row .leaderboard-metric { display: none; }
+  .leaderboard-user { gap: 7px; }
+  .leaderboard-user .avatar { width: 28px !important; height: 28px !important; }
+  .leaderboard-score { font-size: 11px; }
   .rank-head { display: none; }
   .rank-row { grid-template-columns: 42px minmax(0, 1fr) 62px; }
   .rank-row > span:nth-child(2), .rank-row > span:nth-child(5), .rank-row > span:nth-child(6) { display: none !important; }
@@ -3824,5 +3850,63 @@ input, textarea, select { color: var(--text); background: #111; }
     width: 32px;
     height: 68px;
     font-size: 28px;
+  }
+}
+
+@media (max-width: 520px) {
+  .value-grid { grid-template-columns: 1fr; }
+  .value-card {
+    min-height: 0;
+    grid-template-columns: 82px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    align-items: start;
+  }
+  .value-cover {
+    grid-row: 1 / span 4;
+    width: 82px;
+    aspect-ratio: 1;
+  }
+  .value-card h2,
+  .value-card > span,
+  .value-score,
+  .value-breakdown,
+  .value-card .review-actions {
+    grid-column: 2;
+  }
+  .value-breakdown { display: none; }
+  .value-card .review-actions { gap: 6px; }
+  .podium-grid { grid-template-columns: 1fr; }
+  .podium-user,
+  .podium-user.rank-1 {
+    order: initial;
+    min-height: 0;
+    grid-template-columns: 30px 42px minmax(0, 1fr) auto;
+    justify-items: start;
+    align-items: center;
+    padding: 8px;
+  }
+  .podium-place {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .podium-user .avatar,
+  .podium-user.rank-1 .avatar {
+    grid-column: 2;
+    width: 42px !important;
+    height: 42px !important;
+  }
+  .podium-user strong,
+  .podium-user small {
+    grid-column: 3;
+    justify-self: stretch;
+    text-align: left;
+  }
+  .podium-score {
+    grid-column: 4;
+    grid-row: 1 / span 2;
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
   }
 }

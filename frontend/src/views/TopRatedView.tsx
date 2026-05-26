@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ClothingItem } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { categoryLabel } from '../utils/labels';
+import { SafeImage } from '../components/UI';
 
 interface TopRatedViewProps {
     items: ClothingItem[];
@@ -106,7 +107,7 @@ export const TopRatedView: React.FC<TopRatedViewProps> = ({ items, onItemClick }
                             return (
                                 <article className="value-card" key={item.id} onClick={() => onItemClick(item.id)}>
                                     <div className="value-cover">
-                                        <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
+                                        <SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
                                     </div>
                                     <h2>{item.name}</h2>
                                     <span>{item.brand}</span>

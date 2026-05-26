@@ -8,7 +8,6 @@ use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use App\Models\UserReport;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -107,13 +106,8 @@ class UserController extends Controller
 
     private function issueAuthToken(User $user): array
     {
-        $token = Str::random(64);
-        $user->forceFill([
-            'api_token_hash' => hash('sha256', $token),
-        ])->save();
-
         return array_merge($user->fresh()->toArray(), [
-            'authToken' => $token,
+            'authToken' => ApiAuth::issueToken($user),
         ]);
     }
 

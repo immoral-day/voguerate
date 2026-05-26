@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClothingItem;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,11 @@ class ClothingItemController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$this->canPublish($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'brand' => 'required|string',
@@ -42,7 +48,7 @@ class ClothingItemController extends Controller
         }
 
         $item = ClothingItem::create([
-            'brand' => $data['brand'],
+            'brand' => ApiAuth::isAdmin($authUser) ? $data['brand'] : $authUser->username,
             'name' => $data['name'],
             'image' => $data['image'],
             'images' => $data['images'] ?? [],
@@ -62,6 +68,11 @@ class ClothingItemController extends Controller
 
     public function update(Request $request, ClothingItem $item): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$this->canManage($authUser, $item->brand)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'brand' => 'sometimes|string',
@@ -85,6 +96,9 @@ class ClothingItemController extends Controller
         foreach (['brand', 'name', 'image', 'images', 'type', 'category', 'price', 'tags', 'sizes', 'colors'] as $field) {
             if (isset($data[$field])) $updateData[$field] = $data[$field];
         }
+        if (!ApiAuth::isAdmin($authUser)) {
+            unset($updateData['brand']);
+        }
         if (isset($data['releaseDate'])) $updateData['release_date'] = $data['releaseDate'];
 
         $item->update($updateData);
@@ -93,7 +107,26 @@ class ClothingItemController extends Controller
 
     public function destroy(ClothingItem $item): JsonResponse
     {
+        $authUser = ApiAuth::user(request());
+        if (!$this->canManage($authUser, $item->brand)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $item->delete();
         return response()->json(null, 204);
+    }
+
+    private function canPublish($user): bool
+    {
+        return $user && in_array($user->role, ['ADMIN', 'DESIGNER'], true);
+    }
+
+    private function canManage($user, string $brand): bool
+    {
+        if (!$this->canPublish($user)) {
+            return false;
+        }
+
+        return ApiAuth::isAdmin($user) || $user->username === $brand;
     }
 }

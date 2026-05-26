@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -49,6 +50,10 @@ class ArticleController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if (!ApiAuth::isAdmin($request->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'title' => 'required|string|max:255',
@@ -72,6 +77,10 @@ class ArticleController extends Controller
 
     public function update(Request $request, Article $article): JsonResponse
     {
+        if (!ApiAuth::isAdmin($request->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'title' => 'sometimes|string|max:255',
@@ -102,6 +111,10 @@ class ArticleController extends Controller
 
     public function destroy(Article $article): JsonResponse
     {
+        if (!ApiAuth::isAdmin(request()->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $article->delete();
         return response()->json(null, 204);
     }

@@ -24,14 +24,12 @@ const transientStatuses = new Set([500, 502, 503, 504]);
 const authHeaders = (): Record<string, string> => {
   if (typeof window === 'undefined') return {};
 
-  const userId = localStorage.getItem('currentUserId');
   const token = localStorage.getItem('authToken');
 
-  if (!userId || !token) return {};
+  if (!token) return {};
 
   return {
-    'X-User-Id': userId,
-    'X-Auth-Token': token,
+    'Authorization': `Bearer ${token}`,
   };
 };
 

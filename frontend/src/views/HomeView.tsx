@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ClothingItem, Review, UpcomingDrop } from '../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
-import { Avatar } from '../components/UI';
+import { Avatar, SafeImage } from '../components/UI';
 import { categoryLabel } from '../utils/labels';
 
 interface HomeViewProps {
@@ -97,7 +97,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const renderReleaseCard = (item: ClothingItem, index: number) => (
         <article className="release-card" key={`${item.id}-${index}`} onClick={() => onItemClick(item.id)}>
             <div className="release-cover">
-                <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
+                <SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
                 <div className="cover-meta">
                     <span className="tiny">{item.ratingCount}</span>
                     <span className="tiny">#{index + 1}</span>
@@ -123,7 +123,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className="top-strip">
                     {topItems.map((item) => (
                         <button className="round-release" type="button" key={item.id} onClick={() => onItemClick(item.id)}>
-                            <span className="round-cover"><img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" /></span>
+                            <span className="round-cover"><SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" /></span>
                             <span>{item.name}</span>
                         </button>
                     ))}
@@ -165,7 +165,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                         }}
                                     >
                                         <div className="hot-cover">
-                                            <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} />
+                                            <SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} />
                                             <span>#{originalIndex + 1}</span>
                                         </div>
                                         <div className="hot-copy">
@@ -202,7 +202,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     <strong>{review.user?.username || 'Автор'}</strong>
                                     <span>{review.clothing?.name || 'Рецензия'}</span>
                                 </div>
-                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Предмет'} loading="lazy" />
+                                <SafeImage src={review.clothing?.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Предмет'} loading="lazy" />
                             </div>
                             <h3>{review.clothing?.name || 'Новая рецензия'}</h3>
                             <p>{review.text}</p>
@@ -248,7 +248,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {topPodium.map((item, index) => (
                             <button className={`top-release-card place-${index + 1}`} key={item.id} type="button" onClick={() => onItemClick(item.id)}>
                                 <span className="top-release-cover">
-                                    <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
+                                    <SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" />
                                     <span className="cover-meta">
                                         <span className="tiny">{item.ratingCount}</span>
                                         <span className="tiny">#{index + 1}</span>

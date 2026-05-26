@@ -31,7 +31,7 @@ RUN touch /app/database/database.sqlite && \
 
 RUN ln -sf /app/storage/app/public /app/public/storage
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer update laravel/sanctum --with-dependencies --no-dev --optimize-autoloader --no-interaction
 
 RUN php artisan config:clear
 

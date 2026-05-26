@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ReviewReport;
 use App\Models\UserReport;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    public function reviewReports(): JsonResponse
+    public function reviewReports(Request $request): JsonResponse
     {
+        if (!ApiAuth::isAdmin($request->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $reports = ReviewReport::with([
             'review.user',
             'review.clothingItem',
@@ -20,8 +26,12 @@ class ReportController extends Controller
         return response()->json($reports);
     }
 
-    public function userReports(): JsonResponse
+    public function userReports(Request $request): JsonResponse
     {
+        if (!ApiAuth::isAdmin($request->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $reports = UserReport::with([
             'reportedUser',
             'reporter',
@@ -30,14 +40,22 @@ class ReportController extends Controller
         return response()->json($reports);
     }
 
-    public function destroyReviewReport(ReviewReport $report): JsonResponse
+    public function destroyReviewReport(Request $request, ReviewReport $report): JsonResponse
     {
+        if (!ApiAuth::isAdmin($request->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $report->delete();
         return response()->json(null, 204);
     }
 
-    public function destroyUserReport(UserReport $report): JsonResponse
+    public function destroyUserReport(Request $request, UserReport $report): JsonResponse
     {
+        if (!ApiAuth::isAdmin($request->user())) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $report->delete();
         return response()->json(null, 204);
     }

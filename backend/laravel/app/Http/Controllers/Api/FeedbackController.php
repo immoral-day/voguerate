@@ -19,9 +19,10 @@ class FeedbackController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         try {
             $data = $request->validate([
-                'userId' => 'nullable|exists:users,id',
                 'message' => 'required|string|min:3|max:4000',
                 'page' => 'nullable|string|max:255',
             ]);
@@ -30,7 +31,7 @@ class FeedbackController extends Controller
         }
 
         $feedback = FeedbackMessage::create([
-            'user_id' => $data['userId'] ?? null,
+            'user_id' => $user?->id,
             'message' => trim($data['message']),
             'page' => $data['page'] ?? null,
             'ip_address' => $request->ip(),

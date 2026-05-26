@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
 
 export const getRatingColor = (score: number, max: number = 90) => {
     const percentage = (score / max) * 100;
@@ -33,6 +34,28 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
     );
 };
 
+export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { fallback?: string }> = ({
+    src,
+    fallback = DEFAULT_ITEM_IMAGE,
+    ...props
+}) => {
+    const [currentSrc, setCurrentSrc] = useState(src || fallback);
+
+    useEffect(() => {
+        setCurrentSrc(src || fallback);
+    }, [src, fallback]);
+
+    return (
+        <img
+            {...props}
+            src={currentSrc}
+            onError={() => {
+                if (currentSrc !== fallback) setCurrentSrc(fallback);
+            }}
+        />
+    );
+};
+
 export const Avatar: React.FC<{ src: string; alt: string; size?: 'sm' | 'md' | 'lg' | 'xl'; onClick?: (e?: React.MouseEvent) => void }> = ({
     src,
     alt,
@@ -44,7 +67,7 @@ export const Avatar: React.FC<{ src: string; alt: string; size?: 'sm' | 'md' | '
 
     return (
         <span className="avatar" onClick={onClick} style={{ width: px, height: px, cursor: onClick ? 'pointer' : 'default' }}>
-            <img src={src} alt={alt} />
+            <SafeImage src={src} alt={alt} fallback={DEFAULT_AVATAR} />
         </span>
     );
 };
@@ -107,7 +130,7 @@ export const UnifiedCard: React.FC<{
 }> = ({ image, title, subtitle, badge, metrics, onClick, onAction, actionLabel }) => (
     <article className="item-card" onClick={onClick}>
         <div className="item-cover">
-            <img src={image} alt={title} />
+            <SafeImage src={image} alt={title} fallback={DEFAULT_ITEM_IMAGE} />
             <div className="cover-meta">
                 {badge && <span className="tiny">{badge}</span>}
                 {metrics?.[1] && <span className="tiny">{metrics[1].value}</span>}

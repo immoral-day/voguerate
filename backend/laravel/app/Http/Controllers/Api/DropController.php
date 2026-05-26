@@ -23,6 +23,11 @@ class DropController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$this->canPublish($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'brand' => 'required|string',
@@ -36,7 +41,7 @@ class DropController extends Controller
         }
 
         $drop = Drop::create([
-            'brand' => $data['brand'],
+            'brand' => ApiAuth::isAdmin($authUser) ? $data['brand'] : $authUser->username,
             'name' => $data['name'],
             'image' => $data['image'],
             'release_date' => $data['releaseDate'],
@@ -50,6 +55,11 @@ class DropController extends Controller
 
     public function update(Request $request, Drop $drop): JsonResponse
     {
+        $authUser = ApiAuth::user($request);
+        if (!$this->canManage($authUser, $drop->brand)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         try {
             $data = $request->validate([
                 'brand' => 'sometimes|string',
@@ -68,6 +78,9 @@ class DropController extends Controller
         foreach (['brand', 'name', 'image', 'price'] as $field) {
             if (isset($data[$field])) $updateData[$field] = $data[$field];
         }
+        if (!ApiAuth::isAdmin($authUser)) {
+            unset($updateData['brand']);
+        }
         if (isset($data['releaseDate'])) $updateData['release_date'] = $data['releaseDate'];
         if (isset($data['copCount'])) $updateData['cop_count'] = $data['copCount'];
         if (isset($data['dropCount'])) $updateData['drop_count'] = $data['dropCount'];
@@ -78,6 +91,11 @@ class DropController extends Controller
 
     public function destroy(Drop $drop): JsonResponse
     {
+        $authUser = ApiAuth::user(request());
+        if (!$this->canManage($authUser, $drop->brand)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $drop->delete();
         return response()->json(null, 204);
     }
@@ -102,5 +120,19 @@ class DropController extends Controller
         ]);
 
         return response()->json($drop);
+    }
+
+    private function canPublish($user): bool
+    {
+        return $user && in_array($user->role, ['ADMIN', 'DESIGNER'], true);
+    }
+
+    private function canManage($user, string $brand): bool
+    {
+        if (!$this->canPublish($user)) {
+            return false;
+        }
+
+        return ApiAuth::isAdmin($user) || $user->username === $brand;
     }
 }
