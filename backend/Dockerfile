@@ -33,7 +33,7 @@ RUN ln -sf /app/storage/app/public /app/public/storage
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-RUN php artisan config:clear && php artisan cache:clear
+RUN php artisan config:clear
 
 EXPOSE 80
 
