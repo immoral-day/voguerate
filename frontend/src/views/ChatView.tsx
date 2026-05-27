@@ -38,6 +38,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const [loadingConversations, setLoadingConversations] = useState(false);
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [sending, setSending] = useState(false);
+    const [pollingPaused, setPollingPaused] = useState(false);
     const bottomRef = useRef<HTMLDivElement | null>(null);
 
     const availableUsers = useMemo(
@@ -54,9 +55,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     );
 
     const loadConversations = async (silent = false) => {
+        if (pollingPaused) return;
         if (!silent) setLoadingConversations(true);
         try {
-            const data = await apiService.get<ChatConversation[]>(`/v1/chats?userId=${currentUser.id}`);
+            const data = await apiService.get<ChatConversation[]>('/v1/chats');
             setConversations(data);
             if (!selectedUserId && data[0]?.otherUser?.id) {
                 setSelectedUserId(data[0].otherUser.id);
@@ -70,11 +72,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
     };
 
     const loadMessages = async (silent = false) => {
+        if (pollingPaused) return;
         if (!selectedUserId) return;
         if (!silent) setLoadingMessages(true);
         try {
             const markRead = silent ? 0 : 1;
-            const data = await apiService.get<ChatMessage[]>(`/v1/chats/${selectedUserId}/messages?userId=${currentUser.id}&markRead=${markRead}`);
+            const data = await apiService.get<ChatMessage[]>(`/v1/chats/${selectedUserId}/messages?markRead=${markRead}`);
             setMessages(data);
         } catch (error) {
             console.error('Failed to load messages:', error);
@@ -89,6 +92,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }, [initialRecipientId]);
 
     useEffect(() => {
+        setPollingPaused(false);
         loadConversations();
     }, [currentUser.id]);
 
@@ -99,13 +103,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     useEffect(() => {
         if (!selectedUserId) return undefined;
+        if (pollingPaused) return undefined;
         const timer = window.setInterval(() => {
             loadMessages(true);
             loadConversations(true);
         }, 5000);
 
         return () => window.clearInterval(timer);
-    }, [selectedUserId, currentUser.id]);
+    }, [selectedUserId, currentUser.id, pollingPaused]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
