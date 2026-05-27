@@ -53,8 +53,9 @@ export const App: React.FC = () => {
         let cancelled = false;
         const savedUserId = localStorage.getItem('currentUserId');
         const savedAuthToken = localStorage.getItem('authToken');
+        const hasSanctumToken = savedAuthToken?.includes('|');
 
-        if (!savedUserId || !savedAuthToken) {
+        if (!savedUserId || !savedAuthToken || !hasSanctumToken) {
             localStorage.removeItem('currentUserId');
             localStorage.removeItem('authToken');
             setIsLoading(false);

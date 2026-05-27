@@ -3827,6 +3827,63 @@ input, textarea, select { color: var(--text); background: #111; }
 }
 
 @media (max-width: 640px) {
+  .top-board-podium {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .top-release-card,
+  .top-release-card.place-1 {
+    order: initial;
+    min-height: 0;
+    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    align-items: start;
+    gap: 6px 10px;
+    padding: 8px;
+  }
+
+  .top-release-card.place-1 { order: 1; }
+  .top-release-card.place-2 { order: 2; }
+  .top-release-card.place-3 { order: 3; }
+
+  .top-release-cover {
+    grid-row: 1 / span 4;
+    width: 92px;
+    aspect-ratio: 1;
+  }
+
+  .top-release-title,
+  .top-release-brand,
+  .top-release-rating,
+  .top-release-actions {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .top-release-title {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .top-release-rating {
+    width: 100%;
+    gap: 5px;
+  }
+
+  .top-release-actions {
+    grid-template-columns: repeat(2, minmax(0, max-content));
+    justify-content: start;
+  }
+
+  .top-release-actions span {
+    min-width: 0;
+    padding: 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .calendar-drop-grid {
     grid-template-columns: 1fr;
   }
