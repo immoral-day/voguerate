@@ -23,34 +23,59 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     const [error, setError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const backgroundInputRef = useRef<HTMLInputElement>(null);
+    const avatarPreviewUrl = useRef<string | null>(null);
+    const backgroundPreviewUrl = useRef<string | null>(null);
+
+    const revokePreviewUrls = () => {
+        if (avatarPreviewUrl.current) {
+            URL.revokeObjectURL(avatarPreviewUrl.current);
+            avatarPreviewUrl.current = null;
+        }
+        if (backgroundPreviewUrl.current) {
+            URL.revokeObjectURL(backgroundPreviewUrl.current);
+            backgroundPreviewUrl.current = null;
+        }
+    };
 
     useEffect(() => {
+        revokePreviewUrls();
         setBio(user.bio || '');
         setFavoriteDesigners(user.favoriteDesigners?.join(', ') || '');
         setAvatarPreview(user.avatar || DEFAULT_AVATAR);
         setBackgroundPreview(user.profileBackground || '');
     }, [user]);
 
+    useEffect(() => {
+        if (!isOpen) {
+            revokePreviewUrls();
+        }
+
+        return revokePreviewUrls;
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
-    const previewFile = (file: File, onLoad: (value: string) => void) => {
-        const reader = new FileReader();
-        reader.onload = () => onLoad(reader.result as string);
-        reader.readAsDataURL(file);
+    const previewFile = (file: File, onLoad: (value: string) => void, previewRef: React.MutableRefObject<string | null>) => {
+        if (previewRef.current) {
+            URL.revokeObjectURL(previewRef.current);
+        }
+        const url = URL.createObjectURL(file);
+        previewRef.current = url;
+        onLoad(url);
     };
 
     const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
         setAvatarFile(file);
-        previewFile(file, setAvatarPreview);
+        previewFile(file, setAvatarPreview, avatarPreviewUrl);
     };
 
     const handleBackgroundChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
         setBackgroundFile(file);
-        previewFile(file, setBackgroundPreview);
+        previewFile(file, setBackgroundPreview, backgroundPreviewUrl);
     };
 
     const handleSave = async () => {

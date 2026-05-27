@@ -56,6 +56,83 @@ const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retr
   throw lastError;
 };
 
+type UploadType = 'avatar' | 'profile' | 'item' | 'drop' | 'article';
+
+const uploadMaxSide: Record<UploadType, number> = {
+  avatar: 512,
+  profile: 1600,
+  item: 1400,
+  drop: 1400,
+  article: 1400,
+};
+
+const loadImageForCanvas = async (file: File): Promise<ImageBitmap | HTMLImageElement> => {
+  if ('createImageBitmap' in window) {
+    return createImageBitmap(file, { imageOrientation: 'from-image' });
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Image load failed'));
+    };
+    image.src = url;
+  });
+};
+
+const canvasToBlob = (canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> =>
+  new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+
+const compressImageForUpload = async (file: File, type: UploadType): Promise<File> => {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif' || file.size < 350_000 || typeof window === 'undefined') {
+    return file;
+  }
+
+  try {
+    const image = await loadImageForCanvas(file);
+    const sourceWidth = image.width;
+    const sourceHeight = image.height;
+    const maxSide = uploadMaxSide[type];
+    const scale = Math.min(1, maxSide / Math.max(sourceWidth, sourceHeight));
+
+    if (scale >= 1 && file.size < 900_000) {
+      return file;
+    }
+
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) {
+      return file;
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+    if ('close' in image && typeof image.close === 'function') {
+      image.close();
+    }
+
+    const blob = await canvasToBlob(canvas, 'image/webp', 0.82);
+    if (!blob || blob.size >= file.size) {
+      return file;
+    }
+
+    const name = file.name.replace(/\.[^.]+$/, '') || 'upload';
+    return new File([blob], `${name}.webp`, { type: 'image/webp', lastModified: Date.now() });
+  } catch {
+    return file;
+  }
+};
+
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
     const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
@@ -136,9 +213,10 @@ export const apiService = {
     }
   },
 
-  async uploadFile(file: File, type: 'avatar' | 'profile' | 'item' | 'drop' | 'article' = 'avatar'): Promise<{ url: string; path: string; relativePath?: string }> {
+  async uploadFile(file: File, type: UploadType = 'avatar'): Promise<{ url: string; path: string; relativePath?: string }> {
+    const preparedFile = await compressImageForUpload(file, type);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', preparedFile);
     formData.append('type', type);
 
     const response = await fetch(`${API_BASE_URL}/upload`, {

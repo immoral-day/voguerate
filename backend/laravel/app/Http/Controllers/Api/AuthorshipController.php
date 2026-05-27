@@ -7,6 +7,7 @@ use App\Models\AuthorshipRequest;
 use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuthorshipController extends Controller
@@ -72,16 +73,24 @@ class AuthorshipController extends Controller
             ], 422);
         }
 
-        $requestModel = AuthorshipRequest::create([
+        $payload = [
             'user_id' => $user->id,
             'status' => 'PENDING',
-            // бренд и описание заполняем автоматически по пользователю и сообщению
+        ];
+
+        foreach ([
+            'message' => $data['message'] ?? null,
+            'portfolio_link' => null,
             'brand_name' => $user->username ?? 'Unknown',
             'description' => $this->shortText($data['message'], 0, 255),
             'reason' => 'AUTHORSHIP_REQUEST',
-            'message' => $data['message'] ?? null,
-            'portfolio_link' => null,
-        ]);
+        ] as $column => $value) {
+            if (Schema::hasColumn('authorship_requests', $column)) {
+                $payload[$column] = $value;
+            }
+        }
+
+        $requestModel = AuthorshipRequest::create($payload);
 
         return response()->json($requestModel->load('user'), 201);
     }
