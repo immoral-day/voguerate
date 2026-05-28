@@ -40,8 +40,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(3)->by($this->rateKey($request));
         });
 
+        RateLimiter::for('chatReads', function (Request $request) {
+            return Limit::perMinute(120)->by($this->rateKey($request));
+        });
+
         RateLimiter::for('messages', function (Request $request) {
-            return Limit::perMinute(20)->by($this->rateKey($request));
+            return Limit::perMinute(30)->by($this->rateKey($request));
         });
     }
 

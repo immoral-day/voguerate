@@ -87,9 +87,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/feedback', [FeedbackController::class, 'index']);
     Route::post('/feedback', [FeedbackController::class, 'store'])->middleware(['auth:sanctum', 'throttle:writes']);
 
-    Route::middleware(['auth:sanctum', 'throttle:messages'])->group(function () {
+    Route::middleware(['auth:sanctum', 'throttle:chatReads'])->group(function () {
         Route::get('/chats', [ChatController::class, 'conversations']);
         Route::get('/chats/{user}/messages', [ChatController::class, 'messages']);
-        Route::post('/chats/messages', [ChatController::class, 'send']);
     });
+
+    Route::post('/chats/messages', [ChatController::class, 'send'])
+        ->middleware(['auth:sanctum', 'throttle:messages']);
 });

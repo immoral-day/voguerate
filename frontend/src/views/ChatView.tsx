@@ -40,6 +40,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const [sending, setSending] = useState(false);
     const [pollingPaused, setPollingPaused] = useState(false);
     const bottomRef = useRef<HTMLDivElement | null>(null);
+    const loadingConversationsRef = useRef(false);
+    const loadingMessagesRef = useRef(false);
+    const sendingRef = useRef(false);
+    const lastConversationsPollRef = useRef(0);
 
     const availableUsers = useMemo(
         () => users
@@ -56,6 +60,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     const loadConversations = async (silent = false) => {
         if (pollingPaused) return;
+        if (loadingConversationsRef.current) return;
+        loadingConversationsRef.current = true;
         if (!silent) setLoadingConversations(true);
         try {
             const data = await apiService.get<ChatConversation[]>('/v1/chats');
@@ -67,6 +73,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             console.error('Failed to load conversations:', error);
             if (!silent) onToast('Не удалось загрузить диалоги');
         } finally {
+            loadingConversationsRef.current = false;
             if (!silent) setLoadingConversations(false);
         }
     };
@@ -74,6 +81,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const loadMessages = async (silent = false) => {
         if (pollingPaused) return;
         if (!selectedUserId) return;
+        if (loadingMessagesRef.current) return;
+        loadingMessagesRef.current = true;
         if (!silent) setLoadingMessages(true);
         try {
             const markRead = silent ? 0 : 1;
@@ -83,6 +92,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             console.error('Failed to load messages:', error);
             if (!silent) onToast('Не удалось загрузить сообщения');
         } finally {
+            loadingMessagesRef.current = false;
             if (!silent) setLoadingMessages(false);
         }
     };
@@ -106,8 +116,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
         if (pollingPaused) return undefined;
         const timer = window.setInterval(() => {
             loadMessages(true);
-            loadConversations(true);
-        }, 5000);
+            const now = Date.now();
+            if (now - lastConversationsPollRef.current > 30000) {
+                lastConversationsPollRef.current = now;
+                loadConversations(true);
+            }
+        }, 12000);
 
         return () => window.clearInterval(timer);
     }, [selectedUserId, currentUser.id, pollingPaused]);
@@ -125,7 +139,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
         event.preventDefault();
         const body = draft.trim();
         if (!selectedUserId || !body) return;
+        if (sendingRef.current) return;
 
+        sendingRef.current = true;
         setSending(true);
         try {
             const message = await apiService.post<ChatMessage>('/v1/chats/messages', {
@@ -139,6 +155,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             const err = error as Error;
             onToast(err.message || 'Не удалось отправить сообщение');
         } finally {
+            sendingRef.current = false;
             setSending(false);
         }
     };
