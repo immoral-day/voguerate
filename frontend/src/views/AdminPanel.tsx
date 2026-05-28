@@ -10,6 +10,8 @@ import { categoryLabel } from '../utils/labels';
 import { ITEM_COLOR_OPTIONS, ITEM_SIZE_OPTIONS, ITEM_TAG_OPTIONS, ARTICLE_TOPIC_OPTIONS, csvToList, toggleCsvValue } from '../utils/itemOptions';
 
 interface AdminPanelProps {
+    users: User[];
+    currentUser: User;
     items: ClothingItem[];
     drops: UpcomingDrop[];
     reviewReports: ReviewReport[];
@@ -23,6 +25,7 @@ interface AdminPanelProps {
     onDeleteUserReport: (id: string) => Promise<void>;
     onDeleteReview: (id: string) => Promise<void>;
     onBanUser: (id: string, days: number) => Promise<void>;
+    onDeleteUser: (id: string) => Promise<void>;
     onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
     onUpdateDrop: (id: string, data: Partial<UpcomingDrop>) => Promise<void>;
     onCreateArticle: (data: Partial<Article>) => Promise<void>;
@@ -73,9 +76,9 @@ const parseAuthorshipMessage = (message?: string) => {
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-    items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
+    users, currentUser, items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onDeleteUser, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
 }) => {
-    const [activeTab, setActiveTab] = useState<'items' | 'drops' | 'reports' | 'authorship' | 'news'>('items');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'items' | 'drops' | 'reports' | 'authorship' | 'news'>('dashboard');
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -91,6 +94,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [reportTab, setReportTab] = useState<'review' | 'user'>('review');
     const [reviewBanDays, setReviewBanDays] = useState<Record<string, number>>({});
     const [userBanDays, setUserBanDays] = useState<Record<string, number>>({});
+    const [adminUsers, setAdminUsers] = useState<User[]>(users);
+    const [adminUsersLoading, setAdminUsersLoading] = useState(false);
     const [authorshipRequests, setAuthorshipRequests] = useState<AuthorshipRequest[]>([]);
     const [authorshipStatusFilter, setAuthorshipStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
     const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
@@ -117,6 +122,48 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         sizes: '',
         colors: '',
     });
+
+    useEffect(() => {
+        setAdminUsers(users);
+    }, [users]);
+
+    const loadAdminUsers = async () => {
+        setAdminUsersLoading(true);
+        try {
+            const data = await apiService.get<User[]>('/v1/users?includeBanned=1');
+            setAdminUsers(data);
+        } catch (error) {
+            console.error('Failed to load admin users', error);
+        } finally {
+            setAdminUsersLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'dashboard') {
+            loadAdminUsers();
+        }
+    }, [activeTab]);
+
+    const handleAdminBanUser = async (userId: string) => {
+        const days = userBanDays[userId] ?? 7;
+        await onBanUser(userId, days);
+        await loadAdminUsers();
+    };
+
+    const handleAdminDeleteUser = async (user: User) => {
+        if (user.id === currentUser.id) {
+            alert('Нельзя удалить свой аккаунт из админ-панели.');
+            return;
+        }
+
+        if (!window.confirm(`Удалить пользователя ${user.username}? Это действие нельзя отменить.`)) {
+            return;
+        }
+
+        await onDeleteUser(user.id);
+        await loadAdminUsers();
+    };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -406,6 +453,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     };
 
+    const filteredAdminUsers = adminUsers.filter((user) => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return true;
+
+        return (
+            user.username.toLowerCase().includes(q) ||
+            user.role.toLowerCase().includes(q) ||
+            String(user.id).includes(q)
+        );
+    });
+    const activeUsersCount = adminUsers.filter((user) => !user.bannedUntil || new Date(user.bannedUntil) <= new Date()).length;
+    const bannedUsersCount = adminUsers.length - activeUsersCount;
+    const adminUsersCount = adminUsers.filter((user) => user.role === 'ADMIN').length;
+    const designerUsersCount = adminUsers.filter((user) => user.role === 'DESIGNER').length;
+
     return (
         <div className="animate-fade-in pb-12">
             <div className="flex items-center justify-between mb-8">
@@ -415,7 +477,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                     <h1 className="text-3xl font-black uppercase">АДМИН ПАНЕЛЬ</h1>
                 </div>
-                {activeTab !== 'reports' && activeTab !== 'news' && (
+                {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'news' && activeTab !== 'authorship' && (
                     <Button onClick={() => { resetForm(); setShowForm(true); }}>
                         <PlusIcon className="mr-2" /> СОЗДАТЬ {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
                     </Button>
@@ -428,13 +490,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             <div className="flex border-b-2 border-black mb-8 overflow-x-auto">
-                {(['items', 'drops', 'reports', 'authorship', 'news'] as const).map((tab) => (
+                {(['dashboard', 'items', 'drops', 'reports', 'authorship', 'news'] as const).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => { setActiveTab(tab); resetForm(); resetNewsForm(); }}
                         className={`px-8 py-3 font-black text-sm uppercase border-t-2 border-l-2 border-r-2 whitespace-nowrap ${activeTab === tab ? 'bg-black text-white border-black' : 'bg-transparent border-transparent text-gray-400 hover:text-black'}`}
                     >
-                        {tab === 'items'
+                        {tab === 'dashboard'
+                            ? 'ДАШБОРД'
+                            : tab === 'items'
                             ? 'ПРЕДМЕТЫ'
                             : tab === 'drops'
                             ? 'РЕЛИЗЫ'
@@ -443,7 +507,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             : tab === 'authorship'
                             ? 'АВТОРСТВО'
                             : 'НОВОСТИ'} (
-                        {tab === 'items'
+                        {tab === 'dashboard'
+                            ? adminUsers.length
+                            : tab === 'items'
                             ? items.length
                             : tab === 'drops'
                             ? drops.length
@@ -552,6 +618,131 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
             </div>
+
+            {activeTab === 'dashboard' && (
+                <div className="grid gap-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[
+                            ['Всего пользователей', adminUsers.length],
+                            ['Активные', activeUsersCount],
+                            ['Заблокированные', bannedUsersCount],
+                            ['Авторы', designerUsersCount],
+                        ].map(([label, value]) => (
+                            <div key={label} className="bg-white border-2 border-black p-4 shadow-neo">
+                                <p className="text-[10px] font-black uppercase text-gray-500">{label}</p>
+                                <p className="text-3xl font-black">{value}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-white border-2 border-black shadow-neo overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-b-2 border-black">
+                            <div>
+                                <h2 className="text-xl font-black uppercase">Пользователи</h2>
+                                <p className="text-xs font-mono text-gray-500">
+                                    Админов: {adminUsersCount} · показано: {filteredAdminUsers.length}
+                                </p>
+                            </div>
+                            <Button type="button" variant="ghost" onClick={loadAdminUsers} disabled={adminUsersLoading}>
+                                {adminUsersLoading ? 'Загрузка...' : 'Обновить'}
+                            </Button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[840px] text-sm">
+                                <thead className="bg-gray-100 border-b-2 border-black">
+                                    <tr className="text-left">
+                                        <th className="p-3 text-[10px] font-black uppercase">Пользователь</th>
+                                        <th className="p-3 text-[10px] font-black uppercase">Роль</th>
+                                        <th className="p-3 text-[10px] font-black uppercase">Статус</th>
+                                        <th className="p-3 text-[10px] font-black uppercase">Репутация</th>
+                                        <th className="p-3 text-[10px] font-black uppercase">Рецензии</th>
+                                        <th className="p-3 text-[10px] font-black uppercase">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredAdminUsers.map((user) => {
+                                        const isSelf = user.id === currentUser.id;
+                                        const bannedUntil = user.bannedUntil ? new Date(user.bannedUntil) : null;
+                                        const isBanned = !!bannedUntil && bannedUntil > new Date();
+
+                                        return (
+                                            <tr key={user.id} className="border-b border-gray-200 align-top">
+                                                <td className="p-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <img
+                                                            src={user.avatar || '/placeholder-avatar.svg'}
+                                                            alt={user.username}
+                                                            className="h-10 w-10 rounded-full border-2 border-black object-cover bg-gray-100"
+                                                        />
+                                                        <div>
+                                                            <p className="font-black">{user.username}</p>
+                                                            <p className="text-xs font-mono text-gray-500">ID: {user.id}</p>
+                                                            {isSelf && <p className="text-[10px] font-black uppercase text-blue-600">Это вы</p>}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 font-mono">{user.role}</td>
+                                                <td className="p-3">
+                                                    <span className={`text-[10px] font-black uppercase px-2 py-1 border border-black ${isBanned ? 'bg-red-100 text-red-900' : 'bg-green-100 text-green-900'}`}>
+                                                        {isBanned ? 'Заблокирован' : 'Активен'}
+                                                    </span>
+                                                    {isBanned && bannedUntil && (
+                                                        <p className="text-xs font-mono text-gray-500 mt-1">
+                                                            до {bannedUntil.toLocaleDateString()}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 font-mono">{user.reputation}</td>
+                                                <td className="p-3 font-mono">{user.reviewsCount}</td>
+                                                <td className="p-3">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <select
+                                                            value={userBanDays[user.id] ?? 7}
+                                                            onChange={(e) => setUserBanDays(prev => ({ ...prev, [user.id]: parseInt(e.target.value, 10) }))}
+                                                            className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                            disabled={isSelf}
+                                                        >
+                                                            <option value={1}>1 день</option>
+                                                            <option value={7}>7 дней</option>
+                                                            <option value={30}>30 дней</option>
+                                                            <option value={90}>90 дней</option>
+                                                            <option value={365}>365 дней</option>
+                                                        </select>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAdminBanUser(user.id)}
+                                                            disabled={isSelf}
+                                                            className="px-3 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-black"
+                                                        >
+                                                            Заблокировать
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAdminDeleteUser(user)}
+                                                            disabled={isSelf}
+                                                            className="px-3 py-1 border-2 border-red-700 text-xs font-black uppercase text-red-700 hover:bg-red-700 hover:text-white transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-red-700"
+                                                        >
+                                                            Удалить
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {filteredAdminUsers.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="p-8 text-center font-mono text-gray-400">
+                                                Пользователи не найдены.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showForm && (
                 <div className="bg-white border-2 border-black p-6 shadow-neo mb-8">

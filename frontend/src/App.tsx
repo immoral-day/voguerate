@@ -511,6 +511,20 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleDeleteUser = async (userId: string) => {
+        try {
+            await apiService.delete(`/v1/users/${userId}`);
+            setUsers(prev => prev.filter(u => u.id !== userId));
+            setReviews(prev => prev.filter(r => r.userId !== userId));
+            setReviewReports(prev => prev.filter(report => String(report.reporterId) !== userId));
+            setUserReports(prev => prev.filter(report => String(report.reporterId) !== userId && String(report.reportedUserId) !== userId));
+            addToast('Пользователь удалён');
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка удаления пользователя');
+        }
+    };
+
     const handleVerifyUser = async (userId: string, verified: boolean) => {
         try {
             const updatedUser = await apiService.post<User>(`/v1/users/${userId}/verify`, { verified });
@@ -806,6 +820,8 @@ export const App: React.FC = () => {
         case 'ADMIN': {
             if (currentUser.role === 'ADMIN') {
                 content = <AdminPanel 
+                    users={users}
+                    currentUser={currentUser}
                     items={clothingItems} 
                     drops={drops} 
                     reviewReports={reviewReports}
@@ -819,6 +835,7 @@ export const App: React.FC = () => {
                     onDeleteReviewReport={handleDeleteReviewReport}
                     onDeleteUserReport={handleDeleteUserReport}
                     onBanUser={handleBanUser}
+                    onDeleteUser={handleDeleteUser}
                     onUpdateItem={handleUpdateItem}
                     onUpdateDrop={handleUpdateDrop}
                     onCreateArticle={handleCreateArticle}

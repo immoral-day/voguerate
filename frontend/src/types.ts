@@ -8,6 +8,7 @@ export interface User {
   role: 'USER' | 'DESIGNER' | 'ADMIN';
   bio?: string;
   joinedDate?: string;
+  bannedUntil?: string | null;
   favoriteDesigners?: string[];
   favorites?: string[];
   wardrobe: {

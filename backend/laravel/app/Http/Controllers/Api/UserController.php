@@ -14,9 +14,13 @@ use Throwable;
 
 class UserController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $includeBanned = request()->boolean('includeBanned');
+        $includeBanned = $request->boolean('includeBanned');
+        if ($includeBanned && !ApiAuth::isAdmin(ApiAuth::user($request))) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         $query = User::query();
         if (!$includeBanned) {
             $query->where(function ($q) {
