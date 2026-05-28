@@ -31,6 +31,47 @@ interface AdminPanelProps {
     onBack: () => void;
 }
 
+const parseAuthorshipMessage = (message?: string) => {
+    const text = (message || '').trim();
+    if (!text) return [];
+
+    const labels = [
+        { title: 'Опыт и бэкграунд', label: 'Опыт и бэкграунд:' },
+        { title: 'Стиль и направления', label: 'Стиль / направления:' },
+        { title: 'Почему хочет стать автором', label: 'Почему хочу стать автором:' },
+    ];
+
+    const sections: Array<{ title: string; body: string[] }> = [];
+    let current: { title: string; body: string[] } = { title: 'Сообщение', body: [] };
+
+    text.split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        const marker = labels.find((item) => trimmed.toLowerCase().startsWith(item.label.toLowerCase()));
+
+        if (marker) {
+            if (current.body.some((part) => part.trim())) {
+                sections.push(current);
+            }
+            current = {
+                title: marker.title,
+                body: [trimmed.slice(marker.label.length).trim()],
+            };
+            return;
+        }
+
+        current.body.push(line);
+    });
+
+    if (current.body.some((part) => part.trim())) {
+        sections.push(current);
+    }
+
+    return sections.map((section) => ({
+        title: section.title,
+        body: section.body.join('\n').trim(),
+    })).filter((section) => section.body);
+};
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
     items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
 }) => {
@@ -842,7 +883,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     (req.message || '').toLowerCase().includes(q)
                                 );
                             })
-                            .map((request) => (
+                            .map((request) => {
+                                const messageSections = parseAuthorshipMessage(request.message);
+
+                                return (
                                 <div key={request.id} className="bg-white border-2 border-black p-6 shadow-neo">
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
@@ -871,12 +915,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                     </span>
                                                 )}
                                             </div>
-                                            {request.message && (
+                                            {messageSections.length > 0 && (
                                                 <div className="mb-3">
-                                                    <h4 className="text-xs font-black uppercase mb-1">Сообщение:</h4>
-                                                    <p className="text-sm font-mono text-gray-700 break-words">
-                                                        {request.message}
-                                                    </p>
+                                                    <h4 className="text-xs font-black uppercase mb-2">Заявка:</h4>
+                                                    <div className="grid gap-2">
+                                                        {messageSections.map((section) => (
+                                                            <section
+                                                                key={section.title}
+                                                                className="border border-gray-300 bg-gray-50 p-3"
+                                                            >
+                                                                <h5 className="text-[10px] font-black uppercase text-gray-500 mb-1">
+                                                                    {section.title}
+                                                                </h5>
+                                                                <p className="text-sm font-mono text-gray-700 break-words whitespace-pre-wrap leading-relaxed">
+                                                                    {section.body}
+                                                                </p>
+                                                            </section>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                             {request.portfolioLink && (
@@ -941,7 +997,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         )}
                                     </div>
                                 </div>
-                            ))
+                                );
+                            })
                     )}
                 </div>
             )}

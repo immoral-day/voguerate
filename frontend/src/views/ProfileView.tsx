@@ -179,9 +179,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         setIsReportOpen(false);
     };
 
-    const visibleBadges = (user.badges || [])
-        .filter((badge) => badge && !['ADMIN', 'DESIGNER', 'USER'].includes(badge.toUpperCase()))
-        .map(badgeLabel);
+    const visibleBadges = Array.from(new Set((user.badges || [])
+        .filter((badge) => badge && !['ADMIN', 'DESIGNER', 'USER', 'VERIFIED', 'ВЕРИФИЦИРОВАН'].includes(badge.toUpperCase()))
+        .map(badgeLabel)));
 
     return (
         <div className="animate-fade-in pb-20">
