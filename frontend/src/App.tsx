@@ -505,6 +505,7 @@ export const App: React.FC = () => {
             setUsers(prev => prev.filter(u => u.id !== bannedUser.id));
             setReviews(prev => prev.filter(r => r.userId !== bannedUser.id));
             addToast(`Пользователь забанен на ${days} дн.`);
+            return bannedUser;
         } catch (err: unknown) {
             const error = err as Error;
             addToast(error.message || 'Ошибка бана');
@@ -522,6 +523,21 @@ export const App: React.FC = () => {
         } catch (err: unknown) {
             const error = err as Error;
             addToast(error.message || 'Ошибка удаления пользователя');
+        }
+    };
+
+    const handleUpdateUserRole = async (userId: string, role: User['role']) => {
+        try {
+            const updatedUser = await apiService.put<User>(`/v1/users/${userId}`, { role });
+            setUsers(prev => prev.map(user => user.id === updatedUser.id ? updatedUser : user));
+            if (currentUser?.id === updatedUser.id) {
+                setCurrentUser(updatedUser);
+            }
+            addToast('Роль пользователя обновлена');
+            return updatedUser;
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка изменения роли');
         }
     };
 
@@ -836,6 +852,7 @@ export const App: React.FC = () => {
                     onDeleteUserReport={handleDeleteUserReport}
                     onBanUser={handleBanUser}
                     onDeleteUser={handleDeleteUser}
+                    onUpdateUserRole={handleUpdateUserRole}
                     onUpdateItem={handleUpdateItem}
                     onUpdateDrop={handleUpdateDrop}
                     onCreateArticle={handleCreateArticle}

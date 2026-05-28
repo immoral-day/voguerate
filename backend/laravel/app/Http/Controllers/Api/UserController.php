@@ -148,7 +148,13 @@ class UserController extends Controller
         if (array_key_exists('avatar', $data)) $updateData['avatar'] = $data['avatar'];
         if (array_key_exists('profileBackground', $data)) $updateData['profile_background'] = $data['profileBackground'];
         if (array_key_exists('bio', $data)) $updateData['bio'] = $data['bio'];
-        if (isset($data['role']) && ApiAuth::isAdmin($authUser)) $updateData['role'] = $data['role'];
+        if (isset($data['role']) && ApiAuth::isAdmin($authUser)) {
+            if ((int) $authUser->id === (int) $user->id && $data['role'] !== 'ADMIN') {
+                return response()->json(['error' => 'Cannot remove your own admin role'], 422);
+            }
+
+            $updateData['role'] = $data['role'];
+        }
         if (isset($data['favoriteDesigners'])) $updateData['favorite_designers'] = $data['favoriteDesigners'];
         if (isset($data['favorites'])) $updateData['favorites'] = $data['favorites'];
         if (isset($data['wardrobe'])) $updateData['wardrobe'] = $data['wardrobe'];

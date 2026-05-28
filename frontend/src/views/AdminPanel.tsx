@@ -24,8 +24,9 @@ interface AdminPanelProps {
     onDeleteReviewReport: (id: string) => Promise<void>;
     onDeleteUserReport: (id: string) => Promise<void>;
     onDeleteReview: (id: string) => Promise<void>;
-    onBanUser: (id: string, days: number) => Promise<void>;
+    onBanUser: (id: string, days: number) => Promise<User | void>;
     onDeleteUser: (id: string) => Promise<void>;
+    onUpdateUserRole: (id: string, role: User['role']) => Promise<User | void>;
     onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
     onUpdateDrop: (id: string, data: Partial<UpcomingDrop>) => Promise<void>;
     onCreateArticle: (data: Partial<Article>) => Promise<void>;
@@ -75,8 +76,15 @@ const parseAuthorshipMessage = (message?: string) => {
     })).filter((section) => section.body);
 };
 
+const parseUserDate = (value?: string | null) => {
+    if (!value) return null;
+    const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-    users, currentUser, items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onDeleteUser, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
+    users, currentUser, items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onDeleteUser, onUpdateUserRole, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
 }) => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'items' | 'drops' | 'reports' | 'authorship' | 'news'>('dashboard');
     const [showForm, setShowForm] = useState(false);
@@ -96,6 +104,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [userBanDays, setUserBanDays] = useState<Record<string, number>>({});
     const [adminUsers, setAdminUsers] = useState<User[]>(users);
     const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+    const [adminUsersPage, setAdminUsersPage] = useState(1);
+    const [adminUsersPerPage, setAdminUsersPerPage] = useState(10);
     const [authorshipRequests, setAuthorshipRequests] = useState<AuthorshipRequest[]>([]);
     const [authorshipStatusFilter, setAuthorshipStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
     const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
@@ -124,8 +134,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     });
 
     useEffect(() => {
-        setAdminUsers(users);
-    }, [users]);
+        if (activeTab !== 'dashboard') {
+            setAdminUsers(users);
+        }
+    }, [users, activeTab]);
+
+    useEffect(() => {
+        setAdminUsersPage(1);
+    }, [searchQuery, adminUsersPerPage, adminUsers.length]);
 
     const loadAdminUsers = async () => {
         setAdminUsersLoading(true);
@@ -147,8 +163,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const handleAdminBanUser = async (userId: string) => {
         const days = userBanDays[userId] ?? 7;
-        await onBanUser(userId, days);
+        const bannedUser = await onBanUser(userId, days);
+        if (bannedUser) {
+            setAdminUsers(prev => prev.map(user => user.id === bannedUser.id ? bannedUser : user));
+        }
         await loadAdminUsers();
+    };
+
+    const handleAdminRoleChange = async (user: User, role: User['role']) => {
+        if (user.id === currentUser.id && role !== 'ADMIN') {
+            alert('Нельзя снять роль администратора со своего аккаунта.');
+            return;
+        }
+
+        const updated = await onUpdateUserRole(user.id, role);
+        if (updated) {
+            setAdminUsers(prev => prev.map(item => item.id === updated.id ? updated : item));
+        }
     };
 
     const handleAdminDeleteUser = async (user: User) => {
@@ -463,10 +494,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             String(user.id).includes(q)
         );
     });
-    const activeUsersCount = adminUsers.filter((user) => !user.bannedUntil || new Date(user.bannedUntil) <= new Date()).length;
+    const isUserBanned = (user: User) => {
+        const bannedUntil = parseUserDate(user.bannedUntil);
+        return !!bannedUntil && bannedUntil > new Date();
+    };
+    const activeUsersCount = adminUsers.filter((user) => !isUserBanned(user)).length;
     const bannedUsersCount = adminUsers.length - activeUsersCount;
     const adminUsersCount = adminUsers.filter((user) => user.role === 'ADMIN').length;
     const designerUsersCount = adminUsers.filter((user) => user.role === 'DESIGNER').length;
+    const adminUsersPageCount = Math.max(1, Math.ceil(filteredAdminUsers.length / adminUsersPerPage));
+    const safeAdminUsersPage = Math.min(adminUsersPage, adminUsersPageCount);
+    const paginatedAdminUsers = filteredAdminUsers.slice(
+        (safeAdminUsersPage - 1) * adminUsersPerPage,
+        safeAdminUsersPage * adminUsersPerPage,
+    );
 
     return (
         <div className="animate-fade-in pb-12">
@@ -643,9 +684,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     Админов: {adminUsersCount} · показано: {filteredAdminUsers.length}
                                 </p>
                             </div>
-                            <Button type="button" variant="ghost" onClick={loadAdminUsers} disabled={adminUsersLoading}>
-                                {adminUsersLoading ? 'Загрузка...' : 'Обновить'}
-                            </Button>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                    value={adminUsersPerPage}
+                                    onChange={(event) => setAdminUsersPerPage(parseInt(event.target.value, 10))}
+                                    className="border-2 border-black text-xs font-mono px-2 py-2"
+                                >
+                                    <option value={10}>10 на странице</option>
+                                    <option value={20}>20 на странице</option>
+                                    <option value={50}>50 на странице</option>
+                                </select>
+                                <Button type="button" variant="ghost" onClick={loadAdminUsers} disabled={adminUsersLoading}>
+                                    {adminUsersLoading ? 'Загрузка...' : 'Обновить'}
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -661,10 +713,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredAdminUsers.map((user) => {
+                                    {paginatedAdminUsers.map((user) => {
                                         const isSelf = user.id === currentUser.id;
-                                        const bannedUntil = user.bannedUntil ? new Date(user.bannedUntil) : null;
-                                        const isBanned = !!bannedUntil && bannedUntil > new Date();
+                                        const bannedUntil = parseUserDate(user.bannedUntil);
+                                        const isBanned = isUserBanned(user);
 
                                         return (
                                             <tr key={user.id} className="border-b border-gray-200 align-top">
@@ -682,7 +734,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="p-3 font-mono">{user.role}</td>
+                                                <td className="p-3">
+                                                    <select
+                                                        value={user.role}
+                                                        onChange={(event) => handleAdminRoleChange(user, event.target.value as User['role'])}
+                                                        disabled={isSelf}
+                                                        className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                    >
+                                                        <option value="USER">USER</option>
+                                                        <option value="DESIGNER">DESIGNER</option>
+                                                        <option value="ADMIN">ADMIN</option>
+                                                    </select>
+                                                </td>
                                                 <td className="p-3">
                                                     <span className={`text-[10px] font-black uppercase px-2 py-1 border border-black ${isBanned ? 'bg-red-100 text-red-900' : 'bg-green-100 text-green-900'}`}>
                                                         {isBanned ? 'Заблокирован' : 'Активен'}
@@ -740,6 +803,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </tbody>
                             </table>
                         </div>
+                        {filteredAdminUsers.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-t-2 border-black">
+                                <p className="text-xs font-mono text-gray-500">
+                                    Страница {safeAdminUsersPage} из {adminUsersPageCount}
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAdminUsersPage(page => Math.max(1, page - 1))}
+                                        disabled={safeAdminUsersPage <= 1}
+                                        className="px-3 py-2 border-2 border-black text-xs font-black uppercase disabled:opacity-40"
+                                    >
+                                        Назад
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAdminUsersPage(page => Math.min(adminUsersPageCount, page + 1))}
+                                        disabled={safeAdminUsersPage >= adminUsersPageCount}
+                                        className="px-3 py-2 border-2 border-black text-xs font-black uppercase disabled:opacity-40"
+                                    >
+                                        Вперёд
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
