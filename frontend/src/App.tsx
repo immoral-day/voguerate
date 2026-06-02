@@ -75,9 +75,10 @@ export const App: React.FC = () => {
             return;
         }
 
-        apiService.get<User>(`/v1/users/${savedUserId}`)
+        apiService.get<User>('/v1/me')
             .then((user) => {
                 if (cancelled) return;
+                localStorage.setItem('currentUserId', user.id);
                 setCurrentUser(user);
                 setUsers([user]);
             })

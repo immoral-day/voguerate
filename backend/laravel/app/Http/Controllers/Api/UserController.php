@@ -14,6 +14,11 @@ use Throwable;
 
 class UserController extends Controller
 {
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json($request->user());
+    }
+
     public function index(Request $request): JsonResponse
     {
         $includeBanned = $request->boolean('includeBanned');
