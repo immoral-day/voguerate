@@ -50,6 +50,19 @@ export const App: React.FC = () => {
     const [likedReviewIds, setLikedReviewIds] = useState<Set<string>>(new Set());
 
     useEffect(() => {
+        const handleUnauthorized = () => {
+            setCurrentUser(null);
+            setReviewReports([]);
+            setUserReports([]);
+            setViewState({ view: 'HOME' });
+            addToast('Сессия устарела. Войдите заново.');
+        };
+
+        window.addEventListener('auth:unauthorized', handleUnauthorized);
+        return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    }, []);
+
+    useEffect(() => {
         let cancelled = false;
         const savedUserId = localStorage.getItem('currentUserId');
         const savedAuthToken = localStorage.getItem('authToken');

@@ -4,6 +4,15 @@ const API_ORIGIN = new URL(API_BASE_URL, APP_ORIGIN).origin;
 
 const normalizeStorageUrl = (value: string) => {
   if (value.startsWith('/storage/')) return `${API_ORIGIN}${value}`;
+  if (value.startsWith('storage/')) return `${API_ORIGIN}/${value}`;
+  try {
+    const url = new URL(value);
+    if (url.pathname.startsWith('/storage/')) {
+      return `${API_ORIGIN}${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch {
+    return value;
+  }
   return value;
 };
 
@@ -31,6 +40,13 @@ const authHeaders = (): Record<string, string> => {
   return {
     'Authorization': `Bearer ${token}`,
   };
+};
+
+const handleUnauthorized = (endpoint: string) => {
+  if (typeof window === 'undefined' || endpoint.endsWith('/login')) return;
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUserId');
+  window.dispatchEvent(new Event('auth:unauthorized'));
 };
 
 const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 2): Promise<Response> => {
@@ -143,6 +159,7 @@ export const apiService = {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (response.status === 401) handleUnauthorized(endpoint);
       throw new Error(error.message || `API Error: ${response.statusText}`);
     }
     return normalizeApiPayload(await response.json());
@@ -161,6 +178,7 @@ export const apiService = {
     if (!response.ok) {
       const error = await response.json().catch(() => ({} as Record<string, unknown>));
       let message: string | undefined = error.message;
+      if (response.status === 401) handleUnauthorized(endpoint);
 
       // Laravel валидация может возвращать { error: { field: [msg] } }
       if (!message && error.error) {
@@ -194,6 +212,7 @@ export const apiService = {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (response.status === 401) handleUnauthorized(endpoint);
       throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
     }
     return normalizeApiPayload(await response.json());
@@ -209,6 +228,7 @@ export const apiService = {
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (response.status === 401) handleUnauthorized(endpoint);
       throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
     }
   },
@@ -227,6 +247,7 @@ export const apiService = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (response.status === 401) handleUnauthorized('/upload');
       throw new Error(error.error || `Upload Error: ${response.statusText}`);
     }
 
