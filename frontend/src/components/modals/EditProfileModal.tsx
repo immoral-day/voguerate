@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { User } from '../../types';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ClothingItem, User } from '../../types';
 import { DEFAULT_AVATAR } from '../../constants';
 import { XIcon } from '../icons/Icons';
 import { Avatar, Button } from '../UI';
@@ -9,12 +9,16 @@ interface EditProfileModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: User;
+    users: User[];
+    items: ClothingItem[];
     onSave: (data: Partial<User>) => void;
 }
 
-export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, user, onSave }) => {
+export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, user, users, items, onSave }) => {
     const [bio, setBio] = useState(user.bio || '');
-    const [favoriteDesigners, setFavoriteDesigners] = useState(user.favoriteDesigners?.join(', ') || '');
+    const [favoriteDesigners, setFavoriteDesigners] = useState<string[]>(user.favoriteDesigners || []);
+    const [designerPickerOpen, setDesignerPickerOpen] = useState(false);
+    const [designerQuery, setDesignerQuery] = useState('');
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState(user.avatar || DEFAULT_AVATAR);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
@@ -40,7 +44,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     useEffect(() => {
         revokePreviewUrls();
         setBio(user.bio || '');
-        setFavoriteDesigners(user.favoriteDesigners?.join(', ') || '');
+        setFavoriteDesigners(user.favoriteDesigners || []);
+        setDesignerPickerOpen(false);
+        setDesignerQuery('');
         setAvatarPreview(user.avatar || DEFAULT_AVATAR);
         setBackgroundPreview(user.profileBackground || '');
     }, [user]);
@@ -52,6 +58,47 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
 
         return revokePreviewUrls;
     }, [isOpen]);
+
+    const knownDesigners = useMemo(() => {
+        const names = new Map<string, { name: string; source: string; popularity: number }>();
+
+        users
+            .filter((entry) => entry.role === 'DESIGNER')
+            .forEach((entry) => {
+                names.set(entry.username.toLowerCase(), {
+                    name: entry.username,
+                    source: 'Автор на сайте',
+                    popularity: entry.reputation,
+                });
+            });
+
+        items.forEach((item) => {
+            const key = item.brand.trim().toLowerCase();
+            if (!key) return;
+            const existing = names.get(key);
+            names.set(key, {
+                name: existing?.name || item.brand.trim(),
+                source: existing ? existing.source : 'Работы представлены на сайте',
+                popularity: (existing?.popularity || 0) + item.ratingCount + 1,
+            });
+        });
+
+        return [...names.values()].sort((a, b) => b.popularity - a.popularity || a.name.localeCompare(b.name, 'ru'));
+    }, [items, users]);
+
+    const normalizedDesignerQuery = designerQuery.trim().toLowerCase();
+    const designerSuggestions = knownDesigners
+        .filter((entry) => !favoriteDesigners.some((name) => name.toLowerCase() === entry.name.toLowerCase()))
+        .filter((entry) => !normalizedDesignerQuery || entry.name.toLowerCase().includes(normalizedDesignerQuery))
+        .slice(0, 8);
+    const hasExactKnownDesigner = knownDesigners.some((entry) => entry.name.toLowerCase() === normalizedDesignerQuery);
+
+    const addDesigner = (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed || favoriteDesigners.some((entry) => entry.toLowerCase() === trimmed.toLowerCase())) return;
+        setFavoriteDesigners((current) => [...current, trimmed]);
+        setDesignerQuery('');
+    };
 
     if (!isOpen) return null;
 
@@ -99,7 +146,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 bio,
                 avatar: avatarUrl,
                 profileBackground: backgroundUrl,
-                favoriteDesigners: favoriteDesigners.split(',').map((item) => item.trim()).filter(Boolean),
+                favoriteDesigners,
             });
             onClose();
         } catch (err) {
@@ -139,10 +186,63 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                     <textarea value={bio} onChange={(event) => setBio(event.target.value)} className="vr-input" />
                 </label>
 
-                <label>
-                    Любимые бренды через запятую
-                    <input value={favoriteDesigners} onChange={(event) => setFavoriteDesigners(event.target.value)} className="vr-input" placeholder="Rick Owens, Balenciaga, Acronym" />
-                </label>
+                <div className="designer-picker">
+                    <div className="designer-picker-head">
+                        <span>Любимые дизайнеры</span>
+                        <button
+                            className="designer-add-button"
+                            type="button"
+                            onClick={() => setDesignerPickerOpen((current) => !current)}
+                            aria-label="Добавить дизайнера"
+                        >
+                            +
+                        </button>
+                    </div>
+
+                    <div className="designer-selected">
+                        {favoriteDesigners.map((designer) => (
+                            <span className="designer-chip" key={designer}>
+                                {designer}
+                                <button
+                                    type="button"
+                                    onClick={() => setFavoriteDesigners((current) => current.filter((entry) => entry !== designer))}
+                                    aria-label={`Удалить ${designer}`}
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        ))}
+                        {favoriteDesigners.length === 0 && <span className="muted">Дизайнеры пока не добавлены.</span>}
+                    </div>
+
+                    {designerPickerOpen && (
+                        <div className="designer-picker-panel">
+                            <input
+                                value={designerQuery}
+                                onChange={(event) => setDesignerQuery(event.target.value)}
+                                className="vr-input"
+                                placeholder="Найти дизайнера или бренд"
+                                autoFocus
+                            />
+                            <div className="designer-suggestions">
+                                {designerSuggestions.map((entry) => (
+                                    <button type="button" key={entry.name} onClick={() => addDesigner(entry.name)}>
+                                        <strong>{entry.name}</strong>
+                                        <small>{entry.source}</small>
+                                    </button>
+                                ))}
+                            </div>
+                            {normalizedDesignerQuery && !hasExactKnownDesigner && (
+                                <button className="designer-custom-add" type="button" onClick={() => addDesigner(designerQuery)}>
+                                    Добавить «{designerQuery.trim()}» вручную
+                                </button>
+                            )}
+                            {!normalizedDesignerQuery && designerSuggestions.length > 0 && (
+                                <p className="muted">Сначала показаны популярные авторы и бренды с работами на сайте.</p>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {error && <div className="pill red">{error}</div>}
 

@@ -1093,6 +1093,8 @@ export const App: React.FC = () => {
                     isOpen={isEditProfileOpen}
                     onClose={() => setIsEditProfileOpen(false)}
                     user={currentUser}
+                    users={users}
+                    items={clothingItems}
                     onSave={handleUpdateProfile}
                 />
             )}

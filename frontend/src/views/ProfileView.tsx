@@ -277,8 +277,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     {activeTab === 'OVERVIEW' && (
                         <section className="profile-section">
                             <div className="section-head">
-                                <div className="section-title"><h2 className="vr-h2">Любимые бренды</h2></div>
-                                <span className="pill">{user.favoriteDesigners?.length || 0} брендов</span>
+                                <div className="section-title"><h2 className="vr-h2">Любимые дизайнеры</h2></div>
+                                <span className="pill">{user.favoriteDesigners?.length || 0}</span>
                             </div>
                             {user.favoriteDesigners?.length ? (
                                 <div className="brand-list">
