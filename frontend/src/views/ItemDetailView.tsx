@@ -251,7 +251,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                         </label>
                         <div className="review-actions">
                             <span>{newReviewText.trim().length} / {MIN_REVIEW_LENGTH}</span>
-                            <button className="btn red" type="button" disabled={newReviewText.trim().length < MIN_REVIEW_LENGTH || submitting} onClick={submitReview}>
+                            <button className="btn rating-submit" type="button" disabled={newReviewText.trim().length < MIN_REVIEW_LENGTH || submitting} onClick={submitReview}>
                                 {submitting ? 'Отправка...' : 'Зафиксировать оценку'}
                             </button>
                         </div>

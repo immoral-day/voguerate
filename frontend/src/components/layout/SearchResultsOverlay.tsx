@@ -32,6 +32,10 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
     return (
         <div className="fixed inset-0 z-[35] bg-black/70 p-4 pt-24 backdrop-blur-sm" onClick={onClose}>
             <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2" onClick={(event) => event.stopPropagation()}>
+                <div className="search-query-banner md:col-span-2">
+                    <span>Поиск</span>
+                    <strong>{query}</strong>
+                </div>
                 <section className="card p-4">
                     <div className="section-title mb-4">
                         <span className="section-icon">ВЩ</span>
