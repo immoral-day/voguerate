@@ -194,6 +194,12 @@ button { cursor: pointer; }
   padding-right: 5px;
   gap: 9px;
 }
+.actions .btn.guest-login {
+  min-width: 64px;
+  padding-right: 12px;
+  padding-left: 12px;
+  text-align: center;
+}
 .actions .avatar {
   border: 1px solid #343438;
   background: #202024;
@@ -3171,7 +3177,7 @@ input, textarea, select { color: var(--text); background: #111; }
   .logo { font-size: 14px; }
   .search { grid-column: 1 / -1; grid-template-columns: 1fr; width: 100%; }
   .search select { display: none; }
-  .actions .btn:not(.white) { display: none; }
+  .actions .btn:not(.white):not(.guest-login) { display: none; }
   .mobile-nav { display: grid; }
   .section-head { align-items: flex-start; margin-top: 14px; }
   .cards-5, .cards-4, .cards-3, .cards-2 { grid-template-columns: 1fr; }

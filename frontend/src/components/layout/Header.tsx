@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, searchQuery, onSear
         <div className="actions">
             <button className="btn" type="button" onClick={onMessagesClick}>Чат</button>
             <button className="btn" type="button" onClick={onFeedbackClick}>Связь</button>
-            <button className="btn" type="button" onClick={onProfileClick}>
+            <button className={`btn ${currentUser ? '' : 'guest-login'}`} type="button" onClick={onProfileClick}>
                 <span className="hidden sm:inline">{currentUser?.username || 'Войти'}</span>
                 {currentUser && (
                     <span className="avatar !h-[24px] !w-[24px]"><img src={currentUser.avatar || DEFAULT_AVATAR} alt={currentUser.username} /></span>
