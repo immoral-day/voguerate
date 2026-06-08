@@ -284,7 +284,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                                 <button
                                     className={`review-like-button ${isLikedByCurrentUser ? 'liked' : ''}`}
                                     type="button"
-                                    disabled={likingReviewId === review.id || isLikedByCurrentUser}
+                                    disabled={likingReviewId === review.id}
                                     onClick={() => likeReview(review.id)}
                                     title={isLikedByCurrentUser ? 'Лайк уже учтён' : 'Поддержать рецензию'}
                                 >

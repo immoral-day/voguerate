@@ -29,6 +29,19 @@ interface BootstrapPayload {
     articles: Article[];
 }
 
+const GUEST_USER: User = {
+    id: '__guest__',
+    username: 'Гость',
+    reputation: 0,
+    reviewsCount: 0,
+    role: 'USER',
+    wardrobe: { owned: [], wanted: [], sold: [] },
+    badges: [],
+    following: [],
+    followers: [],
+    favorites: [],
+};
+
 export const App: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [viewState, setViewState] = useState<ViewState>({ view: 'HOME' });
@@ -48,6 +61,8 @@ export const App: React.FC = () => {
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState('');
     const [likedReviewIds, setLikedReviewIds] = useState<Set<string>>(new Set());
+    const [authOpen, setAuthOpen] = useState(false);
+    const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([]);
 
     useEffect(() => {
         const handleUnauthorized = () => {
@@ -71,7 +86,6 @@ export const App: React.FC = () => {
         if (!savedUserId || !savedAuthToken || !hasSanctumToken) {
             localStorage.removeItem('currentUserId');
             localStorage.removeItem('authToken');
-            setIsLoading(false);
             return;
         }
 
@@ -80,7 +94,9 @@ export const App: React.FC = () => {
                 if (cancelled) return;
                 localStorage.setItem('currentUserId', user.id);
                 setCurrentUser(user);
-                setUsers([user]);
+                setUsers((current) => current.some((entry) => entry.id === user.id)
+                    ? current.map((entry) => entry.id === user.id ? user : entry)
+                    : [...current, user]);
             })
             .catch((error) => {
                 console.error('Failed to restore saved user:', error);
@@ -97,13 +113,10 @@ export const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (!currentUser) return;
-
         let cancelled = false;
 
         const loadData = async () => {
             try {
-                setIsLoading(true);
                 const payload = await apiService.get<BootstrapPayload>('/v1/bootstrap');
                 if (cancelled) return;
 
@@ -113,7 +126,7 @@ export const App: React.FC = () => {
                 setDrops(payload.drops);
                 setArticles(payload.articles);
 
-                const refreshedCurrentUser = payload.users.find((user) => user.id === currentUser.id);
+                const refreshedCurrentUser = payload.users.find((user) => user.id === currentUser?.id);
                 if (refreshedCurrentUser) {
                     setCurrentUser(refreshedCurrentUser);
                 }
@@ -134,25 +147,28 @@ export const App: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, [currentUser?.id]);
+    }, []);
 
     useEffect(() => {
         if (currentUser?.role !== 'ADMIN') {
             setReviewReports([]);
             setUserReports([]);
+            setFeedbackMessages([]);
             return;
         }
 
         const loadReports = async () => {
             try {
-                const [reviewReportsData, userReportsData, articlesData] = await Promise.all([
+                const [reviewReportsData, userReportsData, articlesData, feedbackData] = await Promise.all([
                     apiService.get<ReviewReport[]>('/v1/report-reviews'),
                     apiService.get<UserReport[]>('/v1/report-users'),
                     apiService.get<Article[]>('/v1/articles'),
+                    apiService.get<FeedbackMessage[]>('/v1/feedback'),
                 ]);
                 setReviewReports(reviewReportsData);
                 setUserReports(userReportsData);
                 setArticles(articlesData);
+                setFeedbackMessages(feedbackData);
             } catch (error) {
                 console.error('Failed to load report data:', error);
                 addToast('Не удалось загрузить репорты');
@@ -237,6 +253,7 @@ export const App: React.FC = () => {
         try {
             const user = await apiService.post<User>('/v1/login', { username: usernameOrEmail, password });
             setCurrentUser(user);
+            setAuthOpen(false);
             localStorage.setItem('currentUserId', user.id);
             if (user.authToken) localStorage.setItem('authToken', user.authToken);
         } catch (err: unknown) {
@@ -254,6 +271,7 @@ export const App: React.FC = () => {
             const newUser = await apiService.post<User>('/v1/users', { username, email, password });
             setUsers((prev) => [...prev, newUser]);
             setCurrentUser(newUser);
+            setAuthOpen(false);
             localStorage.setItem('currentUserId', newUser.id);
             if (newUser.authToken) localStorage.setItem('authToken', newUser.authToken);
         } catch (err: unknown) {
@@ -276,13 +294,24 @@ export const App: React.FC = () => {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     };
 
+    const requestAuth = () => {
+        setAuthError('');
+        setAuthOpen(true);
+    };
+
+    const requireAuth = () => {
+        if (currentUser) return true;
+        requestAuth();
+        return false;
+    };
+
     const navigateTo = (view: ViewState['view'], params: Partial<ViewState> = {}) => {
         setViewState({ ...params, view });
         window.scrollTo(0, 0);
     };
 
     const handleToggleFollow = async (targetId: string) => {
-        if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         const following = currentUser.following || [];
         const wasFollowing = following.includes(targetId);
         const newFollowing = following.includes(targetId) ? following.filter(id => id !== targetId) : [...following, targetId];
@@ -333,7 +362,7 @@ export const App: React.FC = () => {
     };
 
     const handleUpdateProfile = async (data: Partial<User>) => {
-        if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         try {
             const updatedUser = await apiService.put<User>(`/v1/users/${currentUser.id}`, data);
             setCurrentUser(updatedUser);
@@ -347,7 +376,7 @@ export const App: React.FC = () => {
     };
 
     const handleToggleFavorite = async (id: string) => {
-    if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         const favorites = currentUser.favorites || [];
         const wasFavorite = favorites.includes(id);
         const newFavorites = favorites.includes(id) ? favorites.filter(f => f !== id) : [...favorites, id];
@@ -369,6 +398,7 @@ export const App: React.FC = () => {
     };
 
     const handleAddReview = async (reviewData: Partial<Review>) => {
+        if (!requireAuth() || !currentUser) return;
         try {
             const newReview = await apiService.post<Review>('/v1/reviews', reviewData);
             setReviews(prev => [newReview, ...prev]);
@@ -438,7 +468,7 @@ export const App: React.FC = () => {
     };
 
     const handleReportReview = async (reviewId: string) => {
-        if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         try {
             await apiService.post(`/v1/reviews/${reviewId}/report`, { reporterId: currentUser.id });
             addToast('Рецензия отправлена на модерацию');
@@ -449,32 +479,32 @@ export const App: React.FC = () => {
     };
 
     const handleLikeReview = async (reviewId: string) => {
-        if (!currentUser) return;
-        if (likedReviewIds.has(reviewId)) {
-            addToast('Вы уже лайкнули эту рецензию');
-            return;
-        }
+        if (!requireAuth() || !currentUser) return;
 
         const previousReview = reviews.find(review => review.id === reviewId);
         if (!previousReview) return;
+        const wasLiked = likedReviewIds.has(reviewId);
 
-        rememberLikedReview(reviewId);
+        if (wasLiked) forgetLikedReview(reviewId);
+        else rememberLikedReview(reviewId);
         setReviews(prev => prev.map(review => (
             review.id === reviewId
-                ? { ...review, likes: review.likes + 1 }
+                ? { ...review, likes: Math.max(0, review.likes + (wasLiked ? -1 : 1)) }
                 : review
         )));
         if (previousReview.userId !== currentUser.id) {
             setUsers(prev => prev.map(user => (
                 user.id === previousReview.userId
-                    ? { ...user, reputation: user.reputation + 1 }
+                    ? { ...user, reputation: Math.max(0, user.reputation + (wasLiked ? -1 : 1)) }
                     : user
             )));
         }
-        addToast('Лайк засчитан');
+        addToast(wasLiked ? 'Лайк убран' : 'Лайк засчитан');
 
         try {
-            const updatedReview = await apiService.post<Review>(`/v1/reviews/${reviewId}/like`, { userId: currentUser.id });
+            const updatedReview = wasLiked
+                ? await apiService.delete<Review>(`/v1/reviews/${reviewId}/like`)
+                : await apiService.post<Review>(`/v1/reviews/${reviewId}/like`, {});
             setReviews(prev => prev.map(review => review.id === reviewId ? updatedReview : review));
             if (updatedReview.user) {
                 setUsers(prev => prev.map(user => user.id === updatedReview.userId ? updatedReview.user! : user));
@@ -484,17 +514,13 @@ export const App: React.FC = () => {
             }
         } catch (err: unknown) {
             const error = err as Error;
-            if ((error.message || '').toLowerCase().includes('уже лайкали')) {
-                rememberLikedReview(reviewId);
-                setReviews(prev => prev.map(review => review.id === reviewId ? { ...review, likes: Math.max(review.likes, previousReview.likes + 1) } : review));
-                return;
-            }
-            forgetLikedReview(reviewId);
+            if (wasLiked) rememberLikedReview(reviewId);
+            else forgetLikedReview(reviewId);
             setReviews(prev => prev.map(review => review.id === reviewId ? previousReview : review));
             if (previousReview.userId !== currentUser.id) {
                 setUsers(prev => prev.map(user => (
                     user.id === previousReview.userId
-                        ? { ...user, reputation: Math.max(0, user.reputation - 1) }
+                        ? { ...user, reputation: Math.max(0, user.reputation + (wasLiked ? 1 : -1)) }
                         : user
                 )));
             }
@@ -503,7 +529,7 @@ export const App: React.FC = () => {
     };
 
     const handleReportUser = async (userId: string, reason: string) => {
-        if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         try {
             await apiService.post(`/v1/users/${userId}/report`, { reporterId: currentUser.id, reason });
             addToast('Пользователь отправлен на модерацию');
@@ -707,7 +733,7 @@ export const App: React.FC = () => {
     };
 
     const handleCopDrop = async (id: string) => {
-        if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         const previousDrop = drops.find(drop => drop.id === id);
         if (!previousDrop) return;
 
@@ -736,7 +762,7 @@ export const App: React.FC = () => {
     };
 
     const handleSubmitFeedback = async (message: string) => {
-        if (!currentUser) return;
+        if (!requireAuth() || !currentUser) return;
         try {
             await apiService.post<FeedbackMessage>('/v1/feedback', {
                 userId: currentUser.id,
@@ -761,9 +787,26 @@ export const App: React.FC = () => {
         );
     }
 
-    if (!currentUser) {
-        return <AuthView onLogin={handleLogin} onRegister={handleRegister} loading={authLoading} error={authError} />;
+    if (!currentUser && authOpen) {
+        return (
+            <AuthView
+                onLogin={handleLogin}
+                onRegister={handleRegister}
+                loading={authLoading}
+                error={authError}
+                onContinueAsGuest={() => setAuthOpen(false)}
+            />
+        );
     }
+
+    const viewer = currentUser || GUEST_USER;
+    const authRequired = (
+        <div className="card p-8 text-center">
+            <h2 className="vr-h2">Требуется регистрация</h2>
+            <p className="muted my-4">Просматривать сайт можно без аккаунта. Для этого действия войдите или зарегистрируйтесь.</p>
+            <Button onClick={requestAuth}>Войти или зарегистрироваться</Button>
+        </div>
+    );
 
     let content;
     switch (viewState.view) {
@@ -782,7 +825,7 @@ export const App: React.FC = () => {
             break;
         case 'EXPLORE':
         case 'CALENDAR':
-            content = <CalendarView drops={drops} onCop={handleCopDrop} currentUserId={currentUser.id} />;
+            content = <CalendarView drops={drops} onCop={handleCopDrop} currentUserId={currentUser?.id} />;
             break;
         case 'TOP_RATED':
             content = <TopRatedView items={clothingItems} onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })} />;
@@ -794,13 +837,13 @@ export const App: React.FC = () => {
             content = <FeedbackView onSubmit={handleSubmitFeedback} onToast={addToast} />;
             break;
         case 'AUTHORSHIP':
-            content = (
+            content = currentUser ? (
                 <AuthorshipView
                     currentUser={currentUser}
                     onBack={() => navigateTo('PROFILE', { userId: currentUser.id })}
                     onToast={addToast}
                 />
-            );
+            ) : authRequired;
             break;
         case 'NEWS':
             content = (
@@ -812,7 +855,7 @@ export const App: React.FC = () => {
             );
             break;
         case 'MESSAGES':
-            content = (
+            content = currentUser ? (
                 <ChatView
                     currentUser={currentUser}
                     users={users}
@@ -820,7 +863,7 @@ export const App: React.FC = () => {
                     onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
                     onToast={addToast}
                 />
-            );
+            ) : authRequired;
             break;
         case 'ARTICLE_DETAIL': {
             const summaryArticle = articles.find((a) => a.id === viewState.articleId);
@@ -848,7 +891,7 @@ export const App: React.FC = () => {
             content = <ManifestoView />;
             break;
         case 'ADMIN': {
-            if (currentUser.role === 'ADMIN') {
+            if (currentUser?.role === 'ADMIN') {
                 content = <AdminPanel 
                     users={users}
                     currentUser={currentUser}
@@ -856,6 +899,7 @@ export const App: React.FC = () => {
                     drops={drops} 
                     reviewReports={reviewReports}
                     userReports={userReports}
+                    feedbackMessages={feedbackMessages}
                     articles={articles}
                     onCreateItem={handleCreateItem} 
                     onCreateDrop={handleCreateDrop} 
@@ -897,11 +941,11 @@ export const App: React.FC = () => {
                     <ItemDetailView
                         item={item}
                         reviews={itemReviews}
-                        currentUser={currentUser}
+                        currentUser={viewer}
                         onBack={() => navigateTo('HOME')}
                         onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
                         onToggleFavorite={handleToggleFavorite}
-                        isFavorite={currentUser.favorites?.includes(item.id) || false}
+                        isFavorite={currentUser?.favorites?.includes(item.id) || false}
                         onAddReview={handleAddReview}
                         onLikeReview={handleLikeReview}
                         likedReviewIds={likedReviewIds}
@@ -915,12 +959,12 @@ export const App: React.FC = () => {
             break;
         }
         case 'PROFILE': {
-            const targetUser = users.find(u => u.id === (viewState.userId || currentUser.id));
+            const targetUser = users.find(u => u.id === (viewState.userId || currentUser?.id));
             if (targetUser) {
                 content = (
                     <ProfileView
                         user={targetUser}
-                        currentUser={currentUser}
+                        currentUser={viewer}
                         onEditProfile={() => setIsEditProfileOpen(true)}
                         onToggleFollow={handleToggleFollow}
                         items={clothingItems}
@@ -931,7 +975,7 @@ export const App: React.FC = () => {
                         usersList={users}
                         onReportUser={handleReportUser}
                         onVerifyUser={handleVerifyUser}
-                        onMessage={(id) => navigateTo('MESSAGES', { recipientId: id })}
+                        onMessage={(id) => currentUser ? navigateTo('MESSAGES', { recipientId: id }) : requestAuth()}
                         onToast={addToast}
                     />
                 );
@@ -956,15 +1000,16 @@ export const App: React.FC = () => {
 
       return (
         <div className="app">
-            <Sidebar setView={setViewState} activeView={viewState.view} isAdmin={currentUser.role === 'ADMIN'} />
+            <Sidebar setView={setViewState} activeView={viewState.view} isAdmin={currentUser?.role === 'ADMIN'} />
             <div className="page">
                 <Header
                     currentUser={currentUser}
+                    searchQuery={searchQuery}
                     onSearch={setSearchQuery}
                     onHomeClick={() => navigateTo('HOME')}
-                    onProfileClick={() => navigateTo('PROFILE', { userId: currentUser.id })}
+                    onProfileClick={() => currentUser ? navigateTo('PROFILE', { userId: currentUser.id }) : requestAuth()}
                     onFeedbackClick={() => navigateTo('FEEDBACK')}
-                    onMessagesClick={() => navigateTo('MESSAGES')}
+                    onMessagesClick={() => currentUser ? navigateTo('MESSAGES') : requestAuth()}
                 />
                 <nav className="mobile-nav" aria-label="Мобильная навигация">
                     {[
@@ -978,7 +1023,9 @@ export const App: React.FC = () => {
                             key={view}
                             type="button"
                             className={viewState.view === view || (view === 'EXPLORE' && viewState.view === 'CALENDAR') ? 'active' : ''}
-                            onClick={() => setViewState({ view: view as ViewState['view'] })}
+                            onClick={() => view === 'MESSAGES' && !currentUser
+                                ? requestAuth()
+                                : setViewState({ view: view as ViewState['view'] })}
                         >
                             {label}
                         </button>
@@ -997,12 +1044,14 @@ export const App: React.FC = () => {
                 </main>
                 <Footer />
             </div>
-            <EditProfileModal
-                isOpen={isEditProfileOpen}
-                onClose={() => setIsEditProfileOpen(false)}
-                user={currentUser}
-                onSave={handleUpdateProfile}
-            />
+            {currentUser && (
+                <EditProfileModal
+                    isOpen={isEditProfileOpen}
+                    onClose={() => setIsEditProfileOpen(false)}
+                    user={currentUser}
+                    onSave={handleUpdateProfile}
+                />
+            )}
             <ToastContainer toasts={toasts} onRemove={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
         </div>
     );

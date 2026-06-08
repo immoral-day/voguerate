@@ -56,6 +56,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/reviews/{review}', [ReviewController::class, 'destroy']);
         Route::post('/reviews/{review}/report', [ReviewController::class, 'report']);
         Route::post('/reviews/{review}/like', [ReviewController::class, 'like']);
+        Route::delete('/reviews/{review}/like', [ReviewController::class, 'unlike']);
 
         Route::post('/drops', [DropController::class, 'store']);
         Route::put('/drops/{drop}', [DropController::class, 'update']);
@@ -85,7 +86,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/authorship-requests/{authorshipRequest}/reject', [AuthorshipController::class, 'reject']);
     });
 
-    Route::get('/feedback', [FeedbackController::class, 'index']);
+    Route::get('/feedback', [FeedbackController::class, 'index'])
+        ->middleware(['auth:sanctum', 'throttle:writes']);
     Route::post('/feedback', [FeedbackController::class, 'store'])->middleware(['auth:sanctum', 'throttle:writes']);
 
     Route::middleware(['auth:sanctum', 'throttle:chatReads'])->group(function () {

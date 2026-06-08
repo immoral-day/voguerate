@@ -4,14 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeedbackMessage;
+use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class FeedbackController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        if (!ApiAuth::isAdmin(ApiAuth::user($request))) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
         return response()->json(
             FeedbackMessage::with('user')->orderByDesc('created_at')->get()
         );

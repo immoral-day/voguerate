@@ -5,7 +5,7 @@ import { DEFAULT_ITEM_IMAGE } from '../constants';
 interface CalendarViewProps {
     drops: UpcomingDrop[];
     onCop: (id: string) => void;
-    currentUserId: string;
+    currentUserId?: string;
 }
 
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -25,10 +25,19 @@ function getCalendarDays(year: number, month: number) {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop, currentUserId }) => {
     const [filter, setFilter] = useState<'UPCOMING' | 'RELEASED'>('UPCOMING');
-    const now = new Date();
-    const [calendarDate, setCalendarDate] = useState({ year: now.getFullYear(), month: now.getMonth() });
+    const currentYear = new Date().getFullYear();
+    const [calendarDate, setCalendarDate] = useState({ year: currentYear, month: new Date().getMonth() });
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
     const [page, setPage] = useState(1);
+    const availableYears = useMemo(() => {
+        const dropYears = drops
+            .map((drop) => new Date(drop.releaseDate).getFullYear())
+            .filter(Number.isFinite);
+        const minYear = Math.min(currentYear - 10, ...dropYears);
+        const maxYear = Math.max(currentYear + 10, ...dropYears);
+
+        return Array.from({ length: maxYear - minYear + 1 }, (_, index) => minYear + index);
+    }, [currentYear, drops]);
 
     const filteredDrops = useMemo(() => {
         return drops
@@ -90,6 +99,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop, curren
                         <h2 className="vr-h2 mt-4">Календарь</h2>
                         <p className="muted">Дни с релизами подсвечены. Нажми на день, чтобы увидеть только его релизы.</p>
                     </div>
+                    <div className="calendar-date-picker">
+                        <label>
+                            Месяц
+                            <select
+                                value={calendarDate.month}
+                                onChange={(event) => {
+                                    setCalendarDate((current) => ({ ...current, month: Number(event.target.value) }));
+                                    setSelectedDay(null);
+                                }}
+                            >
+                                {MONTHS.map((month, index) => (
+                                    <option key={month} value={index}>{month}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            Год
+                            <select
+                                value={calendarDate.year}
+                                onChange={(event) => {
+                                    setCalendarDate((current) => ({ ...current, year: Number(event.target.value) }));
+                                    setSelectedDay(null);
+                                }}
+                            >
+                                {availableYears.map((year) => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
                     <div className="calendar-grid">
                         {WEEKDAYS.map((day) => <span className="tiny justify-center" key={day}>{day}</span>)}
                         {calendarDays.map((day, idx) => (
@@ -123,7 +162,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop, curren
                     <div className="calendar-drop-grid">
                     {pagedDrops.map((drop) => {
                         const isReleased = new Date(drop.releaseDate) < new Date();
-                        const copped = drop.coppedBy?.includes(currentUserId);
+                        const copped = currentUserId ? drop.coppedBy?.includes(currentUserId) : false;
                         return (
                             <article className="calendar-drop-card" key={drop.id}>
                                 <div className="calendar-drop-cover">

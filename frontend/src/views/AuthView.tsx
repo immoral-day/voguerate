@@ -5,9 +5,10 @@ interface AuthViewProps {
     onRegister: (username: string, email: string, password: string) => void;
     loading: boolean;
     error: string;
+    onContinueAsGuest?: () => void;
 }
 
-export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading, error }) => {
+export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading, error, onContinueAsGuest }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -57,6 +58,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                     <button className="auth-inline-link" type="button" onClick={() => setIsLogin(false)}>
                         Создать аккаунт
                     </button>
+                    {onContinueAsGuest && (
+                        <button className="auth-inline-link" type="button" onClick={onContinueAsGuest}>
+                            Продолжить как гость
+                        </button>
+                    )}
                 </section>
             ) : (
                 <section className="auth-split">
@@ -102,6 +108,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                         <button className="auth-inline-link" type="button" onClick={() => setIsLogin(true)}>
                             Уже есть аккаунт? Войти
                         </button>
+                        {onContinueAsGuest && (
+                            <button className="auth-inline-link" type="button" onClick={onContinueAsGuest}>
+                                Продолжить как гость
+                            </button>
+                        )}
                     </div>
                     <div className="auth-side-pane">
                         <div className="auth-side-logo">ВОЯЖ<br />РЕЙТ</div>

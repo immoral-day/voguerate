@@ -3,7 +3,8 @@ import { User } from '../../types';
 import { DEFAULT_AVATAR } from '../../constants';
 
 interface HeaderProps {
-    currentUser: User;
+    currentUser: User | null;
+    searchQuery: string;
     onSearch: (q: string) => void;
     onProfileClick: () => void;
     onFeedbackClick: () => void;
@@ -11,7 +12,7 @@ interface HeaderProps {
     onHomeClick: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfileClick, onFeedbackClick, onMessagesClick, onHomeClick }) => (
+export const Header: React.FC<HeaderProps> = ({ currentUser, searchQuery, onSearch, onProfileClick, onFeedbackClick, onMessagesClick, onHomeClick }) => (
     <header className="topbar">
         <button className="logo" type="button" onClick={onHomeClick}>
             ВОЯЖРЕЙТ
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfile
         <div className="search">
             <input
                 type="text"
+                value={searchQuery}
                 placeholder="поиск: вещи, бренды, люди"
                 onChange={(event) => onSearch(event.target.value)}
             />
@@ -32,8 +34,10 @@ export const Header: React.FC<HeaderProps> = ({ currentUser, onSearch, onProfile
             <button className="btn" type="button" onClick={onMessagesClick}>Чат</button>
             <button className="btn" type="button" onClick={onFeedbackClick}>Связь</button>
             <button className="btn" type="button" onClick={onProfileClick}>
-                <span className="hidden sm:inline">{currentUser.username}</span>
-                <span className="avatar !h-[24px] !w-[24px]"><img src={currentUser.avatar || DEFAULT_AVATAR} alt={currentUser.username} /></span>
+                <span className="hidden sm:inline">{currentUser?.username || 'Войти'}</span>
+                {currentUser && (
+                    <span className="avatar !h-[24px] !w-[24px]"><img src={currentUser.avatar || DEFAULT_AVATAR} alt={currentUser.username} /></span>
+                )}
             </button>
         </div>
     </header>

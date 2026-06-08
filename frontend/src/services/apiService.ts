@@ -218,7 +218,7 @@ export const apiService = {
     return normalizeApiPayload(await response.json());
   },
 
-  async delete(endpoint: string): Promise<void> {
+  async delete<T = void>(endpoint: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
       headers: {
@@ -231,6 +231,9 @@ export const apiService = {
       if (response.status === 401) handleUnauthorized(endpoint);
       throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
     }
+    if (response.status === 204) return undefined as T;
+    const text = await response.text();
+    return text ? normalizeApiPayload(JSON.parse(text)) as T : undefined as T;
   },
 
   async uploadFile(file: File, type: UploadType = 'avatar'): Promise<{ url: string; path: string; relativePath?: string }> {

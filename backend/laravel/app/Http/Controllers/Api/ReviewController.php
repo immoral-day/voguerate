@@ -206,4 +206,31 @@ class ReviewController extends Controller
         $review->load(['user', 'clothingItem']);
         return response()->json($review);
     }
+
+    public function unlike(Request $request, Review $review): JsonResponse
+    {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $like = ReviewLike::where('review_id', $review->id)
+            ->where('user_id', $authUser->id)
+            ->first();
+
+        if (!$like) {
+            return response()->json(['error' => 'Лайк не найден'], 404);
+        }
+
+        $like->delete();
+        $review->update(['likes' => max(0, (int) $review->likes - 1)]);
+
+        if ($review->user && $review->user->reputation > 0) {
+            $review->user->decrement('reputation');
+        }
+
+        $review->load(['user', 'clothingItem']);
+
+        return response()->json($review);
+    }
 }

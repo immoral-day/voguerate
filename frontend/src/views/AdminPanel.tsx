@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, User, AuthorshipRequest, Article } from '../types';
+import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, User, AuthorshipRequest, Article, FeedbackMessage } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
 import { Button } from '../components/UI';
@@ -16,6 +16,7 @@ interface AdminPanelProps {
     drops: UpcomingDrop[];
     reviewReports: ReviewReport[];
     userReports: UserReport[];
+    feedbackMessages: FeedbackMessage[];
     articles: Article[];
     onCreateItem: (item: Partial<ClothingItem>) => Promise<void>;
     onCreateDrop: (drop: Partial<UpcomingDrop>) => Promise<void>;
@@ -83,10 +84,10 @@ const parseUserDate = (value?: string | null) => {
     return Number.isNaN(date.getTime()) ? null : date;
 };
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ 
-    users, currentUser, items, drops, reviewReports, userReports, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onDeleteUser, onUpdateUserRole, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack 
+export const AdminPanel: React.FC<AdminPanelProps> = ({
+    users, currentUser, items, drops, reviewReports, userReports, feedbackMessages, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onDeleteUser, onUpdateUserRole, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack
 }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'items' | 'drops' | 'reports' | 'authorship' | 'news'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'items' | 'drops' | 'reports' | 'feedback' | 'authorship' | 'news'>('dashboard');
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -117,6 +118,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [newsImagePreview, setNewsImagePreview] = useState<string>('');
     const [newsForm, setNewsForm] = useState({
         title: '',
+        topic: '',
         body: '',
         image: '',
     });
@@ -241,7 +243,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     const resetNewsForm = () => {
-        setNewsForm({ title: '', body: '', image: '' });
+        setNewsForm({ title: '', topic: '', body: '', image: '' });
         setNewsImageFile(null);
         setNewsImagePreview('');
         setEditingArticleId(null);
@@ -261,6 +263,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const startEditArticle = (article: Article) => {
         setNewsForm({
             title: article.title,
+            topic: article.topic || '',
             body: article.body ?? '',
             image: article.image || '',
         });
@@ -518,7 +521,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                     <h1 className="text-3xl font-black uppercase">АДМИН ПАНЕЛЬ</h1>
                 </div>
-                {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'news' && activeTab !== 'authorship' && (
+                {activeTab !== 'dashboard' && activeTab !== 'reports' && activeTab !== 'feedback' && activeTab !== 'news' && activeTab !== 'authorship' && (
                     <Button onClick={() => { resetForm(); setShowForm(true); }}>
                         <PlusIcon className="mr-2" /> СОЗДАТЬ {activeTab === 'items' ? 'ПРЕДМЕТ' : 'РЕЛИЗ'}
                     </Button>
@@ -531,7 +534,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
 
             <div className="flex border-b-2 border-black mb-8 overflow-x-auto">
-                {(['dashboard', 'items', 'drops', 'reports', 'authorship', 'news'] as const).map((tab) => (
+                {(['dashboard', 'items', 'drops', 'reports', 'feedback', 'authorship', 'news'] as const).map((tab) => (
                     <button
                         key={tab}
                         onClick={() => { setActiveTab(tab); resetForm(); resetNewsForm(); }}
@@ -545,6 +548,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             ? 'РЕЛИЗЫ'
                             : tab === 'reports'
                             ? 'РЕПОРТЫ'
+                            : tab === 'feedback'
+                            ? 'ОБРАТНАЯ СВЯЗЬ'
                             : tab === 'authorship'
                             ? 'АВТОРСТВО'
                             : 'НОВОСТИ'} (
@@ -556,6 +561,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             ? drops.length
                             : tab === 'reports'
                             ? reviewReports.length + userReports.length
+                            : tab === 'feedback'
+                            ? feedbackMessages.length
                             : tab === 'authorship'
                             ? authorshipRequests.length
                             : articles.length})
@@ -741,9 +748,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                         disabled={isSelf}
                                                         className="border-2 border-black text-xs font-mono px-2 py-1"
                                                     >
-                                                        <option value="USER">USER</option>
-                                                        <option value="DESIGNER">DESIGNER</option>
-                                                        <option value="ADMIN">ADMIN</option>
+                                                        <option value="USER">Пользователь</option>
+                                                        <option value="DESIGNER">Дизайнер</option>
+                                                        <option value="ADMIN">Администратор</option>
                                                     </select>
                                                 </td>
                                                 <td className="p-3">
@@ -1140,6 +1147,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 );
                             })
                         )
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'feedback' && (
+                <div className="grid gap-3">
+                    {feedbackMessages
+                        .filter((entry) => {
+                            const query = searchQuery.trim().toLowerCase();
+                            if (!query) return true;
+                            return entry.message.toLowerCase().includes(query)
+                                || (entry.user?.username || '').toLowerCase().includes(query)
+                                || (entry.page || '').toLowerCase().includes(query);
+                        })
+                        .map((entry) => (
+                            <article key={entry.id} className="bg-white border-2 border-black p-4 shadow-neo">
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                                    <strong>{entry.user?.username || 'Гость'}</strong>
+                                    <span className="text-xs font-mono text-gray-500">
+                                        {entry.createdAt ? new Date(entry.createdAt).toLocaleString('ru-RU') : ''}
+                                    </span>
+                                </div>
+                                <p className="whitespace-pre-wrap">{entry.message}</p>
+                                {entry.page && <p className="mt-3 text-xs font-mono text-gray-500">Раздел: {entry.page}</p>}
+                            </article>
+                        ))}
+                    {feedbackMessages.length === 0 && (
+                        <div className="bg-white border-2 border-black p-8 text-center text-gray-500">
+                            Сообщений обратной связи пока нет.
+                        </div>
                     )}
                 </div>
             )}
