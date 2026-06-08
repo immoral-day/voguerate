@@ -57,6 +57,8 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         ratings.relevance * 3 +
         ratings.vibe * 3
     ), [ratings]);
+    const ratingTone = totalScore >= 75 ? 'high' : totalScore >= 46 ? 'mid' : 'low';
+    const averageRatingTone = item.averageRating >= 75 ? 'high' : item.averageRating >= 46 ? 'mid' : 'low';
 
     const sortedReviews = useMemo(
         () => [...reviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -189,7 +191,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                 <aside className="side-panel">
                     <div>
                         <span className="pill red">Средний рейтинг</span>
-                        <div className="big-score">{item.averageRating}<span className="text-2xl text-[var(--muted)] tracking-normal">/90</span></div>
+                        <div className={`big-score rating-tone-${averageRatingTone}`}>{item.averageRating}<span className="text-2xl text-[var(--muted)] tracking-normal">/90</span></div>
                         <p className="muted">{item.ratingCount} оценок сообщества</p>
                     </div>
                     <div className="breakdown">
@@ -225,7 +227,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                 <div className="rating-studio">
                     <div className="rating-grid-panel">
                         {ratingRows.map((row) => (
-                            <label className={`rating-row-card ${row.key === 'vibe' ? 'wide purple' : ''}`} key={row.key}>
+                            <label className={`rating-row-card ${row.key === 'vibe' ? 'wide green' : ''}`} key={row.key}>
                                 <span className="rating-row-title">{row.label} <small>x{row.multiplier}</small></span>
                                 <strong>{row.value}</strong>
                                 <input
@@ -240,7 +242,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                     </div>
 
                     <div className="rating-review-box">
-                        <div className="rating-total liquid-total">
+                        <div className={`rating-total liquid-total rating-tone-${ratingTone}`}>
                             <span>✓</span>
                             <strong>{totalScore}</strong>
                             <em>/90</em>

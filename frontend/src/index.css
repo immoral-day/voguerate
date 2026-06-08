@@ -634,7 +634,7 @@ h1, h2, h3, p { margin-top: 0; }
   border-radius: var(--r);
   background: var(--panel);
 }
-.big-score { font-size: 42px; line-height: .95; font-weight: 900; letter-spacing: 0; color: var(--yellow); }
+.big-score { font-size: 42px; line-height: .95; font-weight: 900; letter-spacing: 0; color: #9b9b9f; }
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .stat-chip { min-height: 54px; display: grid; align-content: center; gap: 2px; padding: 8px; border-radius: var(--r); background: #121212; border: 1px solid var(--line); }
 .stat-chip strong { color: var(--text); font-size: 20px; line-height: 1; font-weight: 880; }
@@ -882,9 +882,9 @@ h1, h2, h3, p { margin-top: 0; }
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #30496f;
+  border: 1px solid #294237;
   border-radius: 14px;
-  background: #12141a;
+  background: #111713;
   box-shadow: none;
 }
 .rating-track {
@@ -945,14 +945,14 @@ h1, h2, h3, p { margin-top: 0; }
   gap: 8px 12px;
   align-items: center;
   padding: 12px 14px;
-  border: 1px solid #3d659d;
+  border: 1px solid #35506f;
   border-radius: 12px;
-  background: #1d3d69;
+  background: #182c42;
   box-shadow: none;
 }
-.rating-row-card.purple {
-  border-color: #78509a;
-  background: #4b2867;
+.rating-row-card.green {
+  border-color: #376348;
+  background: #1d3d2a;
 }
 .rating-row-card.wide { grid-column: 1 / -1; }
 .rating-row-title {
@@ -973,16 +973,16 @@ h1, h2, h3, p { margin-top: 0; }
   grid-column: 1 / -1;
   width: 100%;
   height: 10px;
-  accent-color: #6e8df2;
+  accent-color: #527aa3;
 }
-.rating-row-card.purple input[type="range"] { accent-color: #a75bea; }
+.rating-row-card.green input[type="range"] { accent-color: #5c946d; }
 .rating-row-card input[type="range"]::-webkit-slider-runnable-track {
   height: 10px;
   border-radius: 999px;
-  background: #6f92c9;
+  background: #527aa3;
 }
-.rating-row-card.purple input[type="range"]::-webkit-slider-runnable-track {
-  background: #a56bd4;
+.rating-row-card.green input[type="range"]::-webkit-slider-runnable-track {
+  background: #5c946d;
 }
 .rating-row-card input[type="range"]::-webkit-slider-thumb {
   width: 20px;
@@ -990,10 +990,10 @@ h1, h2, h3, p { margin-top: 0; }
   margin-top: -5px;
   border: 2px solid #fff;
   border-radius: 50%;
-  background: #6f92c9;
+  background: #527aa3;
   box-shadow: none;
 }
-.rating-row-card.purple input[type="range"]::-webkit-slider-thumb { background: #a56bd4; }
+.rating-row-card.green input[type="range"]::-webkit-slider-thumb { background: #5c946d; }
 .rating-bottom-panel {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
@@ -1018,12 +1018,12 @@ h1, h2, h3, p { margin-top: 0; }
   place-items: center;
   border-radius: 50%;
   color: #111;
-  background: #f4cd2d;
+  background: #8b8b90;
   font-size: 28px;
   font-weight: 950;
 }
 .rating-total strong {
-  color: #f4cd2d;
+  color: #9b9b9f;
   font-size: 48px;
   line-height: .82;
   font-weight: 950;
@@ -1053,7 +1053,7 @@ h1, h2, h3, p { margin-top: 0; }
   font-size: 12px;
   font-weight: 760;
 }
-.rating-flags input { width: 16px; height: 16px; accent-color: #f4cd2d; }
+.rating-flags input { width: 16px; height: 16px; accent-color: #5c946d; }
 .rating-review-box {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr);
@@ -1085,12 +1085,21 @@ h1, h2, h3, p { margin-top: 0; }
 .rating-review-box .review-actions {
   grid-column: 2;
 }
+.rating-total.rating-tone-low > strong,
+.big-score.rating-tone-low { color: #c85f64; }
+.rating-total.rating-tone-low > span { color: #fff; background: #9e3f45; }
+.rating-total.rating-tone-mid > strong,
+.big-score.rating-tone-mid { color: #a4a4aa; }
+.rating-total.rating-tone-mid > span { color: #111; background: #8b8b90; }
+.rating-total.rating-tone-high > strong,
+.big-score.rating-tone-high { color: #70b989; }
+.rating-total.rating-tone-high > span { color: #07110a; background: #70b989; }
 .rating-submit {
   color: #fff;
-  border-color: #3d659d;
-  background: #1d3d69;
+  border-color: #376348;
+  background: #1d3d2a;
 }
-.rating-submit:hover { border-color: #6f92c9; background: #285083; }
+.rating-submit:hover { border-color: #5c946d; background: #285239; }
 
 .mini-scroll {
   display: grid;
