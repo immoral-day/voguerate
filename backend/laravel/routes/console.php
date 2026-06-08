@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 // Свои artisan-команды можно добавить здесь, например:
 // Artisan::command('app:some-task', function () { ... });
@@ -418,3 +419,36 @@ Artisan::command('app:polish-demo-content {--apply : реально записа
 
     return 0;
 });
+
+Artisan::command('app:diagnose', function () {
+    $databasePath = DB::connection()->getDatabaseName();
+    $tables = ['users', 'clothing_items', 'reviews', 'drops', 'articles', 'chat_messages'];
+
+    $this->info('Database: ' . $databasePath);
+    $this->line('Database size: ' . number_format(File::exists($databasePath) ? File::size($databasePath) : 0) . ' bytes');
+
+    foreach ($tables as $table) {
+        if (DB::getSchemaBuilder()->hasTable($table)) {
+            $this->line("{$table}: " . DB::table($table)->count());
+        }
+    }
+
+    $journalMode = DB::selectOne('PRAGMA journal_mode');
+    $pageCount = DB::selectOne('PRAGMA page_count');
+    $freePages = DB::selectOne('PRAGMA freelist_count');
+
+    $this->line('Journal mode: ' . ($journalMode->journal_mode ?? 'unknown'));
+    $this->line('Pages: ' . ($pageCount->page_count ?? 0));
+    $this->line('Free pages: ' . ($freePages->freelist_count ?? 0));
+})->purpose('Show production database size and row counts');
+
+Artisan::command('app:database-maintain {--vacuum : Rebuild the SQLite database file}', function () {
+    DB::statement('PRAGMA optimize');
+    DB::statement('PRAGMA wal_checkpoint(TRUNCATE)');
+    $this->info('SQLite optimize and WAL checkpoint completed.');
+
+    if ($this->option('vacuum')) {
+        DB::statement('VACUUM');
+        $this->info('SQLite VACUUM completed.');
+    }
+})->purpose('Optimize SQLite and truncate its WAL file');

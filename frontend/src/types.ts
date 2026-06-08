@@ -21,6 +21,7 @@ export interface User {
   following: string[];
   followers: string[];
   authToken?: string;
+  isSummary?: boolean;
 }
 
 export interface Comment {

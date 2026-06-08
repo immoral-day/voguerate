@@ -28,7 +28,7 @@ const normalizeApiPayload = <T>(payload: T): T => {
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const transientStatuses = new Set([500, 502, 503, 504]);
+const transientStatuses = new Set([502, 503, 504]);
 
 const authHeaders = (): Record<string, string> => {
   if (typeof window === 'undefined') return {};
@@ -49,7 +49,7 @@ const handleUnauthorized = (endpoint: string) => {
   window.dispatchEvent(new Event('auth:unauthorized'));
 };
 
-const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 2): Promise<Response> => {
+const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 1): Promise<Response> => {
   let lastResponse: Response | null = null;
   let lastError: unknown = null;
 

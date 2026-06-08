@@ -109,19 +109,31 @@ class ChatController extends Controller
         }
 
         $limit = min(200, max(20, (int) $request->integer('limit', 80)));
+        $afterId = max(0, (int) $request->integer('afterId', 0));
 
-        $messages = ChatMessage::query()
-            ->where(fn (Builder $query) => $query
-                ->where('sender_id', $currentUserId)
-                ->where('recipient_id', $user->id))
-            ->orWhere(fn (Builder $query) => $query
-                ->where('sender_id', $user->id)
-                ->where('recipient_id', $currentUserId))
-            ->latest()
-            ->limit($limit)
-            ->get()
-            ->sortBy('id')
-            ->values();
+        $query = ChatMessage::query()
+            ->where(fn (Builder $conversation) => $conversation
+                ->where(fn (Builder $direction) => $direction
+                    ->where('sender_id', $currentUserId)
+                    ->where('recipient_id', $user->id))
+                ->orWhere(fn (Builder $direction) => $direction
+                    ->where('sender_id', $user->id)
+                    ->where('recipient_id', $currentUserId)));
+
+        if ($afterId > 0) {
+            $messages = $query
+                ->where('id', '>', $afterId)
+                ->orderBy('id')
+                ->limit(100)
+                ->get();
+        } else {
+            $messages = $query
+                ->latest('id')
+                ->limit($limit)
+                ->get()
+                ->sortBy('id')
+                ->values();
+        }
 
         return response()->json($messages);
     }

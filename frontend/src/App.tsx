@@ -122,7 +122,10 @@ export const App: React.FC = () => {
 
                 setClothingItems(payload.items);
                 setReviews(payload.reviews);
-                setUsers(payload.users);
+                setUsers((existingUsers) => payload.users.map((summary) => {
+                    const existing = existingUsers.find((user) => user.id === summary.id);
+                    return existing && !existing.isSummary ? existing : summary;
+                }));
                 setDrops(payload.drops);
                 setArticles(payload.articles);
 
@@ -201,6 +204,47 @@ export const App: React.FC = () => {
             cancelled = true;
         };
     }, [viewState.view, viewState.articleId, articleDetails]);
+
+    useEffect(() => {
+        if (viewState.view !== 'PROFILE') return;
+        const userId = viewState.userId || currentUser?.id;
+        if (!userId) return;
+
+        const user = users.find((entry) => entry.id === userId);
+        if (!user?.isSummary) return;
+
+        let cancelled = false;
+        apiService.get<User>(`/v1/users/${userId}`)
+            .then((fullUser) => {
+                if (cancelled) return;
+                setUsers((current) => current.map((entry) => entry.id === fullUser.id ? fullUser : entry));
+                if (currentUser?.id === fullUser.id) setCurrentUser(fullUser);
+            })
+            .catch((error) => console.error('Failed to load full profile:', error));
+
+        return () => {
+            cancelled = true;
+        };
+    }, [currentUser?.id, users, viewState.userId, viewState.view]);
+
+    useEffect(() => {
+        if (viewState.view !== 'ITEM_DETAIL' || !viewState.itemId) return;
+
+        let cancelled = false;
+        apiService.get<Review[]>(`/v1/reviews?compact=1&clothingId=${viewState.itemId}&limit=500`)
+            .then((itemReviews) => {
+                if (cancelled) return;
+                setReviews((current) => {
+                    const incomingIds = new Set(itemReviews.map((review) => review.id));
+                    return [...itemReviews, ...current.filter((review) => !incomingIds.has(review.id))];
+                });
+            })
+            .catch((error) => console.error('Failed to load item reviews:', error));
+
+        return () => {
+            cancelled = true;
+        };
+    }, [viewState.itemId, viewState.view]);
 
     useEffect(() => {
         if (!currentUser) {

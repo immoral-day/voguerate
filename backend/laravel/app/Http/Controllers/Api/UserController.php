@@ -34,7 +34,11 @@ class UserController extends Controller
             });
         }
 
-        return response()->json($query->get());
+        $defaultLimit = $includeBanned ? 500 : 200;
+        $limit = min(500, max(1, $request->integer('limit', $defaultLimit)));
+        $users = $query->limit($limit)->get();
+
+        return response()->json($users->map(fn (User $user) => $user->toSummaryArray()));
     }
 
     public function show(User $user): JsonResponse

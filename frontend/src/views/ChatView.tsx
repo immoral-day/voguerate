@@ -44,6 +44,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const loadingMessagesRef = useRef(false);
     const sendingRef = useRef(false);
     const lastConversationsPollRef = useRef(0);
+    const messagesRef = useRef<ChatMessage[]>([]);
 
     const availableUsers = useMemo(
         () => users
@@ -86,8 +87,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
         if (!silent) setLoadingMessages(true);
         try {
             const markRead = silent ? 0 : 1;
-            const data = await apiService.get<ChatMessage[]>(`/v1/chats/${selectedUserId}/messages?markRead=${markRead}`);
-            setMessages(data);
+            const lastMessageId = silent ? messagesRef.current.at(-1)?.id : undefined;
+            const after = lastMessageId ? `&afterId=${encodeURIComponent(lastMessageId)}` : '';
+            const data = await apiService.get<ChatMessage[]>(
+                `/v1/chats/${selectedUserId}/messages?markRead=${markRead}${after}`,
+            );
+
+            if (silent && lastMessageId) {
+                if (data.length > 0) {
+                    setMessages((current) => {
+                        const knownIds = new Set(current.map((message) => message.id));
+                        return [...current, ...data.filter((message) => !knownIds.has(message.id))];
+                    });
+                }
+            } else {
+                setMessages(data);
+            }
         } catch (error) {
             console.error('Failed to load messages:', error);
             if (!silent) onToast('Не удалось загрузить сообщения');
@@ -102,7 +117,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }, [initialRecipientId]);
 
     useEffect(() => {
-        setPollingPaused(false);
+        messagesRef.current = messages;
+    }, [messages]);
+
+    useEffect(() => {
+        const updatePollingState = () => setPollingPaused(document.visibilityState !== 'visible');
+        updatePollingState();
+        document.addEventListener('visibilitychange', updatePollingState);
+
+        return () => document.removeEventListener('visibilitychange', updatePollingState);
+    }, []);
+
+    useEffect(() => {
         loadConversations();
     }, [currentUser.id]);
 
@@ -121,7 +147,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 lastConversationsPollRef.current = now;
                 loadConversations(true);
             }
-        }, 12000);
+        }, 15000);
 
         return () => window.clearInterval(timer);
     }, [selectedUserId, currentUser.id, pollingPaused]);

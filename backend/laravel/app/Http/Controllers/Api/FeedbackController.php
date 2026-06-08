@@ -18,7 +18,7 @@ class FeedbackController extends Controller
         }
 
         return response()->json(
-            FeedbackMessage::with('user')->orderByDesc('created_at')->get()
+            FeedbackMessage::with('user')->orderByDesc('created_at')->limit(500)->get()
         );
     }
 

@@ -103,4 +103,27 @@ class User extends Authenticatable
             'followers' => $this->followers ?? [],
         ];
     }
+
+    public function toSummaryArray(): array
+    {
+        return [
+            'id' => (string) $this->id,
+            'username' => $this->username,
+            'avatar' => $this->avatar,
+            'profileBackground' => $this->profile_background,
+            'reputation' => $this->reputation,
+            'reviewsCount' => $this->reviews_count,
+            'role' => $this->role,
+            'bio' => $this->bio,
+            'joinedDate' => $this->joined_date?->toDateString(),
+            'bannedUntil' => $this->banned_until?->toDateTimeString(),
+            'badges' => $this->badges ?? [],
+            'favoriteDesigners' => [],
+            'favorites' => [],
+            'wardrobe' => ['owned' => [], 'wanted' => [], 'sold' => []],
+            'following' => [],
+            'followers' => [],
+            'isSummary' => true,
+        ];
+    }
 }

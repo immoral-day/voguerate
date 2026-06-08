@@ -17,17 +17,38 @@ class ReviewController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Review::query()
-            ->withCount('reports')
             ->whereHas('user', function ($q) {
                 $q->whereNull('banned_until')
                     ->orWhere('banned_until', '<=', now());
             });
 
-        if (!$request->boolean('compact')) {
+        if ($request->boolean('compact')) {
+            $query->select([
+                'id',
+                'user_id',
+                'clothing_item_id',
+                'rating',
+                'rating_breakdown',
+                'text',
+                'likes',
+                'created_at',
+            ]);
+        } else {
+            $query->withCount('reports');
             $query->with(['user', 'clothingItem']);
         }
 
-        return response()->json($query->latest()->get());
+        if ($request->filled('clothingId')) {
+            $query->where('clothing_item_id', $request->integer('clothingId'));
+        }
+
+        if ($request->filled('userId')) {
+            $query->where('user_id', $request->integer('userId'));
+        }
+
+        $limit = min(500, max(1, $request->integer('limit', 200)));
+
+        return response()->json($query->latest()->limit($limit)->get());
     }
 
     public function show(Review $review): JsonResponse
