@@ -190,7 +190,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
 
                 <aside className="side-panel">
                     <div>
-                        <span className="pill red">Средний рейтинг</span>
+                        <span className="pill blue">Средний рейтинг</span>
                         <div className={`big-score rating-tone-${averageRatingTone}`}>{item.averageRating}<span className="text-2xl text-[var(--muted)] tracking-normal">/90</span></div>
                         <p className="muted">{item.ratingCount} оценок сообщества</p>
                     </div>
