@@ -2912,9 +2912,7 @@ input, textarea, select { color: var(--text); background: #111; }
   border: 0;
   border-left: 1px solid #1f1f1f;
   border-radius: 0;
-  background:
-    linear-gradient(rgba(0, 0, 0, .56), rgba(0, 0, 0, .72)),
-    url('/auth-bg.jpg') center / cover no-repeat;
+  background: linear-gradient(rgba(0, 0, 0, .56), rgba(0, 0, 0, .72));
 }
 
 .auth-side-pane::before {
@@ -3464,13 +3462,56 @@ input, textarea, select { color: var(--text); background: #111; }
 /* Final auth screen pass: stable, dense, two-column product block. */
 .auth-shell {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
   display: grid;
   place-items: center;
   padding: 12px;
-  background: #0b0b0b;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, .018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .018) 1px, transparent 1px),
+    #07090d;
+  background-size: 46px 46px, 46px 46px, auto;
+}
+
+.auth-shell::before,
+.auth-shell::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 48% 52% 58% 42%;
+  pointer-events: none;
+}
+
+.auth-shell::before {
+  width: min(72vw, 1040px);
+  height: min(72vw, 1040px);
+  top: -42%;
+  right: -18%;
+  background:
+    radial-gradient(circle at 28% 32%, rgba(42, 73, 114, .32), transparent 34%),
+    radial-gradient(circle at 68% 62%, rgba(35, 61, 84, .26), transparent 42%),
+    conic-gradient(from 210deg, rgba(31, 57, 88, .18), rgba(9, 13, 20, .02), rgba(42, 66, 91, .22));
+  filter: blur(34px);
+  transform: rotate(-12deg);
+}
+
+.auth-shell::after {
+  width: min(62vw, 860px);
+  height: min(52vw, 720px);
+  left: -20%;
+  bottom: -32%;
+  background:
+    radial-gradient(ellipse at 65% 30%, rgba(29, 52, 76, .28), transparent 38%),
+    radial-gradient(ellipse at 28% 72%, rgba(20, 35, 55, .24), transparent 46%);
+  filter: blur(42px);
+  transform: rotate(18deg);
 }
 
 .auth-split {
+  position: relative;
+  z-index: 1;
   width: min(960px, calc(100vw - 24px));
   min-height: 500px;
   display: grid;
@@ -3478,8 +3519,9 @@ input, textarea, select { color: var(--text); background: #111; }
   border: 1px solid #1f1f1f;
   border-radius: 6px;
   overflow: hidden;
-  background: #101010;
-  box-shadow: none;
+  background: rgba(10, 12, 16, .86);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .46);
+  backdrop-filter: blur(18px);
 }
 
 .auth-form-pane,
@@ -3494,7 +3536,7 @@ input, textarea, select { color: var(--text); background: #111; }
   padding: 24px;
   border: 0;
   border-radius: 0;
-  background: linear-gradient(145deg, #141416 0%, #0d0d0f 100%);
+  background: linear-gradient(145deg, rgba(20, 22, 28, .94) 0%, rgba(10, 12, 16, .94) 100%);
   box-shadow: none;
 }
 
@@ -3606,7 +3648,9 @@ input, textarea, select { color: var(--text); background: #111; }
   border-left: 1px solid #1f1f1f;
   border-radius: 0;
   overflow: hidden;
-  background: #101010 url('/auth-bg.jpg') center / cover no-repeat;
+  background:
+    radial-gradient(circle at 72% 24%, rgba(50, 77, 108, .2), transparent 34%),
+    linear-gradient(145deg, rgba(15, 20, 28, .72), rgba(8, 10, 14, .9));
   box-shadow: none;
 }
 
@@ -3616,8 +3660,8 @@ input, textarea, select { color: var(--text); background: #111; }
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(circle at 50% 38%, rgba(22, 27, 34, .14), rgba(5, 6, 8, .6) 72%),
-    linear-gradient(180deg, rgba(4, 5, 7, .48), rgba(4, 5, 7, .82));
+    linear-gradient(120deg, transparent 0 38%, rgba(87, 113, 142, .06) 38% 39%, transparent 39% 100%),
+    repeating-radial-gradient(circle at 72% 24%, rgba(255, 255, 255, .025) 0 1px, transparent 1px 9px);
   pointer-events: none;
 }
 
@@ -3634,9 +3678,8 @@ input, textarea, select { color: var(--text); background: #111; }
   border: 0;
   object-fit: cover;
   object-position: center;
-  opacity: .48;
-  transform: scale(1.06);
-  filter: grayscale(1) contrast(1.16) brightness(.58) blur(.35px);
+  opacity: .62;
+  filter: grayscale(.75) contrast(1.08) brightness(.68);
   pointer-events: none;
 }
 

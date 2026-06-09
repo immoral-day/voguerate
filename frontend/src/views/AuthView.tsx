@@ -36,12 +36,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
         onRegister(username.trim(), email.trim(), password, passwordConfirmation);
     };
 
-    const mediaPane = (
+    const brandPane = (
         <div className="auth-side-pane">
             <video
                 className="auth-side-video"
                 src="/auth-motion.mp4"
-                poster="/auth-bg.jpg"
                 autoPlay
                 muted
                 loop
@@ -104,7 +103,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                             </button>
                         )}
                     </div>
-                    {mediaPane}
+                    {brandPane}
                 </section>
             ) : (
                 <section className="auth-split">
@@ -171,7 +170,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                             </button>
                         )}
                     </div>
-                    {mediaPane}
+                    {brandPane}
                 </section>
             )}
         </div>
