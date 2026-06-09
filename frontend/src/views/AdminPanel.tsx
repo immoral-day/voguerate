@@ -104,6 +104,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [reviewBanDays, setReviewBanDays] = useState<Record<string, number>>({});
     const [userBanDays, setUserBanDays] = useState<Record<string, number>>({});
     const [userBanReasons, setUserBanReasons] = useState<Record<string, string>>({});
+    const [reviewBanReasons, setReviewBanReasons] = useState<Record<string, string>>({});
+    const [reportUserBanReasons, setReportUserBanReasons] = useState<Record<string, string>>({});
     const [adminUsers, setAdminUsers] = useState<User[]>(users);
     const [adminUsersLoading, setAdminUsersLoading] = useState(false);
     const [adminUsersPage, setAdminUsersPage] = useState(1);
@@ -1073,43 +1075,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                             </div>
                                             <p className="text-sm font-mono text-black break-words">{report.review?.text || 'Текст недоступен'}</p>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="grid min-w-[230px] gap-2">
                                             {report.review?.userId && (
-                                                <select
-                                                    value={reviewBanDays[report.id] ?? 7}
-                                                    onChange={(e) => setReviewBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
-                                                    className="border-2 border-black text-xs font-mono px-2 py-1"
-                                                >
-                                                    <option value={1}>1 день</option>
-                                                    <option value={7}>7 дней</option>
-                                                    <option value={30}>30 дней</option>
-                                                    <option value={90}>90 дней</option>
-                                                    <option value={0}>Навсегда</option>
-                                                </select>
+                                                <>
+                                                    <input
+                                                        type="text"
+                                                        value={reviewBanReasons[report.id] ?? report.reason ?? ''}
+                                                        onChange={(event) => setReviewBanReasons(prev => ({ ...prev, [report.id]: event.target.value }))}
+                                                        placeholder="Причина блокировки"
+                                                        maxLength={500}
+                                                        className="w-full border-2 border-black px-2 py-1 text-xs font-mono"
+                                                    />
+                                                    <select
+                                                        value={reviewBanDays[report.id] ?? 7}
+                                                        onChange={(e) => setReviewBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
+                                                        className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                    >
+                                                        <option value={1}>1 день</option>
+                                                        <option value={7}>7 дней</option>
+                                                        <option value={30}>30 дней</option>
+                                                        <option value={90}>90 дней</option>
+                                                        <option value={0}>Навсегда</option>
+                                                    </select>
+                                                </>
                                             )}
-                                            <button onClick={() => onDeleteReviewReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
-                                                <XIcon />
-                                            </button>
-                                            {report.review?.id && (
-                                                <button
-                                                    onClick={() => onDeleteReview(report.review!.id)}
-                                                    className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
-                                                >
-                                                    Удалить рецензию
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => onDeleteReviewReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                                    <XIcon />
                                                 </button>
-                                            )}
-                                            {report.review?.userId && (
-                                                <button
-                                                    onClick={() => onBanUser(
-                                                        report.review!.userId,
-                                                        reviewBanDays[report.id] ?? 7,
-                                                        report.reason || 'Нарушение в рецензии',
-                                                    )}
-                                                    className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
-                                                >
-                                                    Забанить
-                                                </button>
-                                            )}
+                                                {report.review?.id && (
+                                                    <button
+                                                        onClick={() => onDeleteReview(report.review!.id)}
+                                                        className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
+                                                    >
+                                                        Удалить рецензию
+                                                    </button>
+                                                )}
+                                                {report.review?.userId && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const reason = (reviewBanReasons[report.id] ?? report.reason ?? 'Нарушение в рецензии').trim();
+                                                            if (reason.length < 3) {
+                                                                alert('Укажите причину блокировки.');
+                                                                return;
+                                                            }
+                                                            onBanUser(report.review!.userId, reviewBanDays[report.id] ?? 7, reason);
+                                                        }}
+                                                        className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
+                                                    >
+                                                        Забанить
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1151,35 +1168,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                 {report.reason || 'Текст недоступен'}
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="grid min-w-[230px] gap-2">
                                             {reportedUserId && (
-                                                <select
-                                                    value={userBanDays[report.id] ?? 7}
-                                                    onChange={(e) => setUserBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
-                                                    className="border-2 border-black text-xs font-mono px-2 py-1"
-                                                >
-                                                    <option value={1}>1 день</option>
-                                                    <option value={7}>7 дней</option>
-                                                    <option value={30}>30 дней</option>
-                                                    <option value={90}>90 дней</option>
-                                                    <option value={0}>Навсегда</option>
-                                                </select>
+                                                <>
+                                                    <input
+                                                        type="text"
+                                                        value={reportUserBanReasons[report.id] ?? report.reason ?? ''}
+                                                        onChange={(event) => setReportUserBanReasons(prev => ({ ...prev, [report.id]: event.target.value }))}
+                                                        placeholder="Причина блокировки"
+                                                        maxLength={500}
+                                                        className="w-full border-2 border-black px-2 py-1 text-xs font-mono"
+                                                    />
+                                                    <select
+                                                        value={userBanDays[report.id] ?? 7}
+                                                        onChange={(e) => setUserBanDays(prev => ({ ...prev, [report.id]: parseInt(e.target.value, 10) }))}
+                                                        className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                    >
+                                                        <option value={1}>1 день</option>
+                                                        <option value={7}>7 дней</option>
+                                                        <option value={30}>30 дней</option>
+                                                        <option value={90}>90 дней</option>
+                                                        <option value={0}>Навсегда</option>
+                                                    </select>
+                                                </>
                                             )}
-                                            <button onClick={() => onDeleteUserReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
-                                                <XIcon />
-                                            </button>
-                                            {reportedUserId && (
-                                                <button
-                                                    onClick={() => onBanUser(
-                                                        String(reportedUserId),
-                                                        userBanDays[report.id] ?? 7,
-                                                        report.reason || 'Нарушение правил сообщества',
-                                                    )}
-                                                    className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
-                                                >
-                                                    Забанить
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => onDeleteUserReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
+                                                    <XIcon />
                                                 </button>
-                                            )}
+                                                {reportedUserId && (
+                                                    <button
+                                                        onClick={() => {
+                                                            const reason = (reportUserBanReasons[report.id] ?? report.reason ?? 'Нарушение правил сообщества').trim();
+                                                            if (reason.length < 3) {
+                                                                alert('Укажите причину блокировки.');
+                                                                return;
+                                                            }
+                                                            onBanUser(String(reportedUserId), userBanDays[report.id] ?? 7, reason);
+                                                        }}
+                                                        className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
+                                                    >
+                                                        Забанить
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

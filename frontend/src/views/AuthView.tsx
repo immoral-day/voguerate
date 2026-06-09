@@ -16,6 +16,11 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [localError, setLocalError] = useState('');
 
+    const handleVideoReady = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+        event.currentTarget.defaultPlaybackRate = 0.55;
+        event.currentTarget.playbackRate = 0.55;
+    };
+
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
         if (isLogin) {
@@ -31,52 +36,78 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
         onRegister(username.trim(), email.trim(), password, passwordConfirmation);
     };
 
+    const mediaPane = (
+        <div className="auth-side-pane">
+            <video
+                className="auth-side-video"
+                src="/auth-motion.mp4"
+                poster="/auth-bg.jpg"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={handleVideoReady}
+                onPlay={handleVideoReady}
+                aria-hidden="true"
+            />
+            <div className="auth-side-logo">ВОЯЖ<br />РЕЙТ</div>
+            <div className="auth-side-copy">
+                <strong>Архив оценок и рецензий.</strong>
+                <span>Предмет, оценка, рецензия, автор, репутация и реакция сообщества.</span>
+            </div>
+        </div>
+    );
+
     return (
         <div className="auth-shell">
             {isLogin ? (
-                <section className="auth-card-login">
-                    <h1>Вход</h1>
-                    <form onSubmit={handleSubmit} className="auth-compact-form">
-                        {(localError || error) && <div className="auth-error">{localError || error}</div>}
-                        <label>
-                            Имя пользователя или email
-                            <input
-                                type="text"
-                                value={email}
-                                onChange={(event) => setEmail(event.target.value)}
-                                placeholder="admin или email@example.com"
-                                autoComplete="username"
-                                required
-                            />
-                        </label>
-                        <label>
-                            Пароль
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(event) => setPassword(event.target.value)}
-                                autoComplete="current-password"
-                                required
-                            />
-                        </label>
-                        <button className="auth-submit" type="submit" disabled={loading}>
-                            {loading ? 'Проверка...' : 'Войти'}
+                <section className="auth-split">
+                    <div className="auth-form-pane">
+                        <h1>Вход</h1>
+                        <form onSubmit={handleSubmit} className="auth-compact-form">
+                            {(localError || error) && <div className="auth-error">{localError || error}</div>}
+                            <label>
+                                Имя пользователя или email
+                                <input
+                                    type="text"
+                                    value={email}
+                                    onChange={(event) => setEmail(event.target.value)}
+                                    placeholder="admin или email@example.com"
+                                    autoComplete="username"
+                                    required
+                                />
+                            </label>
+                            <label>
+                                Пароль
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    autoComplete="current-password"
+                                    required
+                                />
+                            </label>
+                            <button className="auth-submit" type="submit" disabled={loading}>
+                                {loading ? 'Проверка...' : 'Войти'}
+                            </button>
+                        </form>
+                        <button className="auth-inline-link" type="button" onClick={() => {
+                            setLocalError('');
+                            setIsLogin(false);
+                        }}>
+                            Создать аккаунт
                         </button>
-                    </form>
-                    <button className="auth-inline-link" type="button" onClick={() => {
-                        setLocalError('');
-                        setIsLogin(false);
-                    }}>
-                        Создать аккаунт
-                    </button>
-                    <p className="auth-policy-note">
-                        Если вас заблокировали по ошибке навсегда, это ваша проблема.
-                    </p>
-                    {onContinueAsGuest && (
-                        <button className="auth-inline-link" type="button" onClick={onContinueAsGuest}>
-                            Продолжить как гость
-                        </button>
-                    )}
+                        <p className="auth-policy-note">
+                            Если вас заблокировали по ошибке навсегда, это ваша проблема.
+                        </p>
+                        {onContinueAsGuest && (
+                            <button className="auth-inline-link" type="button" onClick={onContinueAsGuest}>
+                                Продолжить как гость
+                            </button>
+                        )}
+                    </div>
+                    {mediaPane}
                 </section>
             ) : (
                 <section className="auth-split">
@@ -143,13 +174,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                             </button>
                         )}
                     </div>
-                    <div className="auth-side-pane">
-                        <div className="auth-side-logo">ВОЯЖ<br />РЕЙТ</div>
-                        <div>
-                            <strong>Архив оценок и рецензий.</strong>
-                            <span>Предмет, оценка, рецензия, автор, репутация и реакция сообщества.</span>
-                        </div>
-                    </div>
+                    {mediaPane}
                 </section>
             )}
         </div>
