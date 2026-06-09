@@ -63,7 +63,6 @@ Laravel 12, stateless JSON API. All routes in `routes/api.php` under `/api/v1/` 
 
 **Controllers** (`app/Http/Controllers/Api/`):
 - `AuthController` — login, forgot/reset password
-- `TwoFactorController` — enable/disable 2FA, verify code during login
 - `UserController` — CRUD + follow, ban, verify badge, change password
 - `ItemController`, `ReviewController`, `DropController`, `ArticleController` — standard CRUD
 - `UploadController` — file upload to `storage/app/public/{type}/`
@@ -71,8 +70,6 @@ Laravel 12, stateless JSON API. All routes in `routes/api.php` under `/api/v1/` 
 - `AuthorshipController` — designer verification requests
 
 **User roles**: `USER`, `DESIGNER`, `ADMIN`. First registered user auto-gets `ADMIN`.
-
-**2FA flow**: Email code (6-digit, bcrypt-hashed, 10-min TTL). Login returns `{requires_2fa: true, user_id}` when enabled → frontend calls `/v1/2fa/verify`.
 
 **File uploads**: Stored under `storage/app/public/` with subdirs `avatars/`, `profiles/`, `items/`, `drops/`. Public symlink at `public/storage`.
 
