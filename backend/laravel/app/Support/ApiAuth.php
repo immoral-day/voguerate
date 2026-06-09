@@ -14,7 +14,7 @@ class ApiAuth
             return null;
         }
 
-        if ($user->banned_until && $user->banned_until->isFuture()) {
+        if ($user->isBanned()) {
             return null;
         }
 

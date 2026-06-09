@@ -25,7 +25,7 @@ interface AdminPanelProps {
     onDeleteReviewReport: (id: string) => Promise<void>;
     onDeleteUserReport: (id: string) => Promise<void>;
     onDeleteReview: (id: string) => Promise<void>;
-    onBanUser: (id: string, days: number) => Promise<User | void>;
+    onBanUser: (id: string, days: number, reason: string) => Promise<User | void>;
     onDeleteUser: (id: string) => Promise<void>;
     onUpdateUserRole: (id: string, role: User['role']) => Promise<User | void>;
     onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
@@ -103,6 +103,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [reportTab, setReportTab] = useState<'review' | 'user'>('review');
     const [reviewBanDays, setReviewBanDays] = useState<Record<string, number>>({});
     const [userBanDays, setUserBanDays] = useState<Record<string, number>>({});
+    const [userBanReasons, setUserBanReasons] = useState<Record<string, string>>({});
     const [adminUsers, setAdminUsers] = useState<User[]>(users);
     const [adminUsersLoading, setAdminUsersLoading] = useState(false);
     const [adminUsersPage, setAdminUsersPage] = useState(1);
@@ -165,9 +166,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const handleAdminBanUser = async (userId: string) => {
         const days = userBanDays[userId] ?? 7;
-        const bannedUser = await onBanUser(userId, days);
+        const reason = (userBanReasons[userId] || '').trim();
+        if (reason.length < 3) {
+            alert('Укажите причину блокировки.');
+            return;
+        }
+
+        const bannedUser = await onBanUser(userId, days, reason);
         if (bannedUser) {
             setAdminUsers(prev => prev.map(user => user.id === bannedUser.id ? bannedUser : user));
+            setUserBanReasons(prev => ({ ...prev, [userId]: '' }));
         }
         await loadAdminUsers();
     };
@@ -498,6 +506,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         );
     });
     const isUserBanned = (user: User) => {
+        if (user.bannedPermanently) return true;
         const bannedUntil = parseUserDate(user.bannedUntil);
         return !!bannedUntil && bannedUntil > new Date();
     };
@@ -762,11 +771,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                             до {bannedUntil.toLocaleDateString()}
                                                         </p>
                                                     )}
+                                                    {isBanned && user.bannedPermanently && (
+                                                        <p className="text-xs font-mono text-gray-500 mt-1">навсегда</p>
+                                                    )}
+                                                    {isBanned && user.banReason && (
+                                                        <p className="max-w-44 text-xs font-mono text-gray-500 mt-1 break-words">
+                                                            Причина: {user.banReason}
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="p-3 font-mono">{user.reputation}</td>
                                                 <td className="p-3 font-mono">{user.reviewsCount}</td>
                                                 <td className="p-3">
-                                                    <div className="flex flex-wrap gap-2">
+                                                    <div className="grid min-w-[230px] gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={userBanReasons[user.id] ?? ''}
+                                                            onChange={(event) => setUserBanReasons(prev => ({ ...prev, [user.id]: event.target.value }))}
+                                                            placeholder="Причина блокировки"
+                                                            maxLength={500}
+                                                            disabled={isSelf}
+                                                            className="w-full border-2 border-black px-2 py-1 text-xs font-mono"
+                                                        />
+                                                        <div className="flex flex-wrap gap-2">
                                                         <select
                                                             value={userBanDays[user.id] ?? 7}
                                                             onChange={(e) => setUserBanDays(prev => ({ ...prev, [user.id]: parseInt(e.target.value, 10) }))}
@@ -778,6 +805,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                             <option value={30}>30 дней</option>
                                                             <option value={90}>90 дней</option>
                                                             <option value={365}>365 дней</option>
+                                                            <option value={0}>Навсегда</option>
                                                         </select>
                                                         <button
                                                             type="button"
@@ -795,6 +823,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                         >
                                                             Удалить
                                                         </button>
+                                                        </div>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1055,6 +1084,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                     <option value={7}>7 дней</option>
                                                     <option value={30}>30 дней</option>
                                                     <option value={90}>90 дней</option>
+                                                    <option value={0}>Навсегда</option>
                                                 </select>
                                             )}
                                             <button onClick={() => onDeleteReviewReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
@@ -1070,7 +1100,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                             )}
                                             {report.review?.userId && (
                                                 <button
-                                                    onClick={() => onBanUser(report.review!.userId, reviewBanDays[report.id] ?? 7)}
+                                                    onClick={() => onBanUser(
+                                                        report.review!.userId,
+                                                        reviewBanDays[report.id] ?? 7,
+                                                        report.reason || 'Нарушение в рецензии',
+                                                    )}
                                                     className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
                                                 >
                                                     Забанить
@@ -1128,6 +1162,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                     <option value={7}>7 дней</option>
                                                     <option value={30}>30 дней</option>
                                                     <option value={90}>90 дней</option>
+                                                    <option value={0}>Навсегда</option>
                                                 </select>
                                             )}
                                             <button onClick={() => onDeleteUserReport(report.id)} className="p-2 text-red-500 hover:bg-red-50 transition-colors">
@@ -1135,7 +1170,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                             </button>
                                             {reportedUserId && (
                                                 <button
-                                                    onClick={() => onBanUser(String(reportedUserId), userBanDays[report.id] ?? 7)}
+                                                    onClick={() => onBanUser(
+                                                        String(reportedUserId),
+                                                        userBanDays[report.id] ?? 7,
+                                                        report.reason || 'Нарушение правил сообщества',
+                                                    )}
                                                     className="px-2 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors"
                                                 >
                                                     Забанить

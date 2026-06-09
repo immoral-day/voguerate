@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -31,6 +32,8 @@ class User extends Authenticatable
         'following',
         'followers',
         'banned_until',
+        'banned_permanently',
+        'ban_reason',
         'api_token_hash',
     ];
 
@@ -48,6 +51,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'joined_date' => 'date',
             'banned_until' => 'datetime',
+            'banned_permanently' => 'boolean',
             'favorite_designers' => 'array',
             'favorites' => 'array',
             'wardrobe' => 'array',
@@ -60,6 +64,22 @@ class User extends Authenticatable
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function scopeNotBanned(Builder $query): Builder
+    {
+        return $query
+            ->where('banned_permanently', false)
+            ->where(function (Builder $query) {
+                $query->whereNull('banned_until')
+                    ->orWhere('banned_until', '<=', now());
+            });
+    }
+
+    public function isBanned(): bool
+    {
+        return $this->banned_permanently
+            || ($this->banned_until && $this->banned_until->isFuture());
     }
 
     public function comments(): HasMany
@@ -94,7 +114,6 @@ class User extends Authenticatable
             'role' => $this->role,
             'bio' => $this->bio,
             'joinedDate' => $this->joined_date?->toDateString(),
-            'bannedUntil' => $this->banned_until?->toDateTimeString(),
             'favoriteDesigners' => $this->favorite_designers ?? [],
             'favorites' => $this->favorites ?? [],
             'wardrobe' => $this->wardrobe ?? ['owned' => [], 'wanted' => [], 'sold' => []],
@@ -104,9 +123,9 @@ class User extends Authenticatable
         ];
     }
 
-    public function toSummaryArray(): array
+    public function toSummaryArray(bool $includeModeration = false): array
     {
-        return [
+        $summary = [
             'id' => (string) $this->id,
             'username' => $this->username,
             'avatar' => $this->avatar,
@@ -116,7 +135,6 @@ class User extends Authenticatable
             'role' => $this->role,
             'bio' => $this->bio,
             'joinedDate' => $this->joined_date?->toDateString(),
-            'bannedUntil' => $this->banned_until?->toDateTimeString(),
             'badges' => $this->badges ?? [],
             'favoriteDesigners' => [],
             'favorites' => [],
@@ -125,5 +143,22 @@ class User extends Authenticatable
             'followers' => [],
             'isSummary' => true,
         ];
+
+        if ($includeModeration) {
+            $summary['bannedUntil'] = $this->banned_until?->toDateTimeString();
+            $summary['bannedPermanently'] = $this->banned_permanently;
+            $summary['banReason'] = $this->ban_reason;
+        }
+
+        return $summary;
+    }
+
+    public function toModerationArray(): array
+    {
+        return array_merge($this->toArray(), [
+            'bannedUntil' => $this->banned_until?->toDateTimeString(),
+            'bannedPermanently' => $this->banned_permanently,
+            'banReason' => $this->ban_reason,
+        ]);
     }
 }

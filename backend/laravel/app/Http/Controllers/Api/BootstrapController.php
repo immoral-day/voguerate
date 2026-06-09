@@ -36,8 +36,7 @@ class BootstrapController extends Controller
             $reviews = Review::query()
                 ->select(['id', 'user_id', 'clothing_item_id', 'rating', 'rating_breakdown', 'text', 'likes', 'created_at'])
                 ->whereHas('user', function (Builder $query) {
-                    $query->whereNull('banned_until')
-                        ->orWhere('banned_until', '<=', now());
+                    $query->notBanned();
                 })
                 ->latest()
                 ->limit(1000)
@@ -55,11 +54,8 @@ class BootstrapController extends Controller
                     'bio',
                     'joined_date',
                     'badges',
-                    'banned_until',
                 ])
-                ->where(fn (Builder $query) => $query
-                    ->whereNull('banned_until')
-                    ->orWhere('banned_until', '<=', now()))
+                ->notBanned()
                 ->limit(2000)
                 ->get()
                 ->map(fn (User $user) => $user->toSummaryArray());

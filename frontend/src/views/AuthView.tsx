@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface AuthViewProps {
     onLogin: (email: string, password: string) => void;
-    onRegister: (username: string, email: string, password: string) => void;
+    onRegister: (username: string, email: string, password: string, passwordConfirmation: string) => void;
     loading: boolean;
     error: string;
     onContinueAsGuest?: () => void;
@@ -13,14 +13,22 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [passwordConfirmation, setPasswordConfirmation] = useState('');
+    const [localError, setLocalError] = useState('');
 
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
         if (isLogin) {
+            setLocalError('');
             onLogin(email.trim(), password);
             return;
         }
-        onRegister(username.trim(), email.trim(), password);
+        if (password !== passwordConfirmation) {
+            setLocalError('Пароли не совпадают.');
+            return;
+        }
+        setLocalError('');
+        onRegister(username.trim(), email.trim(), password, passwordConfirmation);
     };
 
     return (
@@ -29,7 +37,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                 <section className="auth-card-login">
                     <h1>Вход</h1>
                     <form onSubmit={handleSubmit} className="auth-compact-form">
-                        {error && <div className="auth-error">{error}</div>}
+                        {(localError || error) && <div className="auth-error">{localError || error}</div>}
                         <label>
                             Имя пользователя или email
                             <input
@@ -55,9 +63,15 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                             {loading ? 'Проверка...' : 'Войти'}
                         </button>
                     </form>
-                    <button className="auth-inline-link" type="button" onClick={() => setIsLogin(false)}>
+                    <button className="auth-inline-link" type="button" onClick={() => {
+                        setLocalError('');
+                        setIsLogin(false);
+                    }}>
                         Создать аккаунт
                     </button>
+                    <p className="auth-policy-note">
+                        Если вас заблокировали по ошибке навсегда, это ваша проблема.
+                    </p>
                     {onContinueAsGuest && (
                         <button className="auth-inline-link" type="button" onClick={onContinueAsGuest}>
                             Продолжить как гость
@@ -69,7 +83,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                     <div className="auth-form-pane">
                         <h1>Создать аккаунт</h1>
                         <form onSubmit={handleSubmit} className="auth-compact-form">
-                            {error && <div className="auth-error">{error}</div>}
+                            {(localError || error) && <div className="auth-error">{localError || error}</div>}
                             <label>
                                 Email
                                 <input
@@ -98,6 +112,18 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                                     value={password}
                                     onChange={(event) => setPassword(event.target.value)}
                                     autoComplete="new-password"
+                                    minLength={6}
+                                    required
+                                />
+                            </label>
+                            <label>
+                                Подтвердите пароль
+                                <input
+                                    type="password"
+                                    value={passwordConfirmation}
+                                    onChange={(event) => setPasswordConfirmation(event.target.value)}
+                                    autoComplete="new-password"
+                                    minLength={6}
                                     required
                                 />
                             </label>
@@ -105,7 +131,10 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                                 {loading ? 'Создание...' : 'Создать аккаунт'}
                             </button>
                         </form>
-                        <button className="auth-inline-link" type="button" onClick={() => setIsLogin(true)}>
+                        <button className="auth-inline-link" type="button" onClick={() => {
+                            setLocalError('');
+                            setIsLogin(true);
+                        }}>
                             Уже есть аккаунт? Войти
                         </button>
                         {onContinueAsGuest && (

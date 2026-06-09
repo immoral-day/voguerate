@@ -10,6 +10,8 @@ export interface User {
   bio?: string;
   joinedDate?: string;
   bannedUntil?: string | null;
+  bannedPermanently?: boolean;
+  banReason?: string | null;
   favoriteDesigners?: string[];
   favorites?: string[];
   wardrobe: {

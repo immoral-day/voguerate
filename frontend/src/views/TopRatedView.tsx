@@ -41,24 +41,38 @@ const getValueTier = (score: number) => {
 export const TopRatedView: React.FC<TopRatedViewProps> = ({ items, onItemClick }) => {
     const [activeCategory, setActiveCategory] = useState<ClothingItem['category'] | 'ALL'>('ALL');
     const [sortMode, setSortMode] = useState<SortMode>('VALUE');
+    const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
 
     const sorted = useMemo(() => {
+        const query = searchQuery.trim().toLocaleLowerCase('ru-RU');
+
         return [...items]
-            .filter((item) => activeCategory === 'ALL' || item.category === activeCategory)
+            .filter((item) => {
+                const matchesCategory = activeCategory === 'ALL' || item.category === activeCategory;
+                const searchableText = [
+                    item.name,
+                    item.brand,
+                    categoryLabel(item.category),
+                    ...item.tags,
+                    ...item.colors,
+                ].join(' ').toLocaleLowerCase('ru-RU');
+
+                return matchesCategory && (!query || searchableText.includes(query));
+            })
             .sort((a, b) => {
                 if (sortMode === 'RATING') return b.averageRating - a.averageRating;
                 if (sortMode === 'COUNT') return b.ratingCount - a.ratingCount;
                 if (sortMode === 'PRICE') return a.price - b.price;
                 return getValueParts(b).total - getValueParts(a).total;
             });
-    }, [items, activeCategory, sortMode]);
+    }, [items, activeCategory, sortMode, searchQuery]);
     const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
     const visibleItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     useEffect(() => {
         setPage(1);
-    }, [activeCategory, sortMode]);
+    }, [activeCategory, sortMode, searchQuery]);
 
     useEffect(() => {
         setPage((current) => Math.min(current, totalPages));
@@ -74,6 +88,15 @@ export const TopRatedView: React.FC<TopRatedViewProps> = ({ items, onItemClick }
             <div className="value-layout">
                 <aside className="value-filter">
                     <span className="info-button">Индекс ценности показывает, насколько вещь сильна по оценкам, стабильности мнения сообщества и доступности цены.</span>
+                    <label>
+                        Поиск
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Вещь, бренд или тег"
+                        />
+                    </label>
                     <label>
                         Сортировать по
                         <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
@@ -134,7 +157,7 @@ export const TopRatedView: React.FC<TopRatedViewProps> = ({ items, onItemClick }
                         })}
                     </div>
                 ) : (
-                    <div className="card p-8 text-center muted">Нет предметов для отображения.</div>
+                    <div className="card p-8 text-center muted">По вашему запросу ничего не найдено.</div>
                 )}
                 {sorted.length > PAGE_SIZE && (
                     <div className="pagination value-pagination">

@@ -18,8 +18,7 @@ class ReviewController extends Controller
     {
         $query = Review::query()
             ->whereHas('user', function ($q) {
-                $q->whereNull('banned_until')
-                    ->orWhere('banned_until', '<=', now());
+                $q->notBanned();
             });
 
         if ($request->boolean('compact')) {

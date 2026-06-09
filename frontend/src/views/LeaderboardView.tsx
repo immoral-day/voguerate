@@ -47,7 +47,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, reviews
                                     <span className="podium-place">{index + 1}</span>
                                     <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} />
                                     <strong>{user.username}</strong>
-                                    <span className="podium-score">RP {user.reputation}</span>
+                                    <span className="podium-score">РП {user.reputation}</span>
                                     <small>{userReviewLikes[user.id] || 0} лайков · {user.reviewsCount} рецензий</small>
                                 </button>
                             ))}
@@ -74,7 +74,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, reviews
                                 <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} />
                                 <b>{user.username}</b>
                             </span>
-                            <span className="leaderboard-score">RP {user.reputation}</span>
+                            <span className="leaderboard-score">РП {user.reputation}</span>
                             <span className="leaderboard-metric">{userReviewLikes[user.id] || 0} лайков</span>
                             <span className="leaderboard-metric">{user.reviewsCount} рецензий</span>
                         </button>

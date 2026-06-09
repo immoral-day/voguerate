@@ -28,22 +28,21 @@ class UserController extends Controller
 
         $query = User::query();
         if (!$includeBanned) {
-            $query->where(function ($q) {
-                $q->whereNull('banned_until')
-                    ->orWhere('banned_until', '<=', now());
-            });
+            $query->notBanned();
         }
 
         $defaultLimit = $includeBanned ? 500 : 200;
         $limit = min(500, max(1, $request->integer('limit', $defaultLimit)));
         $users = $query->limit($limit)->get();
 
-        return response()->json($users->map(fn (User $user) => $user->toSummaryArray()));
+        return response()->json($users->map(
+            fn (User $user) => $user->toSummaryArray($includeBanned)
+        ));
     }
 
     public function show(User $user): JsonResponse
     {
-        if ($user->banned_until && $user->banned_until->isFuture() && !request()->boolean('includeBanned')) {
+        if ($user->isBanned() && !request()->boolean('includeBanned')) {
             return response()->json(['error' => 'User not found'], 404);
         }
         return response()->json($user);
@@ -72,8 +71,16 @@ class UserController extends Controller
             return response()->json(['error' => 'Неверный логин или пароль'], 401);
         }
 
-        if ($user->banned_until && $user->banned_until->isFuture()) {
-            return response()->json(['error' => 'Пользователь заблокирован'], 403);
+        if ($user->isBanned()) {
+            $period = $user->banned_permanently
+                ? 'навсегда'
+                : 'до ' . $user->banned_until->format('d.m.Y H:i');
+            $reason = trim((string) $user->ban_reason);
+
+            return response()->json([
+                'error' => 'Аккаунт заблокирован ' . $period
+                    . ($reason !== '' ? '. Причина: ' . $reason : '.'),
+            ], 403);
         }
 
         return response()->json($this->issueAuthToken($user));
@@ -85,7 +92,7 @@ class UserController extends Controller
             $data = $request->validate([
                 'username' => 'required|string|unique:users',
                 'email' => 'required|email|unique:users',
-                'password' => 'required|string|min:6',
+                'password' => 'required|string|min:6|confirmed',
                 'avatar' => 'nullable|string',
                 'bio' => 'nullable|string',
             ]);
@@ -178,7 +185,11 @@ class UserController extends Controller
         if (isset($data['followers'])) $updateData['followers'] = $data['followers'];
 
         $user->update($updateData);
-        return response()->json($user->fresh());
+        $updatedUser = $user->fresh();
+
+        return response()->json(
+            ApiAuth::isAdmin($authUser) ? $updatedUser->toModerationArray() : $updatedUser
+        );
     }
 
     public function destroy(User $user): JsonResponse
@@ -235,7 +246,9 @@ class UserController extends Controller
         }
 
         $data = $request->validate([
-            'days' => 'required|integer|min:1|max:365',
+            'days' => 'nullable|required_unless:permanent,true|integer|min:1|max:365',
+            'permanent' => 'required|boolean',
+            'reason' => 'required|string|min:3|max:500',
             'reporterId' => 'nullable|exists:users,id',
         ]);
 
@@ -244,10 +257,12 @@ class UserController extends Controller
         }
 
         $user->update([
-            'banned_until' => now()->addDays($data['days']),
+            'banned_until' => $data['permanent'] ? null : now()->addDays($data['days']),
+            'banned_permanently' => $data['permanent'],
+            'ban_reason' => trim($data['reason']),
         ]);
 
-        return response()->json($user->fresh());
+        return response()->json($user->fresh()->toModerationArray());
     }
 
     public function verify(Request $request, User $user): JsonResponse

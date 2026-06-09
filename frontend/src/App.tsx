@@ -308,11 +308,16 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleRegister = async (username: string, email: string, password: string) => {
+    const handleRegister = async (username: string, email: string, password: string, passwordConfirmation: string) => {
         setAuthLoading(true);
         setAuthError('');
         try {
-            const newUser = await apiService.post<User>('/v1/users', { username, email, password });
+            const newUser = await apiService.post<User>('/v1/users', {
+                username,
+                email,
+                password,
+                password_confirmation: passwordConfirmation,
+            });
             setUsers((prev) => [...prev, newUser]);
             setCurrentUser(newUser);
             setAuthOpen(false);
@@ -583,12 +588,18 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleBanUser = async (userId: string, days: number) => {
+    const handleBanUser = async (userId: string, days: number, reason: string) => {
         try {
-            const bannedUser = await apiService.post<User>(`/v1/users/${userId}/ban`, { days, reporterId: currentUser?.id });
+            const permanent = days === 0;
+            const bannedUser = await apiService.post<User>(`/v1/users/${userId}/ban`, {
+                days: permanent ? null : days,
+                permanent,
+                reason,
+                reporterId: currentUser?.id,
+            });
             setUsers(prev => prev.filter(u => u.id !== bannedUser.id));
             setReviews(prev => prev.filter(r => r.userId !== bannedUser.id));
-            addToast(`Пользователь забанен на ${days} дн.`);
+            addToast(permanent ? 'Пользователь заблокирован навсегда' : `Пользователь заблокирован на ${days} дн.`);
             return bannedUser;
         } catch (err: unknown) {
             const error = err as Error;
