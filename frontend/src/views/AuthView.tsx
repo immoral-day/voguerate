@@ -98,9 +98,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
                         }}>
                             Создать аккаунт
                         </button>
-                        <p className="auth-policy-note">
-                            Если вас заблокировали по ошибке навсегда, это ваша проблема.
-                        </p>
                         {onContinueAsGuest && (
                             <button className="auth-inline-link" type="button" onClick={onContinueAsGuest}>
                                 Продолжить как гость
