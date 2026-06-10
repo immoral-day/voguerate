@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -68,15 +69,16 @@ class User extends Authenticatable
 
     public function scopeNotBanned(Builder $query): Builder
     {
-        return $query
-            ->where(function (Builder $query) {
-                $query->where('banned_permanently', false)
-                    ->orWhereNull('banned_permanently');
-            })
-            ->where(function (Builder $query) {
-                $query->whereNull('banned_until')
-                    ->orWhere('banned_until', '<=', now());
-            });
+        return $query->whereIn($query->qualifyColumn('id'), self::visibleIds());
+    }
+
+    public static function visibleIds(): Collection
+    {
+        return self::query()
+            ->select(['id', 'banned_until', 'banned_permanently'])
+            ->get()
+            ->reject(fn (User $user) => $user->isBanned())
+            ->pluck('id');
     }
 
     public function isBanned(): bool

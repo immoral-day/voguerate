@@ -18,9 +18,12 @@ class ProfileAndChatTest extends TestCase
     public function test_bootstrap_returns_every_visible_user_without_cache(): void
     {
         $reviewAuthor = $this->createUser('visible_one', 'visible-one@example.com');
-        $this->createUser('visible_two', 'visible-two@example.com');
+        $legacyVisible = $this->createUser('visible_two', 'visible-two@example.com');
+        $legacyVisible->update(['banned_until' => now()->subDay()]);
         $blocked = $this->createUser('blocked_user', 'blocked@example.com');
         $blocked->update(['banned_permanently' => true]);
+        $temporarilyBlocked = $this->createUser('temporary_block', 'temporary@example.com');
+        $temporarilyBlocked->update(['banned_until' => now()->addDay()]);
         $item = $this->createItem();
         $review = Review::create([
             'user_id' => $reviewAuthor->id,
@@ -32,6 +35,7 @@ class ProfileAndChatTest extends TestCase
 
         $response = $this->getJson('/api/v1/bootstrap')
             ->assertOk()
+            ->assertHeader('X-Total-Users', '4')
             ->assertHeader('X-Bootstrap-Users', '2')
             ->assertJsonCount(2, 'users')
             ->assertJsonCount(1, 'items')

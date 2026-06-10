@@ -12,6 +12,15 @@ class UserAccessTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_legacy_null_permanent_ban_flag_is_treated_as_not_banned(): void
+    {
+        $user = new User();
+        $user->banned_permanently = null;
+        $user->banned_until = now()->subDay();
+
+        $this->assertFalse($user->isBanned());
+    }
+
     public function test_registration_requires_matching_password_confirmation(): void
     {
         $this->postJson('/api/v1/users', [
@@ -47,6 +56,7 @@ class UserAccessTest extends TestCase
 
         $this->getJson('/api/v1/users')
             ->assertOk()
+            ->assertHeader('X-Total-Users', '2')
             ->assertHeader('X-Visible-Users', '1')
             ->assertJsonMissing(['id' => (string) $target->id]);
 

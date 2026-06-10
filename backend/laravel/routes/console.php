@@ -434,17 +434,7 @@ Artisan::command('app:diagnose', function () {
     }
 
     if (DB::getSchemaBuilder()->hasTable('users')) {
-        $visibleUsers = DB::table('users')
-            ->when(
-                DB::getSchemaBuilder()->hasColumn('users', 'banned_permanently'),
-                fn ($query) => $query->where(fn ($bans) => $bans
-                    ->where('banned_permanently', false)
-                    ->orWhereNull('banned_permanently')),
-            )
-            ->where(fn ($bans) => $bans
-                ->whereNull('banned_until')
-                ->orWhere('banned_until', '<=', now()))
-            ->count();
+        $visibleUsers = \App\Models\User::visibleIds()->count();
         $this->line('Visible users: ' . $visibleUsers);
     }
 

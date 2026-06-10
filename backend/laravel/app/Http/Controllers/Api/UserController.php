@@ -58,6 +58,7 @@ class UserController extends Controller
 
         return response()->json($payload)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            ->header('X-Total-Users', (string) User::query()->count())
             ->header('X-Visible-Users', (string) $payload->count());
     }
 

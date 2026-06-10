@@ -69,6 +69,7 @@ class BootstrapController extends Controller
         return response()->json($payload)
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache')
+            ->header('X-Total-Users', (string) User::query()->count())
             ->header('X-Bootstrap-Users', (string) $users->count())
             ->header('X-Bootstrap-Reviews', (string) $reviews->count());
     }
