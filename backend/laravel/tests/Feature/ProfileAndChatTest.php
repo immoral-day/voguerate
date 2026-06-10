@@ -15,6 +15,24 @@ class ProfileAndChatTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_bootstrap_returns_every_visible_user_without_cache(): void
+    {
+        $this->createUser('visible_one', 'visible-one@example.com');
+        $this->createUser('visible_two', 'visible-two@example.com');
+        $blocked = $this->createUser('blocked_user', 'blocked@example.com');
+        $blocked->update(['banned_permanently' => true]);
+
+        $response = $this->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertHeader('X-Bootstrap-Users', '2')
+            ->assertJsonCount(2, 'users');
+
+        $this->assertStringContainsString(
+            'no-store',
+            (string) $response->headers->get('Cache-Control'),
+        );
+    }
+
     public function test_profile_endpoint_returns_user_and_their_reviews(): void
     {
         $user = $this->createUser('profile_user', 'profile@example.com');

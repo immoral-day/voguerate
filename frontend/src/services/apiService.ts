@@ -163,6 +163,7 @@ export const apiService = {
     const request = (async () => {
       const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
         headers,
+        cache: 'no-store',
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));

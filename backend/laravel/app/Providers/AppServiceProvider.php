@@ -2,15 +2,8 @@
 
 namespace App\Providers;
 
-use App\Http\Controllers\Api\BootstrapController;
-use App\Models\Article;
-use App\Models\ClothingItem;
-use App\Models\Drop;
-use App\Models\Review;
-use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,11 +22,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        foreach ([Article::class, ClothingItem::class, Drop::class, Review::class, User::class] as $model) {
-            $model::saved(fn () => Cache::forget(BootstrapController::CACHE_KEY));
-            $model::deleted(fn () => Cache::forget(BootstrapController::CACHE_KEY));
-        }
-
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(120)->by($this->rateKey($request));
         });

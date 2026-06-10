@@ -127,19 +127,25 @@ export const App: React.FC = () => {
 
         const loadData = async () => {
             try {
-                const payload = await apiService.get<BootstrapPayload>('/v1/bootstrap');
+                const [payload, publicUsers] = await Promise.all([
+                    apiService.get<BootstrapPayload>('/v1/bootstrap'),
+                    apiService.get<User[]>('/v1/users?limit=500'),
+                ]);
                 if (cancelled) return;
 
                 setClothingItems(payload.items);
                 setReviews(payload.reviews);
-                setUsers((existingUsers) => payload.users.map((summary) => {
+                const loadedUsers = publicUsers.length >= payload.users.length
+                    ? publicUsers
+                    : payload.users;
+                setUsers((existingUsers) => loadedUsers.map((summary) => {
                     const existing = existingUsers.find((user) => user.id === summary.id);
                     return existing && !existing.isSummary ? existing : summary;
                 }));
                 setDrops(payload.drops);
                 setArticles(payload.articles);
 
-                const refreshedCurrentUser = payload.users.find((user) => user.id === currentUser?.id);
+                const refreshedCurrentUser = loadedUsers.find((user) => user.id === currentUser?.id);
                 if (refreshedCurrentUser) {
                     setCurrentUser(refreshedCurrentUser);
                 }
