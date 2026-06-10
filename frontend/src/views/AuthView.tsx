@@ -17,8 +17,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ onLogin, onRegister, loading
     const [localError, setLocalError] = useState('');
 
     const handleVideoReady = (event: React.SyntheticEvent<HTMLVideoElement>) => {
-        event.currentTarget.defaultPlaybackRate = 0.55;
-        event.currentTarget.playbackRate = 0.55;
+        event.currentTarget.defaultPlaybackRate = 0.1;
+        event.currentTarget.playbackRate = 0.1;
     };
 
     const handleSubmit = (event: React.FormEvent) => {

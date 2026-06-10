@@ -3471,7 +3471,7 @@ input, textarea, select { color: var(--text); background: #111; }
   background:
     linear-gradient(rgba(255, 255, 255, .018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, .018) 1px, transparent 1px),
-    #07090d;
+    #080808;
   background-size: 46px 46px, 46px 46px, auto;
 }
 
@@ -3490,9 +3490,9 @@ input, textarea, select { color: var(--text); background: #111; }
   top: -42%;
   right: -18%;
   background:
-    radial-gradient(circle at 28% 32%, rgba(42, 73, 114, .32), transparent 34%),
-    radial-gradient(circle at 68% 62%, rgba(35, 61, 84, .26), transparent 42%),
-    conic-gradient(from 210deg, rgba(31, 57, 88, .18), rgba(9, 13, 20, .02), rgba(42, 66, 91, .22));
+    radial-gradient(circle at 28% 32%, rgba(72, 72, 72, .24), transparent 34%),
+    radial-gradient(circle at 68% 62%, rgba(48, 48, 48, .22), transparent 42%),
+    conic-gradient(from 210deg, rgba(58, 58, 58, .16), rgba(10, 10, 10, .02), rgba(68, 68, 68, .18));
   filter: blur(34px);
   transform: rotate(-12deg);
 }
@@ -3503,8 +3503,8 @@ input, textarea, select { color: var(--text); background: #111; }
   left: -20%;
   bottom: -32%;
   background:
-    radial-gradient(ellipse at 65% 30%, rgba(29, 52, 76, .28), transparent 38%),
-    radial-gradient(ellipse at 28% 72%, rgba(20, 35, 55, .24), transparent 46%);
+    radial-gradient(ellipse at 65% 30%, rgba(62, 62, 62, .2), transparent 38%),
+    radial-gradient(ellipse at 28% 72%, rgba(38, 38, 38, .22), transparent 46%);
   filter: blur(42px);
   transform: rotate(18deg);
 }
@@ -3519,7 +3519,7 @@ input, textarea, select { color: var(--text); background: #111; }
   border: 1px solid #1f1f1f;
   border-radius: 6px;
   overflow: hidden;
-  background: rgba(10, 12, 16, .86);
+  background: rgba(11, 11, 11, .88);
   box-shadow: 0 28px 90px rgba(0, 0, 0, .46);
   backdrop-filter: blur(18px);
 }
@@ -3536,7 +3536,7 @@ input, textarea, select { color: var(--text); background: #111; }
   padding: 24px;
   border: 0;
   border-radius: 0;
-  background: linear-gradient(145deg, rgba(20, 22, 28, .94) 0%, rgba(10, 12, 16, .94) 100%);
+  background: linear-gradient(145deg, rgba(22, 22, 22, .94) 0%, rgba(10, 10, 10, .96) 100%);
   box-shadow: none;
 }
 
@@ -3649,8 +3649,8 @@ input, textarea, select { color: var(--text); background: #111; }
   border-radius: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 72% 24%, rgba(50, 77, 108, .2), transparent 34%),
-    linear-gradient(145deg, rgba(15, 20, 28, .72), rgba(8, 10, 14, .9));
+    radial-gradient(circle at 72% 24%, rgba(72, 72, 72, .16), transparent 34%),
+    linear-gradient(145deg, rgba(18, 18, 18, .76), rgba(7, 7, 7, .92));
   box-shadow: none;
 }
 
@@ -3660,7 +3660,7 @@ input, textarea, select { color: var(--text); background: #111; }
   inset: 0;
   z-index: 1;
   background:
-    linear-gradient(120deg, transparent 0 38%, rgba(87, 113, 142, .06) 38% 39%, transparent 39% 100%),
+    linear-gradient(120deg, transparent 0 38%, rgba(128, 128, 128, .05) 38% 39%, transparent 39% 100%),
     repeating-radial-gradient(circle at 72% 24%, rgba(255, 255, 255, .025) 0 1px, transparent 1px 9px);
   pointer-events: none;
 }
