@@ -52,9 +52,13 @@ class UserController extends Controller
         $limit = min(500, max(1, $request->integer('limit', $defaultLimit)));
         $users = $query->limit($limit)->get();
 
-        return response()->json($users->map(
+        $payload = $users->map(
             fn (User $user) => $user->toSummaryArray($includeBanned)
-        ));
+        );
+
+        return response()->json($payload)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            ->header('X-Visible-Users', (string) $payload->count());
     }
 
     public function show(User $user): JsonResponse

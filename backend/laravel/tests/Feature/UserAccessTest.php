@@ -47,6 +47,7 @@ class UserAccessTest extends TestCase
 
         $this->getJson('/api/v1/users')
             ->assertOk()
+            ->assertHeader('X-Visible-Users', '1')
             ->assertJsonMissing(['id' => (string) $target->id]);
 
         $this->postJson('/api/v1/login', [

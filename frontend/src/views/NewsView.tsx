@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Article as ArticleType } from '../types';
-import { Button } from '../components/UI';
+import { Button, SafeImage } from '../components/UI';
+import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { stripHtmlToPlain } from '../utils/string';
 
 interface NewsViewProps {
@@ -76,7 +77,9 @@ export const NewsView: React.FC<NewsViewProps> = ({ articles, onBack, onArticleC
             {pagedArticles.map((article) => (
               <article key={article.id} className="news-card" onClick={() => onArticleClick?.(article.id)}>
                 {article.image ? (
-                  <div className="news-cover"><img src={article.image} alt="" loading="lazy" /></div>
+                  <div className="news-cover">
+                    <SafeImage src={article.image} fallback={DEFAULT_ITEM_IMAGE} alt="" loading="lazy" />
+                  </div>
                 ) : (
                   <div className="news-cover empty">ВОЯЖ</div>
                 )}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Article as ArticleType } from '../types';
-import { Button } from '../components/UI';
+import { Button, SafeImage } from '../components/UI';
+import { DEFAULT_ITEM_IMAGE } from '../constants';
 
 interface ArticleDetailViewProps {
   article: ArticleType;
@@ -14,7 +15,11 @@ export const ArticleDetailView: React.FC<ArticleDetailViewProps> = ({ article, o
       <Button variant="outline" onClick={onBack}>К статьям</Button>
     </div>
     <article className="article-shell article-body">
-      {article.image && <div className="article-cover"><img src={article.image} alt="" /></div>}
+      {article.image && (
+        <div className="article-cover">
+          <SafeImage src={article.image} fallback={DEFAULT_ITEM_IMAGE} alt="" loading="eager" />
+        </div>
+      )}
       <span className="pill red">материал</span>
       <h1 className="vr-h1 mt-4">{article.title}</h1>
       {article.createdAt && <p className="muted">Опубликовано {new Date(article.createdAt).toLocaleDateString('ru-RU')}</p>}

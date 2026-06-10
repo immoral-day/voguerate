@@ -1,2 +1,7 @@
 *
 !.gitignore
+!articles/
+articles/*
+!articles/95bfef27-6084-447c-bf26-b7fff37444ce.jpg
+!articles/8f275372-8eb1-4ecc-b483-a7898bdf6e51.jpg
+!articles/647019fc-ea66-4d56-87fe-2423a22c7c34.jpg
