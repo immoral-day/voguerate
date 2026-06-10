@@ -148,6 +148,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     useEffect(() => {
         if (!selectedUserId) return undefined;
         if (pollingPaused) return undefined;
+        loadMessages(true);
+        loadConversations(true);
+        lastConversationsPollRef.current = Date.now();
+
         const timer = window.setInterval(() => {
             loadMessages(true);
             const now = Date.now();
@@ -158,6 +162,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }, 15000);
 
         return () => window.clearInterval(timer);
+    }, [selectedUserId, currentUser.id, pollingPaused]);
+
+    useEffect(() => {
+        const refreshAfterReconnect = () => {
+            loadConversations(true);
+            loadMessages(true);
+        };
+
+        window.addEventListener('online', refreshAfterReconnect);
+        return () => window.removeEventListener('online', refreshAfterReconnect);
     }, [selectedUserId, currentUser.id, pollingPaused]);
 
     useEffect(() => {

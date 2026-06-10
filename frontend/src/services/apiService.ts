@@ -31,6 +31,13 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const transientStatuses = new Set([502, 503, 504]);
 const inFlightGets = new Map<string, Promise<unknown>>();
 
+export class ApiRequestError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
 const authHeaders = (): Record<string, string> => {
   if (typeof window === 'undefined') return {};
 
@@ -50,20 +57,35 @@ const handleUnauthorized = (endpoint: string) => {
   window.dispatchEvent(new Event('auth:unauthorized'));
 };
 
-const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 1): Promise<Response> => {
+const fetchWithRetry = async (
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  retries = 1,
+  timeoutMs = 8000,
+): Promise<Response> => {
   let lastResponse: Response | null = null;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      const response = await fetch(input, init);
+      const response = await fetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
       if (!transientStatuses.has(response.status) || attempt === retries) {
         return response;
       }
       lastResponse = response;
     } catch (error) {
-      lastError = error;
-      if (attempt === retries) throw error;
+      lastError = error instanceof DOMException && error.name === 'AbortError'
+        ? new ApiRequestError('Сервер не ответил вовремя. Повторите попытку.', 408)
+        : error;
+      if (attempt === retries) throw lastError;
+    } finally {
+      window.clearTimeout(timeout);
     }
 
     await wait(350 * (attempt + 1));
@@ -71,6 +93,27 @@ const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retr
 
   if (lastResponse) return lastResponse;
   throw lastError;
+};
+
+const apiErrorFromResponse = async (response: Response): Promise<ApiRequestError> => {
+  const payload = await response.json().catch(() => ({})) as {
+    message?: string;
+    error?: string | Record<string, string | string[]>;
+  };
+
+  let message = payload.message;
+  if (!message && typeof payload.error === 'string') {
+    message = payload.error;
+  }
+  if (!message && payload.error && typeof payload.error === 'object') {
+    const firstValue = Object.values(payload.error)[0];
+    message = Array.isArray(firstValue) ? firstValue[0] : firstValue;
+  }
+
+  return new ApiRequestError(
+    message || `API Error: ${response.statusText || response.status}`,
+    response.status,
+  );
 };
 
 type UploadType = 'avatar' | 'profile' | 'item' | 'drop' | 'article';
@@ -166,9 +209,8 @@ export const apiService = {
         cache: 'no-store',
       });
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
         if (response.status === 401) handleUnauthorized(endpoint);
-        throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
+        throw await apiErrorFromResponse(response);
       }
       return normalizeApiPayload(await response.json()) as T;
     })();
@@ -194,32 +236,14 @@ export const apiService = {
       body: JSON.stringify(data),
     }, endpoint.endsWith('/login') ? 2 : 0);
     if (!response.ok) {
-      const error = await response.json().catch(() => ({} as Record<string, unknown>));
-      let message: string | undefined = error.message;
       if (response.status === 401) handleUnauthorized(endpoint);
-
-      // Laravel валидация может возвращать { error: { field: [msg] } }
-      if (!message && error.error) {
-        if (typeof error.error === 'string') {
-          message = error.error;
-        } else if (typeof error.error === 'object') {
-          const firstKey = Object.keys(error.error)[0];
-          const firstVal = firstKey ? error.error[firstKey] : undefined;
-          if (Array.isArray(firstVal)) {
-            message = firstVal[0];
-          } else if (typeof firstVal === 'string') {
-            message = firstVal;
-          }
-        }
-      }
-
-      throw new Error(message || `API Error: ${response.statusText}`);
+      throw await apiErrorFromResponse(response);
     }
     return normalizeApiPayload(await response.json());
   },
 
   async put<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -227,27 +251,25 @@ export const apiService = {
         ...authHeaders(),
       },
       body: JSON.stringify(data),
-    });
+    }, 0);
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
       if (response.status === 401) handleUnauthorized(endpoint);
-      throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
+      throw await apiErrorFromResponse(response);
     }
     return normalizeApiPayload(await response.json());
   },
 
   async delete<T = void>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
         ...authHeaders(),
       },
-    });
+    }, 0);
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
       if (response.status === 401) handleUnauthorized(endpoint);
-      throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
+      throw await apiErrorFromResponse(response);
     }
     if (response.status === 204) return undefined as T;
     const text = await response.text();
@@ -260,16 +282,15 @@ export const apiService = {
     formData.append('file', preparedFile);
     formData.append('type', type);
 
-    const response = await fetch(`${API_BASE_URL}/upload`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/upload`, {
       method: 'POST',
       headers: authHeaders(),
       body: formData,
-    });
+    }, 0, 45000);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
       if (response.status === 401) handleUnauthorized('/upload');
-      throw new Error(error.error || `Upload Error: ${response.statusText}`);
+      throw await apiErrorFromResponse(response);
     }
 
     return normalizeApiPayload(await response.json());

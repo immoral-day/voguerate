@@ -42,4 +42,4 @@ RUN php artisan config:clear
 
 EXPOSE 80
 
-CMD ["sh", "-c", "chown -R www-data:www-data /app/storage /app/database && chmod -R 775 /app/storage && chmod 664 /app/database/database.sqlite && ln -sf /app/storage/app/public /app/public/storage && mkdir -p /app/storage/app/public/avatars /app/storage/app/public/profiles /app/storage/app/public/items /app/storage/app/public/drops && /usr/bin/supervisord -c /etc/supervisord.conf"]
+CMD ["sh", "-c", "chown -R www-data:www-data /app/storage /app/bootstrap/cache /app/database && chmod -R 775 /app/storage /app/bootstrap/cache && chmod 664 /app/database/database.sqlite && ln -sf /app/storage/app/public /app/public/storage && mkdir -p /app/storage/app/public/avatars /app/storage/app/public/profiles /app/storage/app/public/items /app/storage/app/public/drops && php artisan config:cache && php artisan route:cache && /usr/bin/supervisord -c /etc/supervisord.conf"]

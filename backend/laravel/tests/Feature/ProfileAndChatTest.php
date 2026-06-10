@@ -33,6 +33,16 @@ class ProfileAndChatTest extends TestCase
         );
     }
 
+    public function test_health_endpoint_checks_database_connection(): void
+    {
+        $this->getJson('/api/health')
+            ->assertOk()
+            ->assertExactJson([
+                'ok' => true,
+                'database' => true,
+            ]);
+    }
+
     public function test_profile_endpoint_returns_user_and_their_reviews(): void
     {
         $user = $this->createUser('profile_user', 'profile@example.com');
@@ -83,6 +93,39 @@ class ProfileAndChatTest extends TestCase
         $this->getJson("/api/v1/chats/{$peer->id}/messages?markRead=0")
             ->assertOk()
             ->assertJsonPath('0.body', 'Сохранённое сообщение');
+    }
+
+    public function test_chat_returns_recent_page_and_incremental_messages(): void
+    {
+        $currentUser = $this->createUser('chat_page_owner', 'page-owner@example.com');
+        $peer = $this->createUser('chat_page_peer', 'page-peer@example.com');
+
+        for ($index = 1; $index <= 90; $index++) {
+            ChatMessage::create([
+                'sender_id' => $index % 2 === 0 ? $currentUser->id : $peer->id,
+                'recipient_id' => $index % 2 === 0 ? $peer->id : $currentUser->id,
+                'body' => "Message {$index}",
+            ]);
+        }
+
+        Sanctum::actingAs($currentUser);
+
+        $page = $this->getJson("/api/v1/chats/{$peer->id}/messages?markRead=0")
+            ->assertOk()
+            ->assertJsonCount(80);
+
+        $lastId = (int) $page->json('79.id');
+        $newMessage = ChatMessage::create([
+            'sender_id' => $peer->id,
+            'recipient_id' => $currentUser->id,
+            'body' => 'New incremental message',
+        ]);
+
+        $this->getJson("/api/v1/chats/{$peer->id}/messages?markRead=0&afterId={$lastId}")
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', (string) $newMessage->id)
+            ->assertJsonPath('0.body', 'New incremental message');
     }
 
     private function createUser(string $username, string $email): User

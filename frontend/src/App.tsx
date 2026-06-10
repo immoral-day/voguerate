@@ -64,7 +64,10 @@ export const App: React.FC = () => {
     const [articleLoading, setArticleLoading] = useState(false);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
     const [toasts, setToasts] = useState<{ id: string, message: string }[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [sessionLoading, setSessionLoading] = useState(true);
+    const [dataLoading, setDataLoading] = useState(true);
+    const [dataLoadError, setDataLoadError] = useState('');
+    const [dataLoadAttempt, setDataLoadAttempt] = useState(0);
     const [authLoading, setAuthLoading] = useState(false);
     const [authError, setAuthError] = useState('');
     const [likedReviewIds, setLikedReviewIds] = useState<Set<string>>(new Set());
@@ -96,6 +99,7 @@ export const App: React.FC = () => {
         if (!savedUserId || !savedAuthToken || !hasSanctumToken) {
             localStorage.removeItem('currentUserId');
             localStorage.removeItem('authToken');
+            setSessionLoading(false);
             return;
         }
 
@@ -110,11 +114,13 @@ export const App: React.FC = () => {
             })
             .catch((error) => {
                 console.error('Failed to restore saved user:', error);
-                localStorage.removeItem('currentUserId');
-                localStorage.removeItem('authToken');
+                if ((error as { status?: number }).status === 401) {
+                    localStorage.removeItem('currentUserId');
+                    localStorage.removeItem('authToken');
+                }
             })
             .finally(() => {
-                if (!cancelled) setIsLoading(false);
+                if (!cancelled) setSessionLoading(false);
             });
 
         return () => {
@@ -126,37 +132,26 @@ export const App: React.FC = () => {
         let cancelled = false;
 
         const loadData = async () => {
+            setDataLoading(true);
+            setDataLoadError('');
             try {
-                const [payload, publicUsers] = await Promise.all([
-                    apiService.get<BootstrapPayload>('/v1/bootstrap'),
-                    apiService.get<User[]>('/v1/users?limit=500'),
-                ]);
+                const payload = await apiService.get<BootstrapPayload>('/v1/bootstrap');
                 if (cancelled) return;
 
                 setClothingItems(payload.items);
                 setReviews(payload.reviews);
-                const loadedUsers = publicUsers.length >= payload.users.length
-                    ? publicUsers
-                    : payload.users;
-                setUsers((existingUsers) => loadedUsers.map((summary) => {
+                setUsers((existingUsers) => payload.users.map((summary) => {
                     const existing = existingUsers.find((user) => user.id === summary.id);
                     return existing && !existing.isSummary ? existing : summary;
                 }));
                 setDrops(payload.drops);
                 setArticles(payload.articles);
-
-                const refreshedCurrentUser = loadedUsers.find((user) => user.id === currentUser?.id);
-                if (refreshedCurrentUser) {
-                    setCurrentUser(refreshedCurrentUser);
-                }
             } catch (error) {
                 console.error('Failed to load bootstrap data:', error);
-                if (!cancelled) {
-                    addToast('Не удалось загрузить данные приложения');
-                }
+                if (!cancelled) setDataLoadError('Не удалось загрузить данные сайта.');
             } finally {
                 if (!cancelled) {
-                    setIsLoading(false);
+                    setDataLoading(false);
                 }
             }
         };
@@ -166,7 +161,7 @@ export const App: React.FC = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [dataLoadAttempt]);
 
     useEffect(() => {
         if (currentUser?.role !== 'ADMIN' || viewState.view !== 'ADMIN') {
@@ -863,12 +858,26 @@ export const App: React.FC = () => {
         }
     };
 
-    if (isLoading) {
+    if (sessionLoading || dataLoading) {
         return (
             <div className="min-h-screen bg-bg flex items-center justify-center">
                 <div className="text-center flex flex-col items-center">
                     <div className="w-16 h-16 border-4 border-[var(--line)] border-t-[var(--lime)] rounded-full animate-spin mb-6"></div>
                     <p className="text-sm font-mono text-[var(--muted)] uppercase tracking-widest animate-pulse">Загрузка системы...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (dataLoadError) {
+        return (
+            <div className="min-h-screen bg-bg flex items-center justify-center p-6">
+                <div className="card p-8 text-center max-w-md">
+                    <h1 className="vr-h2 mb-3">Не удалось загрузить сайт</h1>
+                    <p className="muted mb-6">{dataLoadError} Проверьте соединение и повторите попытку.</p>
+                    <Button onClick={() => setDataLoadAttempt((attempt) => attempt + 1)}>
+                        Повторить
+                    </Button>
                 </div>
             </div>
         );

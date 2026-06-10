@@ -116,7 +116,6 @@ button { cursor: pointer; }
   padding: 8px 0 9px;
   background: transparent;
   border-bottom: 0;
-  backdrop-filter: blur(8px);
   isolation: isolate;
 }
 .topbar::before {
