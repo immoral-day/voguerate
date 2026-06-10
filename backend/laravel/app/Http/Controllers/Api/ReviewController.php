@@ -10,6 +10,7 @@ use App\Models\ReviewLike;
 use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ReviewController extends Controller
@@ -208,23 +209,27 @@ class ReviewController extends Controller
             return response()->json(['error' => 'Нельзя лайкать свою рецензию'], 400);
         }
 
-        $exists = ReviewLike::where('review_id', $review->id)
-            ->where('user_id', $authUser->id)
-            ->exists();
+        $result = DB::transaction(function () use ($review, $authUser) {
+            $like = ReviewLike::firstOrCreate([
+                'review_id' => $review->id,
+                'user_id' => $authUser->id,
+            ]);
 
-        if ($exists) {
-            return response()->json(['error' => 'Вы уже лайкали эту рецензию'], 400);
-        }
+            if ($like->wasRecentlyCreated) {
+                $review->increment('likes');
+                $review->user()->increment('reputation');
+            }
 
-        ReviewLike::create([
-            'review_id' => $review->id,
-            'user_id' => $authUser->id,
-        ]);
+            $review->refresh();
 
-        $review->increment('likes');
-        $review->user->increment('reputation');
-        $review->load(['user', 'clothingItem']);
-        return response()->json($review);
+            return [
+                'review_id' => (string) $review->id,
+                'likes' => (int) $review->likes,
+                'liked' => true,
+            ];
+        });
+
+        return response()->json($result);
     }
 
     public function unlike(Request $request, Review $review): JsonResponse
@@ -234,23 +239,29 @@ class ReviewController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $like = ReviewLike::where('review_id', $review->id)
-            ->where('user_id', $authUser->id)
-            ->first();
+        $result = DB::transaction(function () use ($review, $authUser) {
+            $removed = ReviewLike::where('review_id', $review->id)
+                ->where('user_id', $authUser->id)
+                ->delete();
 
-        if (!$like) {
-            return response()->json(['error' => 'Лайк не найден'], 404);
-        }
+            if ($removed > 0) {
+                $review->update(['likes' => max(0, (int) $review->likes - 1)]);
 
-        $like->delete();
-        $review->update(['likes' => max(0, (int) $review->likes - 1)]);
+                $author = $review->user;
+                if ($author && $author->reputation > 0) {
+                    $author->decrement('reputation');
+                }
+            }
 
-        if ($review->user && $review->user->reputation > 0) {
-            $review->user->decrement('reputation');
-        }
+            $review->refresh();
 
-        $review->load(['user', 'clothingItem']);
+            return [
+                'review_id' => (string) $review->id,
+                'likes' => (int) $review->likes,
+                'liked' => false,
+            ];
+        });
 
-        return response()->json($review);
+        return response()->json($result);
     }
 }

@@ -82,6 +82,29 @@ class UserAccessTest extends TestCase
             ]);
     }
 
+    public function test_login_token_authenticates_protected_api_routes(): void
+    {
+        $user = $this->createUser('token_user', 'token@example.com');
+
+        $token = $this->postJson('/api/v1/login', [
+            'username' => $user->username,
+            'password' => 'password',
+        ])
+            ->assertOk()
+            ->json('authToken');
+
+        $this->assertIsString($token);
+        $this->withToken($token)
+            ->getJson('/api/v1/me')
+            ->assertOk()
+            ->assertJsonPath('id', (string) $user->id);
+
+        $this->withToken($token)
+            ->getJson('/api/v1/chats')
+            ->assertOk()
+            ->assertExactJson([]);
+    }
+
     private function createUser(string $username, string $email, string $role = 'USER'): User
     {
         return User::create([

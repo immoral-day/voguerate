@@ -1,3 +1,14 @@
+import {
+  normalizeArticle,
+  normalizeArray,
+  normalizeBootstrap,
+  normalizeClothingItem,
+  normalizeDrop,
+  normalizeProfile,
+  normalizeReview,
+  normalizeUser,
+} from './normalizers';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const APP_ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
 const API_ORIGIN = new URL(API_BASE_URL, APP_ORIGIN).origin;
@@ -25,6 +36,54 @@ const normalizeApiPayload = <T>(payload: T): T => {
     ) as T;
   }
   return payload;
+};
+
+const normalizeEndpointPayload = <T>(endpoint: string, payload: unknown): T => {
+  const normalizedUrls = normalizeApiPayload(payload);
+  const path = endpoint.split('?')[0];
+
+  if (path === '/v1/bootstrap') return normalizeBootstrap(normalizedUrls) as T;
+  if (/^\/v1\/profiles\/[^/]+$/.test(path)) return normalizeProfile(normalizedUrls) as T;
+
+  if (path === '/v1/users' || path === '/v1/admin/users') {
+    return (Array.isArray(normalizedUrls)
+      ? normalizeArray(normalizedUrls, normalizeUser)
+      : normalizeUser(normalizedUrls)) as T;
+  }
+  if (
+    path === '/v1/me'
+    || path === '/v1/login'
+    || /^\/v1\/users\/[^/]+$/.test(path)
+    || /^\/v1\/users\/[^/]+\/(?:ban|verify)$/.test(path)
+  ) {
+    return normalizeUser(normalizedUrls) as T;
+  }
+
+  if (path === '/v1/items' || /^\/v1\/items\/[^/]+$/.test(path)) {
+    return (Array.isArray(normalizedUrls)
+      ? normalizeArray(normalizedUrls, normalizeClothingItem)
+      : normalizeClothingItem(normalizedUrls)) as T;
+  }
+
+  if (path === '/v1/reviews' || /^\/v1\/reviews\/[^/]+$/.test(path)) {
+    return (Array.isArray(normalizedUrls)
+      ? normalizeArray(normalizedUrls, normalizeReview)
+      : normalizeReview(normalizedUrls)) as T;
+  }
+
+  if (path === '/v1/drops' || /^\/v1\/drops\/[^/]+(?:\/cop)?$/.test(path)) {
+    return (Array.isArray(normalizedUrls)
+      ? normalizeArray(normalizedUrls, normalizeDrop)
+      : normalizeDrop(normalizedUrls)) as T;
+  }
+
+  if (path === '/v1/articles' || /^\/v1\/articles\/[^/]+$/.test(path)) {
+    return (Array.isArray(normalizedUrls)
+      ? normalizeArray(normalizedUrls, normalizeArticle)
+      : normalizeArticle(normalizedUrls)) as T;
+  }
+
+  return normalizedUrls as T;
 };
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -212,7 +271,7 @@ export const apiService = {
         if (response.status === 401) handleUnauthorized(endpoint);
         throw await apiErrorFromResponse(response);
       }
-      return normalizeApiPayload(await response.json()) as T;
+      return normalizeEndpointPayload<T>(endpoint, await response.json());
     })();
 
     inFlightGets.set(requestKey, request);
@@ -239,7 +298,7 @@ export const apiService = {
       if (response.status === 401) handleUnauthorized(endpoint);
       throw await apiErrorFromResponse(response);
     }
-    return normalizeApiPayload(await response.json());
+    return normalizeEndpointPayload<T>(endpoint, await response.json());
   },
 
   async put<T>(endpoint: string, data: unknown): Promise<T> {
@@ -256,7 +315,7 @@ export const apiService = {
       if (response.status === 401) handleUnauthorized(endpoint);
       throw await apiErrorFromResponse(response);
     }
-    return normalizeApiPayload(await response.json());
+    return normalizeEndpointPayload<T>(endpoint, await response.json());
   },
 
   async delete<T = void>(endpoint: string): Promise<T> {
@@ -273,7 +332,7 @@ export const apiService = {
     }
     if (response.status === 204) return undefined as T;
     const text = await response.text();
-    return text ? normalizeApiPayload(JSON.parse(text)) as T : undefined as T;
+    return text ? normalizeEndpointPayload<T>(endpoint, JSON.parse(text)) : undefined as T;
   },
 
   async uploadFile(file: File, type: UploadType = 'avatar'): Promise<{ url: string; path: string; relativePath?: string }> {

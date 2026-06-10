@@ -50,7 +50,9 @@ export interface Review {
   ratingBreakdown?: RatingBreakdown;
   text: string;
   likes: number;
+  likedByMe?: boolean;
   date: string;
+  createdAt?: string;
   reportsCount?: number;
   user?: User;
   clothing?: ClothingItem;

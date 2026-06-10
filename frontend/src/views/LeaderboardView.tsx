@@ -10,7 +10,16 @@ interface LeaderboardViewProps {
 }
 
 export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, reviews, onUserClick }) => {
-    const sortedUsers = useMemo(() => [...users].sort((a, b) => b.reputation - a.reputation), [users]);
+    const userReviewCounts = useMemo(() => reviews.reduce<Record<string, number>>((acc, review) => {
+        acc[review.userId] = (acc[review.userId] || 0) + 1;
+        return acc;
+    }, {}), [reviews]);
+    const getReviewCount = (user: User) => Math.max(user.reviewsCount || 0, userReviewCounts[user.id] || 0);
+    const sortedUsers = useMemo(() => [...users].sort((a, b) => (
+        (b.reputation || 0) - (a.reputation || 0)
+        || getReviewCount(b) - getReviewCount(a)
+        || a.username.localeCompare(b.username, 'ru')
+    )), [users, userReviewCounts]);
     const totalReviews = reviews.length;
     const totalReviewLikes = reviews.reduce((sum, review) => sum + review.likes, 0);
     const totalReputation = users.reduce((sum, user) => sum + user.reputation, 0);
@@ -48,7 +57,7 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, reviews
                                     <Avatar src={user.avatar || DEFAULT_AVATAR} alt={user.username} />
                                     <strong>{user.username}</strong>
                                     <span className="podium-score">РП {user.reputation}</span>
-                                    <small>{userReviewLikes[user.id] || 0} лайков · {user.reviewsCount} рецензий</small>
+                                    <small>{userReviewLikes[user.id] || 0} лайков · {getReviewCount(user)} рецензий</small>
                                 </button>
                             ))}
                         </div>
@@ -76,13 +85,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({ users, reviews
                             </span>
                             <span className="leaderboard-score">РП {user.reputation}</span>
                             <span className="leaderboard-metric">{userReviewLikes[user.id] || 0} лайков</span>
-                            <span className="leaderboard-metric">{user.reviewsCount} рецензий</span>
+                            <span className="leaderboard-metric">{getReviewCount(user)} рецензий</span>
                         </button>
                     ))}
                 </div>
                 </>
             ) : (
-                <div className="card p-8 text-center muted">Нет пользователей.</div>
+                <div className="card p-8 text-center muted">Пока нет данных для рейтинга пользователей.</div>
             )}
         </div>
     );

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport, Article, FeedbackMessage } from './types';
 import { ToastContainer, Button } from './components/UI';
 import { Sidebar, Header, Footer } from './components/layout';
@@ -19,22 +19,16 @@ import {
     ChatView,
 } from './views';
 import { apiService } from './services/apiService';
+import { BootstrapPayload, ProfilePayload } from './services/normalizers';
 
 const AdminPanel = lazy(() => import('./views/AdminPanel').then((module) => ({
     default: module.AdminPanel,
 })));
 
-interface BootstrapPayload {
-    items: ClothingItem[];
-    reviews: Review[];
-    users: User[];
-    drops: UpcomingDrop[];
-    articles: Article[];
-}
-
-interface ProfilePayload {
-    user: User;
-    reviews: Review[];
+interface ReviewLikeResult {
+    review_id: string;
+    likes: number;
+    liked: boolean;
 }
 
 const GUEST_USER: User = {
@@ -76,6 +70,7 @@ export const App: React.FC = () => {
     const [profileLoadingId, setProfileLoadingId] = useState<string | null>(null);
     const [profileErrorId, setProfileErrorId] = useState<string | null>(null);
     const [searchRequest, setSearchRequest] = useState<{ value: string; id: number } | null>(null);
+    const loadedItemReviewsRef = useRef(new Set<string>());
 
     useEffect(() => {
         const handleUnauthorized = () => {
@@ -135,17 +130,52 @@ export const App: React.FC = () => {
             setDataLoading(true);
             setDataLoadError('');
             try {
-                const payload = await apiService.get<BootstrapPayload>('/v1/bootstrap');
+                let bootstrapError: unknown = null;
+                const bootstrap = await apiService.get<BootstrapPayload>('/v1/bootstrap')
+                    .catch((error) => {
+                        bootstrapError = error;
+                        console.warn('Bootstrap request failed; loading core resources separately:', error);
+                        return null;
+                    });
+
+                const loadFallback = async <T,>(label: string, endpoint: string, current: T[]): Promise<T[]> => {
+                    if (current.length > 0) return current;
+                    try {
+                        return await apiService.get<T[]>(endpoint);
+                    } catch (error) {
+                        console.error(`Failed to load ${label}:`, error);
+                        return current;
+                    }
+                };
+
+                const base: BootstrapPayload = bootstrap || {
+                    items: [],
+                    reviews: [],
+                    users: [],
+                    drops: [],
+                    articles: [],
+                };
+                const [items, loadedReviews, loadedUsers, loadedDrops, loadedArticles] = await Promise.all([
+                    loadFallback<ClothingItem>('items', '/v1/items', base.items),
+                    loadFallback<Review>('reviews', '/v1/reviews?compact=1&limit=500', base.reviews),
+                    loadFallback<User>('users', '/v1/users?limit=500', base.users),
+                    loadFallback<UpcomingDrop>('drops', '/v1/drops', base.drops),
+                    loadFallback<Article>('articles', '/v1/articles?limit=100', base.articles),
+                ]);
+
+                if (!bootstrap && items.length === 0 && loadedUsers.length === 0 && bootstrapError) {
+                    throw bootstrapError;
+                }
                 if (cancelled) return;
 
-                setClothingItems(payload.items);
-                setReviews(payload.reviews);
-                setUsers((existingUsers) => payload.users.map((summary) => {
+                setClothingItems(items);
+                setReviews(loadedReviews);
+                setUsers((existingUsers) => loadedUsers.map((summary) => {
                     const existing = existingUsers.find((user) => user.id === summary.id);
                     return existing && !existing.isSummary ? existing : summary;
                 }));
-                setDrops(payload.drops);
-                setArticles(payload.articles);
+                setDrops(loadedDrops);
+                setArticles(loadedArticles);
             } catch (error) {
                 console.error('Failed to load bootstrap data:', error);
                 if (!cancelled) setDataLoadError('Не удалось загрузить данные сайта.');
@@ -255,6 +285,11 @@ export const App: React.FC = () => {
 
     useEffect(() => {
         if (viewState.view !== 'ITEM_DETAIL' || !viewState.itemId) return;
+        const item = clothingItems.find((entry) => entry.id === viewState.itemId);
+        const loadedReviewCount = reviews.filter((review) => review.clothingId === viewState.itemId).length;
+        if (item && loadedReviewCount >= item.ratingCount) return;
+        if (loadedItemReviewsRef.current.has(viewState.itemId)) return;
+        loadedItemReviewsRef.current.add(viewState.itemId);
 
         let cancelled = false;
         apiService.get<Review[]>(`/v1/reviews?compact=1&clothingId=${viewState.itemId}&limit=500`)
@@ -265,12 +300,15 @@ export const App: React.FC = () => {
                     return [...itemReviews, ...current.filter((review) => !incomingIds.has(review.id))];
                 });
             })
-            .catch((error) => console.error('Failed to load item reviews:', error));
+            .catch((error) => {
+                loadedItemReviewsRef.current.delete(viewState.itemId!);
+                console.error('Failed to load item reviews:', error);
+            });
 
         return () => {
             cancelled = true;
         };
-    }, [viewState.itemId, viewState.view]);
+    }, [clothingItems, reviews, viewState.itemId, viewState.view]);
 
     useEffect(() => {
         if (!currentUser) {
@@ -578,16 +616,14 @@ export const App: React.FC = () => {
         addToast(wasLiked ? 'Лайк убран' : 'Лайк засчитан');
 
         try {
-            const updatedReview = wasLiked
-                ? await apiService.delete<Review>(`/v1/reviews/${reviewId}/like`)
-                : await apiService.post<Review>(`/v1/reviews/${reviewId}/like`, {});
-            setReviews(prev => prev.map(review => review.id === reviewId ? updatedReview : review));
-            if (updatedReview.user) {
-                setUsers(prev => prev.map(user => user.id === updatedReview.userId ? updatedReview.user! : user));
-                if (currentUser?.id === updatedReview.userId) {
-                    setCurrentUser(updatedReview.user);
-                }
-            }
+            const result = wasLiked
+                ? await apiService.delete<ReviewLikeResult>(`/v1/reviews/${reviewId}/like`)
+                : await apiService.post<ReviewLikeResult>(`/v1/reviews/${reviewId}/like`, {});
+            setReviews(prev => prev.map(review => (
+                review.id === reviewId
+                    ? { ...review, likes: result.likes, likedByMe: result.liked }
+                    : review
+            )));
         } catch (err: unknown) {
             const error = err as Error;
             if (wasLiked) rememberLikedReview(reviewId);

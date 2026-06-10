@@ -17,15 +17,28 @@ class ProfileAndChatTest extends TestCase
 
     public function test_bootstrap_returns_every_visible_user_without_cache(): void
     {
-        $this->createUser('visible_one', 'visible-one@example.com');
+        $reviewAuthor = $this->createUser('visible_one', 'visible-one@example.com');
         $this->createUser('visible_two', 'visible-two@example.com');
         $blocked = $this->createUser('blocked_user', 'blocked@example.com');
         $blocked->update(['banned_permanently' => true]);
+        $item = $this->createItem();
+        $review = Review::create([
+            'user_id' => $reviewAuthor->id,
+            'clothing_item_id' => $item->id,
+            'rating' => 80,
+            'text' => 'Рецензия загружается вместе с bootstrap.',
+            'likes' => 0,
+        ]);
 
         $response = $this->getJson('/api/v1/bootstrap')
             ->assertOk()
             ->assertHeader('X-Bootstrap-Users', '2')
-            ->assertJsonCount(2, 'users');
+            ->assertJsonCount(2, 'users')
+            ->assertJsonCount(1, 'items')
+            ->assertJsonCount(1, 'reviews')
+            ->assertJsonPath('reviews.0.id', (string) $review->id)
+            ->assertJsonPath('reviews.0.userId', (string) $reviewAuthor->id)
+            ->assertJsonPath('reviews.0.clothingId', (string) $item->id);
 
         $this->assertStringContainsString(
             'no-store',
@@ -126,6 +139,64 @@ class ProfileAndChatTest extends TestCase
             ->assertJsonCount(1)
             ->assertJsonPath('0.id', (string) $newMessage->id)
             ->assertJsonPath('0.body', 'New incremental message');
+    }
+
+    public function test_review_like_endpoints_return_small_idempotent_payloads(): void
+    {
+        $author = $this->createUser('review_author', 'review-author@example.com');
+        $liker = $this->createUser('review_liker', 'review-liker@example.com');
+        $review = Review::create([
+            'user_id' => $author->id,
+            'clothing_item_id' => $this->createItem()->id,
+            'rating' => 70,
+            'text' => 'Рецензия для проверки лёгкого ответа лайка.',
+            'likes' => 0,
+        ]);
+
+        Sanctum::actingAs($liker);
+
+        $expectedLiked = [
+            'review_id' => (string) $review->id,
+            'likes' => 1,
+            'liked' => true,
+        ];
+
+        $this->postJson("/api/v1/reviews/{$review->id}/like")
+            ->assertOk()
+            ->assertExactJson($expectedLiked);
+
+        $this->postJson("/api/v1/reviews/{$review->id}/like")
+            ->assertOk()
+            ->assertExactJson($expectedLiked);
+
+        $expectedUnliked = [
+            'review_id' => (string) $review->id,
+            'likes' => 0,
+            'liked' => false,
+        ];
+
+        $this->deleteJson("/api/v1/reviews/{$review->id}/like")
+            ->assertOk()
+            ->assertExactJson($expectedUnliked);
+
+        $this->deleteJson("/api/v1/reviews/{$review->id}/like")
+            ->assertOk()
+            ->assertExactJson($expectedUnliked);
+    }
+
+    private function createItem(): ClothingItem
+    {
+        return ClothingItem::create([
+            'brand' => 'Test Brand',
+            'name' => 'Test Item',
+            'image' => '/storage/items/test.webp',
+            'release_date' => now()->toDateString(),
+            'average_rating' => 75,
+            'rating_count' => 1,
+            'type' => 'SINGLE_LOOK',
+            'category' => 'Streetwear',
+            'price' => 1000,
+        ]);
     }
 
     private function createUser(string $username, string $email): User

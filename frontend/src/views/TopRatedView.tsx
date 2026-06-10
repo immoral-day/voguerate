@@ -16,9 +16,12 @@ const VALUE_MAX = 25;
 const PAGE_SIZE = 10;
 
 const getValueParts = (item: ClothingItem) => {
-    const rating = Math.min(15, Math.max(0, (item.averageRating / 90) * 15));
-    const confidence = Math.min(5, Math.log2(item.ratingCount + 1) * 1.55);
-    const price = item.price > 0 ? Math.max(0, 5 - Math.log10((item.price / 1000) + 1) * 1.35) : 2.5;
+    const averageRating = Number.isFinite(item.averageRating) ? item.averageRating : 0;
+    const ratingCount = Number.isFinite(item.ratingCount) ? item.ratingCount : 0;
+    const itemPrice = Number.isFinite(item.price) ? item.price : 0;
+    const rating = Math.min(15, Math.max(0, (averageRating / 90) * 15));
+    const confidence = Math.min(5, Math.log2(ratingCount + 1) * 1.55);
+    const price = itemPrice > 0 ? Math.max(0, 5 - Math.log10((itemPrice / 1000) + 1) * 1.35) : 2.5;
     const total = Math.min(VALUE_MAX, Math.round((rating + confidence + price) * 10) / 10);
 
     return {
@@ -54,8 +57,8 @@ export const TopRatedView: React.FC<TopRatedViewProps> = ({ items, onItemClick }
                     item.name,
                     item.brand,
                     categoryLabel(item.category),
-                    ...item.tags,
-                    ...item.colors,
+                    ...(item.tags || []),
+                    ...(item.colors || []),
                 ].join(' ').toLocaleLowerCase('ru-RU');
 
                 return matchesCategory && (!query || searchableText.includes(query));
@@ -157,7 +160,11 @@ export const TopRatedView: React.FC<TopRatedViewProps> = ({ items, onItemClick }
                         })}
                     </div>
                 ) : (
-                    <div className="card p-8 text-center muted">По вашему запросу ничего не найдено.</div>
+                    <div className="card p-8 text-center muted">
+                        {items.length === 0
+                            ? 'Пока нет данных для отображения рейтинга.'
+                            : 'По вашему запросу ничего не найдено.'}
+                    </div>
                 )}
                 {sorted.length > PAGE_SIZE && (
                     <div className="pagination value-pagination">

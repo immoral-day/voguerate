@@ -19,6 +19,10 @@ services:
     env_file:
       - ./backend/laravel/.env.production
     environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_CONNECTION: sqlite
+      DB_DATABASE: /app/database/database.sqlite
       CACHE_STORE: file
       SESSION_DRIVER: file
     volumes:
