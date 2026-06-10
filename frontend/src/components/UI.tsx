@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
 
+const failedImageSources = new Set<string>();
+
+const resolveImageSource = (src: string | undefined, fallback: string) =>
+    src && !failedImageSources.has(src) ? src : fallback;
+
 export const getRatingColor = (score: number, max: number = 90) => {
     const percentage = (score / max) * 100;
     if (percentage <= 50) return 'red';
@@ -41,10 +46,10 @@ export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { f
     decoding = 'async',
     ...props
 }) => {
-    const [currentSrc, setCurrentSrc] = useState(src || fallback);
+    const [currentSrc, setCurrentSrc] = useState(resolveImageSource(src, fallback));
 
     useEffect(() => {
-        setCurrentSrc(src || fallback);
+        setCurrentSrc(resolveImageSource(src, fallback));
     }, [src, fallback]);
 
     return (
@@ -54,7 +59,10 @@ export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { f
             loading={loading}
             decoding={decoding}
             onError={() => {
-                if (currentSrc !== fallback) setCurrentSrc(fallback);
+                if (currentSrc !== fallback) {
+                    failedImageSources.add(currentSrc);
+                    setCurrentSrc(fallback);
+                }
             }}
         />
     );

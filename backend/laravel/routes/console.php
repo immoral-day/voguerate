@@ -457,6 +457,55 @@ Artisan::command('app:diagnose', function () {
         $this->line('Orphan chat messages: ' . $orphanMessages);
     }
 
+    $storagePaths = collect();
+    $rememberStoragePath = function ($value) use ($storagePaths): void {
+        if (!is_string($value) || trim($value) === '') {
+            return;
+        }
+
+        $path = parse_url($value, PHP_URL_PATH) ?: $value;
+        if (str_starts_with($path, '/storage/')) {
+            $storagePaths->push(substr($path, strlen('/storage/')));
+        }
+    };
+
+    if (DB::getSchemaBuilder()->hasTable('users')) {
+        DB::table('users')->select(['avatar', 'profile_background'])->get()->each(
+            function ($user) use ($rememberStoragePath): void {
+                $rememberStoragePath($user->avatar);
+                $rememberStoragePath($user->profile_background);
+            }
+        );
+    }
+
+    if (DB::getSchemaBuilder()->hasTable('clothing_items')) {
+        DB::table('clothing_items')->select(['image', 'images'])->get()->each(
+            function ($item) use ($rememberStoragePath): void {
+                $rememberStoragePath($item->image);
+                foreach ((array) json_decode($item->images ?: '[]', true) as $image) {
+                    $rememberStoragePath($image);
+                }
+            }
+        );
+    }
+
+    foreach (['drops', 'articles'] as $table) {
+        if (DB::getSchemaBuilder()->hasTable($table)) {
+            DB::table($table)->pluck('image')->each($rememberStoragePath);
+        }
+    }
+
+    $storagePaths = $storagePaths->unique()->values();
+    $missingStoragePaths = $storagePaths->filter(
+        fn (string $path) => !File::exists(storage_path('app/public/' . $path))
+    )->values();
+    $this->line('Referenced storage files: ' . $storagePaths->count());
+    $this->line('Missing storage files: ' . $missingStoragePaths->count());
+
+    foreach ($missingStoragePaths->take(20) as $path) {
+        $this->warn('  missing: ' . $path);
+    }
+
     $this->line('Cache store: ' . config('cache.default'));
     $this->line('Session driver: ' . config('session.driver'));
 
