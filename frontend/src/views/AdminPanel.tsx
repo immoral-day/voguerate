@@ -108,6 +108,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const [reportUserBanReasons, setReportUserBanReasons] = useState<Record<string, string>>({});
     const [adminUsers, setAdminUsers] = useState<User[]>(users);
     const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+    const [adminUsersError, setAdminUsersError] = useState('');
     const [adminUsersPage, setAdminUsersPage] = useState(1);
     const [adminUsersPerPage, setAdminUsersPerPage] = useState(10);
     const [authorshipRequests, setAuthorshipRequests] = useState<AuthorshipRequest[]>([]);
@@ -150,11 +151,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const loadAdminUsers = async () => {
         setAdminUsersLoading(true);
+        setAdminUsersError('');
         try {
-            const data = await apiService.get<User[]>('/v1/users?includeBanned=1');
+            const data = await apiService.get<User[]>('/v1/admin/users?includeBanned=1');
             setAdminUsers(data);
         } catch (error) {
             console.error('Failed to load admin users', error);
+            setAdminUsersError('Не удалось загрузить полный список пользователей.');
         } finally {
             setAdminUsersLoading(false);
         }
@@ -701,6 +704,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <p className="text-xs font-mono text-gray-500">
                                     Админов: {adminUsersCount} · показано: {filteredAdminUsers.length}
                                 </p>
+                                {adminUsersError && (
+                                    <p className="mt-1 text-xs font-mono text-red-700">{adminUsersError}</p>
+                                )}
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <select

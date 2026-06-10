@@ -60,6 +60,28 @@ class UserAccessTest extends TestCase
             );
     }
 
+    public function test_admin_can_load_all_users_through_protected_route(): void
+    {
+        $admin = $this->createUser('admin_list', 'admin-list@example.com', 'ADMIN');
+        $active = $this->createUser('active_list', 'active-list@example.com');
+        $banned = $this->createUser('banned_list', 'banned-list@example.com');
+        $banned->update([
+            'banned_permanently' => true,
+            'ban_reason' => 'Проверка списка',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/v1/admin/users?includeBanned=1')
+            ->assertOk()
+            ->assertJsonFragment(['id' => (string) $active->id])
+            ->assertJsonFragment([
+                'id' => (string) $banned->id,
+                'bannedPermanently' => true,
+                'banReason' => 'Проверка списка',
+            ]);
+    }
+
     private function createUser(string $username, string $email, string $role = 'USER'): User
     {
         return User::create([

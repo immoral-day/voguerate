@@ -69,7 +69,10 @@ class User extends Authenticatable
     public function scopeNotBanned(Builder $query): Builder
     {
         return $query
-            ->where('banned_permanently', false)
+            ->where(function (Builder $query) {
+                $query->where('banned_permanently', false)
+                    ->orWhereNull('banned_permanently');
+            })
             ->where(function (Builder $query) {
                 $query->whereNull('banned_until')
                     ->orWhere('banned_until', '<=', now());
