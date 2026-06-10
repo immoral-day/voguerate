@@ -37,6 +37,8 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
 export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { fallback?: string }> = ({
     src,
     fallback = DEFAULT_ITEM_IMAGE,
+    loading = 'lazy',
+    decoding = 'async',
     ...props
 }) => {
     const [currentSrc, setCurrentSrc] = useState(src || fallback);
@@ -49,6 +51,8 @@ export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { f
         <img
             {...props}
             src={currentSrc}
+            loading={loading}
+            decoding={decoding}
             onError={() => {
                 if (currentSrc !== fallback) setCurrentSrc(fallback);
             }}

@@ -46,16 +46,28 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 }) => {
     const isCurrentUser = user.id === currentUser.id;
     const isFollowing = currentUser.following?.includes(user.id) || false;
-    const userReviews = reviews.filter((review) => review.userId === user.id);
-    const sortedUsers = [...usersList].sort((a, b) => b.reputation - a.reputation);
-    const rank = sortedUsers.findIndex((entry) => entry.id === user.id) + 1;
+    const userReviews = useMemo(
+        () => reviews.filter((review) => review.userId === user.id),
+        [reviews, user.id],
+    );
+    const rank = useMemo(
+        () => [...usersList].sort((a, b) => b.reputation - a.reputation)
+            .findIndex((entry) => entry.id === user.id) + 1,
+        [user.id, usersList],
+    );
     const isVerified = !!(user.badges?.includes('ВЕРИФИЦИРОВАН') || user.badges?.includes('VERIFIED'));
     const isAdmin = currentUser.role === 'ADMIN';
     const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('ДИЗАЙНЕР') || user.badges?.includes('DESIGNER');
     const avgScoreGiven = userReviews.length
         ? Math.round(userReviews.reduce((sum, review) => sum + review.rating, 0) / userReviews.length)
         : 0;
-    const savedItems = items.filter((item) => user.favorites?.includes(item.id) || user.wardrobe?.wanted?.includes(item.id));
+    const savedItems = useMemo(() => {
+        const savedIds = new Set([
+            ...(user.favorites || []),
+            ...(user.wardrobe?.wanted || []),
+        ]);
+        return items.filter((item) => savedIds.has(item.id));
+    }, [items, user.favorites, user.wardrobe?.wanted]);
 
     const [activeTab, setActiveTab] = useState<ProfileTab>('OVERVIEW');
     const [isReportOpen, setIsReportOpen] = useState(false);
@@ -305,7 +317,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                     {visibleUserReviews.map((review) => (
                                         <article className="review-card" key={review.id} onClick={() => onItemClick(review.clothingId)}>
                                             <div className="review-top">
-                                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Вещь'} />
+                                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Вещь'} loading="lazy" decoding="async" />
                                                 <strong>{review.clothing?.name || 'Вещь'}</strong>
                                                 <RatingCircle rating={review.rating} />
                                             </div>
@@ -415,7 +427,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                     {authorItems.map((item, index) => (
                                         <article className="release-card" key={item.id} onClick={() => onItemClick(item.id)}>
                                             <div className="release-cover">
-                                                <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} />
+                                                <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" decoding="async" />
                                                 <div className="cover-meta"><span className="tiny">#{index + 1}</span></div>
                                             </div>
                                             <div className="release-title">{item.name}</div>

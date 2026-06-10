@@ -23,7 +23,8 @@ class ArticleController extends Controller
             $query->where('topic', $request->input('topic'));
         }
 
-        $articles = $query->get();
+        $limit = min(500, max(1, $request->integer('limit', 200)));
+        $articles = $query->limit($limit)->get();
 
         if ($request->boolean('summary')) {
             return response()->json($articles->map(function (Article $article) {

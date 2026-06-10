@@ -14,9 +14,11 @@ use Illuminate\Support\Facades\Cache;
 
 class BootstrapController extends Controller
 {
+    public const CACHE_KEY = 'bootstrap:v5';
+
     public function __invoke(): JsonResponse
     {
-        $payload = Cache::remember('bootstrap:v4', now()->addSeconds(30), function () {
+        $payload = Cache::remember(self::CACHE_KEY, now()->addSeconds(30), function () {
             $articles = Article::query()
                 ->select(['id', 'title', 'topic', 'body', 'image', 'published_at', 'created_at', 'updated_at'])
                 ->orderByDesc('created_at')

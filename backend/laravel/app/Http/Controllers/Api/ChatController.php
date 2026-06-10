@@ -46,6 +46,18 @@ class ChatController extends Controller
         $lastMessageIds = $latestRows->pluck('last_message_id')->map(fn ($id) => (int) $id)->all();
 
         $users = User::query()
+            ->select([
+                'id',
+                'username',
+                'avatar',
+                'profile_background',
+                'reputation',
+                'reviews_count',
+                'role',
+                'bio',
+                'joined_date',
+                'badges',
+            ])
             ->whereIn('id', $otherIds)
             ->get()
             ->keyBy('id');
@@ -76,7 +88,7 @@ class ChatController extends Controller
                 return [
                     'id' => $this->conversationId($userId, $otherId),
                     'userId' => (string) $userId,
-                    'otherUser' => $otherUser,
+                    'otherUser' => $otherUser->toSummaryArray(),
                     'lastMessage' => $message,
                     'unreadCount' => (int) ($unreadCounts[$otherId] ?? 0),
                     'updatedAt' => $message->created_at?->toIso8601String(),

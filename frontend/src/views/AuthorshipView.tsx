@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AuthorshipRequest, ClothingItem, UpcomingDrop, User } from '../types';
 import { apiService } from '../services/apiService';
 import { Button } from '../components/UI';
@@ -7,11 +7,23 @@ import { ITEM_COLOR_OPTIONS, ITEM_SIZE_OPTIONS, ITEM_TAG_OPTIONS, csvToList, tog
 
 interface AuthorshipViewProps {
   currentUser: User;
+  items: ClothingItem[];
+  drops: UpcomingDrop[];
+  onItemCreated: (item: ClothingItem) => void;
+  onDropCreated: (drop: UpcomingDrop) => void;
   onBack?: () => void;
   onToast?: (msg: string) => void;
 }
 
-export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onBack, onToast }) => {
+export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
+  currentUser,
+  items,
+  drops,
+  onItemCreated,
+  onDropCreated,
+  onBack,
+  onToast,
+}) => {
   const [existingRequest, setExistingRequest] = useState<AuthorshipRequest | null>(null);
 
   // Детализированная форма заявки (3 блока текста)
@@ -23,8 +35,14 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
   const [error, setError] = useState<string | null>(null);
 
   // Панель автора: анонсы и предметы
-  const [authorItems, setAuthorItems] = useState<ClothingItem[]>([]);
-  const [authorDrops, setAuthorDrops] = useState<UpcomingDrop[]>([]);
+  const authorItems = useMemo(
+    () => items.filter((item) => item.brand === currentUser.username),
+    [currentUser.username, items],
+  );
+  const authorDrops = useMemo(
+    () => drops.filter((drop) => drop.brand === currentUser.username),
+    [currentUser.username, drops],
+  );
 
   const [itemFormOpen, setItemFormOpen] = useState(false);
   const [dropFormOpen, setDropFormOpen] = useState(false);
@@ -72,28 +90,6 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
   useEffect(() => {
     loadMyRequest();
   }, []);
-
-  // Загрузка текущих вещей/дропов автора (по бренду = ник)
-  const loadAuthorContent = async () => {
-    try {
-      const [items, drops] = await Promise.all([
-        apiService.get<ClothingItem[]>('/v1/items'),
-        apiService.get<UpcomingDrop[]>('/v1/drops'),
-      ]);
-      const brand = currentUser.username;
-      setAuthorItems(items.filter(i => i.brand === brand));
-      setAuthorDrops(drops.filter(d => d.brand === brand));
-    } catch (e) {
-      console.error('Failed to load author content', e);
-    }
-  };
-
-  useEffect(() => {
-    if (existingRequest && existingRequest.status === 'APPROVED') {
-      loadAuthorContent();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingRequest?.status]);
 
   const handleItemImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -192,7 +188,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
         colors: itemForm.colors.split(',').map(c => c.trim()).filter(Boolean),
       };
       const created = await apiService.post<ClothingItem>('/v1/items', payload);
-      setAuthorItems(prev => [created, ...prev]);
+      onItemCreated(created);
       onToast?.('Предмет опубликован');
       resetItemForm();
     } catch (e) {
@@ -225,7 +221,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({ currentUser, onB
         price: dropForm.price || undefined,
       };
       const created = await apiService.post<UpcomingDrop>('/v1/drops', payload);
-      setAuthorDrops(prev => [created, ...prev]);
+      onDropCreated(created);
       onToast?.('Анонс опубликован');
       resetDropForm();
     } catch (e) {

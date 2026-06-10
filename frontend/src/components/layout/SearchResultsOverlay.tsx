@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ClothingItem, User } from '../../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../../constants';
 import { Avatar } from '../UI';
@@ -20,14 +20,21 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
     onUserClick,
     onClose,
 }) => {
-    if (!query) return null;
+    const { filteredItems, filteredUsers } = useMemo(() => {
+        const normalized = query.trim().toLocaleLowerCase('ru');
 
-    const normalized = query.toLowerCase();
-    const filteredItems = items.filter((item) =>
-        item.name.toLowerCase().includes(normalized) ||
-        item.brand.toLowerCase().includes(normalized)
-    );
-    const filteredUsers = users.filter((user) => user.username.toLowerCase().includes(normalized));
+        return {
+            filteredItems: items.filter((item) =>
+                item.name.toLocaleLowerCase('ru').includes(normalized) ||
+                item.brand.toLocaleLowerCase('ru').includes(normalized)
+            ),
+            filteredUsers: users.filter((user) =>
+                user.username.toLocaleLowerCase('ru').includes(normalized)
+            ),
+        };
+    }, [items, query, users]);
+
+    if (!query) return null;
 
     return (
         <div className="fixed inset-0 z-[35] bg-black/70 p-4 pt-24 backdrop-blur-sm" onClick={onClose}>
@@ -45,7 +52,7 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
                     <div className="grid gap-2">
                         {filteredItems.slice(0, 8).map((item) => (
                             <button key={item.id} className="review-top text-left" onClick={() => { onItemClick(item.id); onClose(); }}>
-                                <span className="avatar"><img src={item.image || DEFAULT_ITEM_IMAGE} alt="" /></span>
+                                <span className="avatar"><img src={item.image || DEFAULT_ITEM_IMAGE} alt="" loading="lazy" decoding="async" /></span>
                                 <span>
                                     <strong>{item.name}</strong>
                                     <span className="block text-xs text-[var(--muted)]">{item.brand}</span>

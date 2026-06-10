@@ -749,6 +749,12 @@ h1, h2, h3, p { margin-top: 0; }
   overflow: hidden;
 }
 .card::before, .item-card::before, .review-card::before, .profile-card::before, .table-box::before, .form-box::before { display: none; }
+@supports (content-visibility: auto) {
+  .item-card, .review-card, .release-card, .news-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 260px;
+  }
+}
 .item-card {
   min-height: 0;
   display: grid;

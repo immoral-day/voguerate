@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Review;
 use App\Models\User;
 use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
@@ -26,7 +27,23 @@ class UserController extends Controller
             return response()->json(['error' => 'Forbidden'], 403);
         }
 
-        $query = User::query();
+        $columns = [
+            'id',
+            'username',
+            'avatar',
+            'profile_background',
+            'reputation',
+            'reviews_count',
+            'role',
+            'bio',
+            'joined_date',
+            'badges',
+        ];
+        if ($includeBanned) {
+            array_push($columns, 'banned_until', 'banned_permanently', 'ban_reason');
+        }
+
+        $query = User::query()->select($columns);
         if (!$includeBanned) {
             $query->notBanned();
         }
@@ -46,6 +63,34 @@ class UserController extends Controller
             return response()->json(['error' => 'User not found'], 404);
         }
         return response()->json($user);
+    }
+
+    public function profile(User $user): JsonResponse
+    {
+        if ($user->isBanned()) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+
+        $reviews = Review::query()
+            ->select([
+                'id',
+                'user_id',
+                'clothing_item_id',
+                'rating',
+                'rating_breakdown',
+                'text',
+                'likes',
+                'created_at',
+            ])
+            ->where('user_id', $user->id)
+            ->latest()
+            ->limit(500)
+            ->get();
+
+        return response()->json([
+            'user' => $user->toArray(),
+            'reviews' => $reviews,
+        ]);
     }
 
     public function login(Request $request): JsonResponse

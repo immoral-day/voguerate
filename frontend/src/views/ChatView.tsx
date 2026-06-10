@@ -46,17 +46,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const lastConversationsPollRef = useRef(0);
     const messagesRef = useRef<ChatMessage[]>([]);
 
+    const chatUsers = useMemo(() => {
+        const merged = new Map(users.map((user) => [user.id, user]));
+        conversations.forEach((conversation) => {
+            merged.set(conversation.otherUser.id, conversation.otherUser);
+        });
+        return [...merged.values()];
+    }, [conversations, users]);
+
     const availableUsers = useMemo(
-        () => users
+        () => chatUsers
             .filter((user) => user.id !== currentUser.id)
             .filter((user) => user.username.toLowerCase().includes(search.trim().toLowerCase()))
             .sort((a, b) => a.username.localeCompare(b.username, 'ru')),
-        [users, currentUser.id, search],
+        [chatUsers, currentUser.id, search],
     );
 
     const selectedUser = useMemo(
-        () => users.find((user) => user.id === selectedUserId),
-        [users, selectedUserId],
+        () => chatUsers.find((user) => user.id === selectedUserId),
+        [chatUsers, selectedUserId],
     );
 
     const loadConversations = async (silent = false) => {
@@ -153,7 +161,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }, [selectedUserId, currentUser.id, pollingPaused]);
 
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        bottomRef.current?.scrollIntoView({ block: 'end' });
     }, [messages.length, selectedUserId]);
 
     const handleSelectUser = (userId: string) => {
@@ -216,7 +224,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     className={`chat-list-item ${isActive ? 'active' : ''}`}
                                     onClick={() => handleSelectUser(conversation.otherUser.id)}
                                 >
-                                    <img src={conversation.otherUser.avatar || DEFAULT_AVATAR} alt={conversation.otherUser.username} />
+                                    <img src={conversation.otherUser.avatar || DEFAULT_AVATAR} alt={conversation.otherUser.username} loading="lazy" decoding="async" />
                                     <span>
                                         <strong>{conversation.otherUser.username}</strong>
                                         <small>{conversation.lastMessage.body}</small>
@@ -233,7 +241,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 className={`chat-list-item ${selectedUserId === user.id ? 'active' : ''}`}
                                 onClick={() => handleSelectUser(user.id)}
                             >
-                                <img src={user.avatar || DEFAULT_AVATAR} alt={user.username} />
+                                <img src={user.avatar || DEFAULT_AVATAR} alt={user.username} loading="lazy" decoding="async" />
                                 <span>
                                     <strong>{user.username}</strong>
                                     <small>Начать диалог</small>
@@ -256,7 +264,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         <>
                             <div className="chat-peer">
                                 <button type="button" onClick={() => onUserClick(selectedUser.id)}>
-                                    <img src={selectedUser.avatar || DEFAULT_AVATAR} alt={selectedUser.username} />
+                                    <img src={selectedUser.avatar || DEFAULT_AVATAR} alt={selectedUser.username} decoding="async" />
                                     <span>
                                         <strong>{selectedUser.username}</strong>
                                         <small>Профиль пользователя</small>

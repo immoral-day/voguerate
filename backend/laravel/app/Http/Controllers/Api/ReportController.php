@@ -21,7 +21,7 @@ class ReportController extends Controller
             'review.user',
             'review.clothingItem',
             'reporter',
-        ])->latest()->get();
+        ])->latest()->limit(500)->get();
 
         return response()->json($reports);
     }
@@ -35,7 +35,7 @@ class ReportController extends Controller
         $reports = UserReport::with([
             'reportedUser',
             'reporter',
-        ])->latest()->get();
+        ])->latest()->limit(500)->get();
 
         return response()->json($reports);
     }

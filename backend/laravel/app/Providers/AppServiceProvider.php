@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\Api\BootstrapController;
 use App\Models\Article;
 use App\Models\ClothingItem;
 use App\Models\Drop;
@@ -29,8 +30,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         foreach ([Article::class, ClothingItem::class, Drop::class, Review::class, User::class] as $model) {
-            $model::saved(fn () => Cache::forget('bootstrap:v4'));
-            $model::deleted(fn () => Cache::forget('bootstrap:v4'));
+            $model::saved(fn () => Cache::forget(BootstrapController::CACHE_KEY));
+            $model::deleted(fn () => Cache::forget(BootstrapController::CACHE_KEY));
         }
 
         RateLimiter::for('api', function (Request $request) {

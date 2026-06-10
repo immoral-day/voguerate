@@ -29,6 +29,7 @@ const normalizeApiPayload = <T>(payload: T): T => {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const transientStatuses = new Set([502, 503, 504]);
+const inFlightGets = new Map<string, Promise<unknown>>();
 
 const authHeaders = (): Record<string, string> => {
   if (typeof window === 'undefined') return {};
@@ -151,18 +152,34 @@ const compressImageForUpload = async (file: File, type: UploadType): Promise<Fil
 
 export const apiService = {
   async get<T>(endpoint: string): Promise<T> {
-    const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Accept': 'application/json',
-        ...authHeaders(),
-      },
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      if (response.status === 401) handleUnauthorized(endpoint);
-      throw new Error(error.message || `API Error: ${response.statusText}`);
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      ...authHeaders(),
+    };
+    const requestKey = `${headers.Authorization || 'guest'}|${endpoint}`;
+    const existing = inFlightGets.get(requestKey);
+    if (existing) return existing as Promise<T>;
+
+    const request = (async () => {
+      const response = await fetchWithRetry(`${API_BASE_URL}${endpoint}`, {
+        headers,
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        if (response.status === 401) handleUnauthorized(endpoint);
+        throw new Error(error.message || error.error || `API Error: ${response.statusText}`);
+      }
+      return normalizeApiPayload(await response.json()) as T;
+    })();
+
+    inFlightGets.set(requestKey, request);
+    try {
+      return await request;
+    } finally {
+      if (inFlightGets.get(requestKey) === request) {
+        inFlightGets.delete(requestKey);
+      }
     }
-    return normalizeApiPayload(await response.json());
   },
 
   async post<T>(endpoint: string, data: unknown): Promise<T> {

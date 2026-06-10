@@ -18,6 +18,9 @@ services:
       dockerfile: Dockerfile
     env_file:
       - ./backend/laravel/.env.production
+    environment:
+      CACHE_STORE: file
+      SESSION_DRIVER: file
     volumes:
       - backend_database:/app/database
       - backend_storage:/app/storage/app/public

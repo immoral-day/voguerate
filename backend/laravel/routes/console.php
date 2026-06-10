@@ -433,6 +433,43 @@ Artisan::command('app:diagnose', function () {
         }
     }
 
+    if (DB::getSchemaBuilder()->hasTable('users')) {
+        $visibleUsers = DB::table('users')
+            ->when(
+                DB::getSchemaBuilder()->hasColumn('users', 'banned_permanently'),
+                fn ($query) => $query->where(fn ($bans) => $bans
+                    ->where('banned_permanently', false)
+                    ->orWhereNull('banned_permanently')),
+            )
+            ->where(fn ($bans) => $bans
+                ->whereNull('banned_until')
+                ->orWhere('banned_until', '<=', now()))
+            ->count();
+        $this->line('Visible users: ' . $visibleUsers);
+    }
+
+    if (DB::getSchemaBuilder()->hasTable('reviews') && DB::getSchemaBuilder()->hasTable('users')) {
+        $orphanReviews = DB::table('reviews as r')
+            ->leftJoin('users as u', 'r.user_id', '=', 'u.id')
+            ->whereNull('u.id')
+            ->count();
+        $this->line('Orphan reviews: ' . $orphanReviews);
+    }
+
+    if (DB::getSchemaBuilder()->hasTable('chat_messages') && DB::getSchemaBuilder()->hasTable('users')) {
+        $orphanMessages = DB::table('chat_messages as m')
+            ->leftJoin('users as sender', 'm.sender_id', '=', 'sender.id')
+            ->leftJoin('users as recipient', 'm.recipient_id', '=', 'recipient.id')
+            ->where(fn ($users) => $users
+                ->whereNull('sender.id')
+                ->orWhereNull('recipient.id'))
+            ->count();
+        $this->line('Orphan chat messages: ' . $orphanMessages);
+    }
+
+    $this->line('Cache store: ' . config('cache.default'));
+    $this->line('Session driver: ' . config('session.driver'));
+
     $journalMode = DB::selectOne('PRAGMA journal_mode');
     $pageCount = DB::selectOne('PRAGMA page_count');
     $freePages = DB::selectOne('PRAGMA freelist_count');

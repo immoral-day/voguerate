@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, UserReport, Article, FeedbackMessage } from './types';
 import { ToastContainer, Button } from './components/UI';
-import { Sidebar, Header, Footer, SearchResultsOverlay } from './components/layout';
+import { Sidebar, Header, Footer } from './components/layout';
 import { EditProfileModal } from './components/modals/EditProfileModal';
 import {
     AuthView, 
@@ -13,7 +13,6 @@ import {
     FeedbackView, 
     ItemDetailView, 
     ProfileView, 
-    AdminPanel,
     AuthorshipView,
     NewsView,
     ArticleDetailView,
@@ -21,12 +20,21 @@ import {
 } from './views';
 import { apiService } from './services/apiService';
 
+const AdminPanel = lazy(() => import('./views/AdminPanel').then((module) => ({
+    default: module.AdminPanel,
+})));
+
 interface BootstrapPayload {
     items: ClothingItem[];
     reviews: Review[];
     users: User[];
     drops: UpcomingDrop[];
     articles: Article[];
+}
+
+interface ProfilePayload {
+    user: User;
+    reviews: Review[];
 }
 
 const GUEST_USER: User = {
@@ -55,7 +63,6 @@ export const App: React.FC = () => {
     const [articleDetails, setArticleDetails] = useState<Record<string, Article>>({});
     const [articleLoading, setArticleLoading] = useState(false);
     const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
     const [toasts, setToasts] = useState<{ id: string, message: string }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [authLoading, setAuthLoading] = useState(false);
@@ -63,6 +70,9 @@ export const App: React.FC = () => {
     const [likedReviewIds, setLikedReviewIds] = useState<Set<string>>(new Set());
     const [authOpen, setAuthOpen] = useState(false);
     const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([]);
+    const [profileLoadingId, setProfileLoadingId] = useState<string | null>(null);
+    const [profileErrorId, setProfileErrorId] = useState<string | null>(null);
+    const [searchRequest, setSearchRequest] = useState<{ value: string; id: number } | null>(null);
 
     useEffect(() => {
         const handleUnauthorized = () => {
@@ -153,7 +163,7 @@ export const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (currentUser?.role !== 'ADMIN') {
+        if (currentUser?.role !== 'ADMIN' || viewState.view !== 'ADMIN') {
             setReviewReports([]);
             setUserReports([]);
             setFeedbackMessages([]);
@@ -179,7 +189,7 @@ export const App: React.FC = () => {
         };
 
         loadReports();
-    }, [currentUser?.id, currentUser?.role]);
+    }, [currentUser?.id, currentUser?.role, viewState.view]);
 
     useEffect(() => {
         const articleId = viewState.view === 'ARTICLE_DETAIL' ? viewState.articleId : undefined;
@@ -210,22 +220,37 @@ export const App: React.FC = () => {
         const userId = viewState.userId || currentUser?.id;
         if (!userId) return;
 
-        const user = users.find((entry) => entry.id === userId);
-        if (!user?.isSummary) return;
-
         let cancelled = false;
-        apiService.get<User>(`/v1/users/${userId}`)
-            .then((fullUser) => {
+        setProfileLoadingId(userId);
+        setProfileErrorId(null);
+
+        apiService.get<ProfilePayload>(`/v1/profiles/${userId}`)
+            .then((payload) => {
                 if (cancelled) return;
-                setUsers((current) => current.map((entry) => entry.id === fullUser.id ? fullUser : entry));
-                if (currentUser?.id === fullUser.id) setCurrentUser(fullUser);
+                setUsers((current) => current.some((entry) => entry.id === payload.user.id)
+                    ? current.map((entry) => entry.id === payload.user.id ? payload.user : entry)
+                    : [...current, payload.user]);
+                setReviews((current) => {
+                    const incomingIds = new Set(payload.reviews.map((review) => review.id));
+                    return [
+                        ...payload.reviews,
+                        ...current.filter((review) => !incomingIds.has(review.id)),
+                    ];
+                });
+                if (currentUser?.id === payload.user.id) setCurrentUser(payload.user);
             })
-            .catch((error) => console.error('Failed to load full profile:', error));
+            .catch((error) => {
+                console.error('Failed to load full profile:', error);
+                if (!cancelled) setProfileErrorId(userId);
+            })
+            .finally(() => {
+                if (!cancelled) setProfileLoadingId(null);
+            });
 
         return () => {
             cancelled = true;
         };
-    }, [currentUser?.id, users, viewState.userId, viewState.view]);
+    }, [currentUser?.id, viewState.userId, viewState.view]);
 
     useEffect(() => {
         if (viewState.view !== 'ITEM_DETAIL' || !viewState.itemId) return;
@@ -281,15 +306,16 @@ export const App: React.FC = () => {
         });
     };
 
-    const enrichedReviews = useMemo(
-        () =>
-            reviews.map(r => ({
+    const enrichedReviews = useMemo(() => {
+        const itemsById = new Map(clothingItems.map((item) => [item.id, item]));
+        const usersById = new Map(users.map((user) => [user.id, user]));
+
+        return reviews.map(r => ({
                 ...r,
-                clothing: clothingItems.find(c => c.id === r.clothingId),
-                user: users.find(u => u.id === r.userId),
-            })),
-        [reviews, clothingItems, users]
-    );
+                clothing: itemsById.get(r.clothingId),
+                user: usersById.get(r.userId),
+            }));
+    }, [reviews, clothingItems, users]);
 
     const handleLogin = async (usernameOrEmail: string, password: string) => {
         setAuthLoading(true);
@@ -677,7 +703,7 @@ export const App: React.FC = () => {
         if (designerUser) {
             navigateTo('PROFILE', { userId: designerUser.id });
         } else {
-            setSearchQuery(name);
+            setSearchRequest({ value: name, id: Date.now() });
         }
     };
 
@@ -895,6 +921,10 @@ export const App: React.FC = () => {
             content = currentUser ? (
                 <AuthorshipView
                     currentUser={currentUser}
+                    items={clothingItems}
+                    drops={drops}
+                    onItemCreated={(item) => setClothingItems((current) => [item, ...current])}
+                    onDropCreated={(drop) => setDrops((current) => [drop, ...current])}
                     onBack={() => navigateTo('PROFILE', { userId: currentUser.id })}
                     onToast={addToast}
                 />
@@ -1014,7 +1044,8 @@ export const App: React.FC = () => {
             break;
         }
         case 'PROFILE': {
-            const targetUser = users.find(u => u.id === (viewState.userId || currentUser?.id));
+            const targetUserId = viewState.userId || currentUser?.id;
+            const targetUser = users.find(u => u.id === targetUserId);
             if (targetUser) {
                 content = (
                     <ProfileView
@@ -1034,6 +1065,8 @@ export const App: React.FC = () => {
                         onToast={addToast}
                     />
                 );
+            } else if (targetUserId && (profileLoadingId === targetUserId || profileErrorId !== targetUserId)) {
+                content = <div className="p-12 text-center font-mono">Загрузка профиля...</div>;
             } else {
                 content = <div className="p-12 text-center font-mono">Пользователь не найден</div>;
             }
@@ -1059,8 +1092,11 @@ export const App: React.FC = () => {
             <div className="page">
                 <Header
                     currentUser={currentUser}
-                    searchQuery={searchQuery}
-                    onSearch={setSearchQuery}
+                    items={clothingItems}
+                    users={users}
+                    searchRequest={searchRequest}
+                    onItemClick={(id) => navigateTo('ITEM_DETAIL', { itemId: id })}
+                    onUserClick={(id) => navigateTo('PROFILE', { userId: id })}
                     onHomeClick={() => navigateTo('HOME')}
                     onProfileClick={() => currentUser ? navigateTo('PROFILE', { userId: currentUser.id }) : requestAuth()}
                     onFeedbackClick={() => navigateTo('FEEDBACK')}
@@ -1087,15 +1123,9 @@ export const App: React.FC = () => {
                     ))}
                 </nav>
                 <main className="relative flex-1">
-                    {content}
-                    <SearchResultsOverlay
-                        query={searchQuery}
-                        items={clothingItems}
-                        users={users}
-                        onItemClick={(id) => { navigateTo('ITEM_DETAIL', { itemId: id }); setSearchQuery(''); }}
-                        onUserClick={(id) => { navigateTo('PROFILE', { userId: id }); setSearchQuery(''); }}
-                        onClose={() => setSearchQuery('')}
-                    />
+                    <Suspense fallback={<div className="p-12 text-center font-mono">Загрузка раздела...</div>}>
+                        {content}
+                    </Suspense>
                 </main>
                 <Footer />
             </div>
