@@ -157,15 +157,6 @@ export const App: React.FC = () => {
                     }
                 };
 
-                const loadAuthoritative = async <T,>(label: string, endpoint: string, fallback: T[]): Promise<T[]> => {
-                    try {
-                        return await apiService.get<T[]>(endpoint);
-                    } catch (error) {
-                        console.error(`Failed to refresh ${label}; using bootstrap data:`, error);
-                        return fallback;
-                    }
-                };
-
                 const base: BootstrapPayload = bootstrap || {
                     items: [],
                     reviews: [],
@@ -175,8 +166,8 @@ export const App: React.FC = () => {
                 };
                 const [items, loadedReviews, loadedUsers, loadedDrops, loadedArticles] = await Promise.all([
                     loadFallback<ClothingItem>('items', '/v1/items', base.items),
-                    loadAuthoritative<Review>('reviews', '/v1/reviews?compact=1&limit=500', base.reviews),
-                    loadAuthoritative<User>('users', '/v1/users?limit=500', base.users),
+                    loadFallback<Review>('reviews', '/v1/reviews?compact=1&limit=500', base.reviews),
+                    loadFallback<User>('users', '/v1/users?limit=500', base.users),
                     loadFallback<UpcomingDrop>('drops', '/v1/drops', base.drops),
                     loadFallback<Article>('articles', '/v1/articles?limit=100', base.articles),
                 ]);
@@ -207,28 +198,6 @@ export const App: React.FC = () => {
             cancelled = true;
         };
     }, [dataLoadAttempt]);
-
-    useEffect(() => {
-        if (viewState.view !== 'LEADERBOARD') return;
-
-        let cancelled = false;
-        Promise.all([
-            apiService.get<User[]>('/v1/users?limit=500'),
-            apiService.get<Review[]>('/v1/reviews?compact=1&limit=500'),
-        ])
-            .then(([latestUsers, latestReviews]) => {
-                if (cancelled) return;
-                setUsers((existingUsers) => mergeUserSummaries(latestUsers, existingUsers));
-                setReviews(latestReviews);
-            })
-            .catch((error) => {
-                console.error('Failed to refresh leaderboard data:', error);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [viewState.view]);
 
     useEffect(() => {
         if (currentUser?.role !== 'ADMIN' || viewState.view !== 'ADMIN') {

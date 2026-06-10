@@ -77,33 +77,40 @@ class ReviewController extends Controller
 
         $existingReview = Review::where('user_id', $authUser->id)
             ->where('clothing_item_id', $data['clothingId'])
-            ->first();
+            ->exists();
 
         if ($existingReview) {
             return response()->json(['error' => 'Вы уже написали рецензию на этот предмет'], 400);
         }
 
-        $review = Review::create([
-            'user_id' => $authUser->id,
-            'clothing_item_id' => $data['clothingId'],
-            'rating' => $data['rating'],
-            'rating_breakdown' => $data['ratingBreakdown'] ?? null,
-            'text' => $data['text'],
-            'likes' => 0,
-        ]);
+        $review = DB::transaction(function () use ($authUser, $data) {
+            $review = Review::create([
+                'user_id' => $authUser->id,
+                'clothing_item_id' => $data['clothingId'],
+                'rating' => $data['rating'],
+                'rating_breakdown' => $data['ratingBreakdown'] ?? null,
+                'text' => $data['text'],
+                'likes' => 0,
+            ]);
 
-        $item = ClothingItem::find($data['clothingId']);
-        $newCount = $item->rating_count + 1;
-        $newAvg = (int) round((($item->average_rating * $item->rating_count) + $data['rating']) / $newCount);
-        $item->update(['rating_count' => $newCount, 'average_rating' => $newAvg]);
+            $item = ClothingItem::query()->findOrFail($data['clothingId']);
+            $newCount = (int) $item->rating_count + 1;
+            $newAvg = (int) round(
+                (((int) $item->average_rating * (int) $item->rating_count) + $data['rating']) / $newCount
+            );
+            $item->update([
+                'rating_count' => $newCount,
+                'average_rating' => $newAvg,
+            ]);
 
-        $user = $authUser;
-        $user->update([
-            'reviews_count' => $user->reviews_count + 1,
-            'reputation' => $user->reputation + 5,
-        ]);
+            $authUser->update([
+                'reviews_count' => (int) $authUser->reviews_count + 1,
+                'reputation' => (int) $authUser->reputation + 5,
+            ]);
 
-        $review->load(['user', 'clothingItem']);
+            return $review;
+        });
+
         return response()->json($review, 201);
     }
 

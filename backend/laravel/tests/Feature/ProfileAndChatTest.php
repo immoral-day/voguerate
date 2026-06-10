@@ -188,6 +188,54 @@ class ProfileAndChatTest extends TestCase
             ->assertExactJson($expectedUnliked);
     }
 
+    public function test_review_creation_updates_counters_and_returns_compact_payload(): void
+    {
+        $author = $this->createUser('new_review_author', 'new-review-author@example.com');
+        $item = $this->createItem();
+
+        Sanctum::actingAs($author);
+
+        $response = $this->postJson('/api/v1/reviews', [
+            'clothingId' => (string) $item->id,
+            'rating' => 55,
+            'ratingBreakdown' => [
+                'concept' => 5,
+                'execution' => 5,
+                'dna' => 5,
+                'relevance' => 3,
+                'vibe' => 3,
+            ],
+            'text' => 'Подробная тестовая рецензия для проверки сохранения.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('userId', (string) $author->id)
+            ->assertJsonPath('clothingId', (string) $item->id)
+            ->assertJsonPath('rating', 55)
+            ->assertJsonMissingPath('user')
+            ->assertJsonMissingPath('clothing');
+
+        $reviewId = $response->json('id');
+        $this->assertDatabaseHas('reviews', [
+            'id' => $reviewId,
+            'user_id' => $author->id,
+            'clothing_item_id' => $item->id,
+            'rating' => 55,
+        ]);
+
+        $this->assertSame(2, (int) $item->fresh()->rating_count);
+        $this->assertSame(65, (int) $item->fresh()->average_rating);
+        $this->assertSame(1, (int) $author->fresh()->reviews_count);
+        $this->assertSame(5, (int) $author->fresh()->reputation);
+
+        $this->postJson('/api/v1/reviews', [
+            'clothingId' => (string) $item->id,
+            'rating' => 55,
+            'text' => 'Повторная тестовая рецензия не должна сохраниться.',
+        ])->assertBadRequest();
+
+        $this->assertDatabaseCount('reviews', 1);
+    }
+
     private function createItem(): ClothingItem
     {
         return ClothingItem::create([
