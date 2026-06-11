@@ -54,7 +54,7 @@ const normalizeEndpointPayload = <T>(endpoint: string, payload: unknown): T => {
     path === '/v1/me'
     || path === '/v1/login'
     || /^\/v1\/users\/[^/]+$/.test(path)
-    || /^\/v1\/users\/[^/]+\/(?:ban|verify)$/.test(path)
+    || /^\/v1\/users\/[^/]+\/(?:ban|unban|verify)$/.test(path)
   ) {
     return normalizeUser(normalizedUrls) as T;
   }

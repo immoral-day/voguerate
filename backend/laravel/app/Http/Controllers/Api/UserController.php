@@ -315,6 +315,22 @@ class UserController extends Controller
         return response()->json($user->fresh()->toModerationArray());
     }
 
+    public function unban(Request $request, User $user): JsonResponse
+    {
+        $authUser = ApiAuth::user($request);
+        if (!$authUser || !ApiAuth::isAdmin($authUser)) {
+            return response()->json(['error' => 'Forbidden'], 403);
+        }
+
+        $user->update([
+            'banned_until' => null,
+            'banned_permanently' => false,
+            'ban_reason' => null,
+        ]);
+
+        return response()->json($user->fresh()->toModerationArray());
+    }
+
     public function verify(Request $request, User $user): JsonResponse
     {
         $authUser = ApiAuth::user($request);

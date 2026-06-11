@@ -93,6 +93,40 @@ class UserAccessTest extends TestCase
             ]);
     }
 
+    public function test_admin_can_unban_user(): void
+    {
+        $admin = $this->createUser('admin_unban', 'admin-unban@example.com', 'ADMIN');
+        $target = $this->createUser('blocked_unban', 'blocked-unban@example.com');
+        $target->update([
+            'banned_until' => now()->addWeek(),
+            'banned_permanently' => true,
+            'ban_reason' => 'Проверка разблокировки',
+        ]);
+
+        Sanctum::actingAs($target);
+        $this->postJson("/api/v1/users/{$target->id}/unban")
+            ->assertForbidden();
+        $this->assertTrue($target->fresh()->isBanned());
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/v1/users/{$target->id}/unban")
+            ->assertOk()
+            ->assertJsonPath('bannedUntil', null)
+            ->assertJsonPath('bannedPermanently', false)
+            ->assertJsonPath('banReason', null);
+
+        $target->refresh();
+        $this->assertNull($target->banned_until);
+        $this->assertFalse($target->banned_permanently);
+        $this->assertNull($target->ban_reason);
+
+        $this->getJson('/api/v1/users')
+            ->assertOk()
+            ->assertHeader('X-Visible-Users', '2')
+            ->assertJsonFragment(['id' => (string) $target->id]);
+    }
+
     public function test_login_token_authenticates_protected_api_routes(): void
     {
         $user = $this->createUser('token_user', 'token@example.com');

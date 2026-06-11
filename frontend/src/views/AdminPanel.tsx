@@ -26,6 +26,7 @@ interface AdminPanelProps {
     onDeleteUserReport: (id: string) => Promise<void>;
     onDeleteReview: (id: string) => Promise<void>;
     onBanUser: (id: string, days: number, reason: string) => Promise<User | void>;
+    onUnbanUser: (id: string) => Promise<User | void>;
     onDeleteUser: (id: string) => Promise<void>;
     onUpdateUserRole: (id: string, role: User['role']) => Promise<User | void>;
     onUpdateItem: (id: string, data: Partial<ClothingItem>) => Promise<void>;
@@ -85,7 +86,7 @@ const parseUserDate = (value?: string | null) => {
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
-    users, currentUser, items, drops, reviewReports, userReports, feedbackMessages, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onDeleteUser, onUpdateUserRole, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack
+    users, currentUser, items, drops, reviewReports, userReports, feedbackMessages, articles, onCreateItem, onCreateDrop, onDeleteItem, onDeleteDrop, onDeleteReviewReport, onDeleteUserReport, onDeleteReview, onBanUser, onUnbanUser, onDeleteUser, onUpdateUserRole, onUpdateItem, onUpdateDrop, onCreateArticle, onUpdateArticle, onDeleteArticle, onBack
 }) => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'items' | 'drops' | 'reports' | 'feedback' | 'authorship' | 'news'>('dashboard');
     const [showForm, setShowForm] = useState(false);
@@ -183,6 +184,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             setUserBanReasons(prev => ({ ...prev, [userId]: '' }));
         }
         await loadAdminUsers();
+    };
+
+    const handleAdminUnbanUser = async (user: User) => {
+        if (!window.confirm(`Разблокировать пользователя ${user.username}?`)) {
+            return;
+        }
+
+        const unbannedUser = await onUnbanUser(user.id);
+        if (unbannedUser) {
+            setAdminUsers(prev => prev.map(item => item.id === unbannedUser.id ? unbannedUser : item));
+        }
     };
 
     const handleAdminRoleChange = async (user: User, role: User['role']) => {
@@ -793,37 +805,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                 <td className="p-3 font-mono">{user.reviewsCount}</td>
                                                 <td className="p-3">
                                                     <div className="grid min-w-[230px] gap-2">
-                                                        <input
-                                                            type="text"
-                                                            value={userBanReasons[user.id] ?? ''}
-                                                            onChange={(event) => setUserBanReasons(prev => ({ ...prev, [user.id]: event.target.value }))}
-                                                            placeholder="Причина блокировки"
-                                                            maxLength={500}
-                                                            disabled={isSelf}
-                                                            className="w-full border-2 border-black px-2 py-1 text-xs font-mono"
-                                                        />
-                                                        <div className="flex flex-wrap gap-2">
-                                                        <select
-                                                            value={userBanDays[user.id] ?? 7}
-                                                            onChange={(e) => setUserBanDays(prev => ({ ...prev, [user.id]: parseInt(e.target.value, 10) }))}
-                                                            className="border-2 border-black text-xs font-mono px-2 py-1"
-                                                            disabled={isSelf}
-                                                        >
-                                                            <option value={1}>1 день</option>
-                                                            <option value={7}>7 дней</option>
-                                                            <option value={30}>30 дней</option>
-                                                            <option value={90}>90 дней</option>
-                                                            <option value={365}>365 дней</option>
-                                                            <option value={0}>Навсегда</option>
-                                                        </select>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleAdminBanUser(user.id)}
-                                                            disabled={isSelf}
-                                                            className="px-3 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-black"
-                                                        >
-                                                            Заблокировать
-                                                        </button>
+                                                        {isBanned ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleAdminUnbanUser(user)}
+                                                                disabled={isSelf}
+                                                                className="px-3 py-2 border-2 border-green-700 text-xs font-black uppercase text-green-700 hover:bg-green-700 hover:text-white transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-green-700"
+                                                            >
+                                                                Разблокировать
+                                                            </button>
+                                                        ) : (
+                                                            <>
+                                                                <input
+                                                                    type="text"
+                                                                    value={userBanReasons[user.id] ?? ''}
+                                                                    onChange={(event) => setUserBanReasons(prev => ({ ...prev, [user.id]: event.target.value }))}
+                                                                    placeholder="Причина блокировки"
+                                                                    maxLength={500}
+                                                                    disabled={isSelf}
+                                                                    className="w-full border-2 border-black px-2 py-1 text-xs font-mono"
+                                                                />
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <select
+                                                                        value={userBanDays[user.id] ?? 7}
+                                                                        onChange={(e) => setUserBanDays(prev => ({ ...prev, [user.id]: parseInt(e.target.value, 10) }))}
+                                                                        className="border-2 border-black text-xs font-mono px-2 py-1"
+                                                                        disabled={isSelf}
+                                                                    >
+                                                                        <option value={1}>1 день</option>
+                                                                        <option value={7}>7 дней</option>
+                                                                        <option value={30}>30 дней</option>
+                                                                        <option value={90}>90 дней</option>
+                                                                        <option value={365}>365 дней</option>
+                                                                        <option value={0}>Навсегда</option>
+                                                                    </select>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleAdminBanUser(user.id)}
+                                                                        disabled={isSelf}
+                                                                        className="px-3 py-1 border-2 border-black text-xs font-black uppercase hover:bg-black hover:text-white transition-colors disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-black"
+                                                                    >
+                                                                        Заблокировать
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={() => handleAdminDeleteUser(user)}
@@ -832,7 +858,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                         >
                                                             Удалить
                                                         </button>
-                                                        </div>
                                                     </div>
                                                 </td>
                                             </tr>

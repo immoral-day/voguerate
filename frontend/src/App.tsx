@@ -675,6 +675,34 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleUnbanUser = async (userId: string) => {
+        try {
+            const unbannedUser = await apiService.post<User>(`/v1/users/${userId}/unban`, {});
+            setUsers(prev => (
+                prev.some(user => user.id === unbannedUser.id)
+                    ? prev.map(user => user.id === unbannedUser.id ? unbannedUser : user)
+                    : [...prev, unbannedUser]
+            ));
+
+            try {
+                const profile = await apiService.get<ProfilePayload>(`/v1/profiles/${userId}`);
+                setUsers(prev => prev.map(user => user.id === profile.user.id ? profile.user : user));
+                setReviews(prev => [
+                    ...profile.reviews,
+                    ...prev.filter(review => review.userId !== profile.user.id),
+                ]);
+            } catch (profileError) {
+                console.error('Failed to restore unbanned user profile data', profileError);
+            }
+
+            addToast('Пользователь разблокирован');
+            return unbannedUser;
+        } catch (err: unknown) {
+            const error = err as Error;
+            addToast(error.message || 'Ошибка разблокировки');
+        }
+    };
+
     const handleDeleteUser = async (userId: string) => {
         try {
             await apiService.delete(`/v1/users/${userId}`);
@@ -1050,6 +1078,7 @@ export const App: React.FC = () => {
                     onDeleteReviewReport={handleDeleteReviewReport}
                     onDeleteUserReport={handleDeleteUserReport}
                     onBanUser={handleBanUser}
+                    onUnbanUser={handleUnbanUser}
                     onDeleteUser={handleDeleteUser}
                     onUpdateUserRole={handleUpdateUserRole}
                     onUpdateItem={handleUpdateItem}

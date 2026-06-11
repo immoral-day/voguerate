@@ -47,6 +47,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/users/{user}', [UserController::class, 'destroy']);
         Route::post('/users/{user}/report', [UserController::class, 'report']);
         Route::post('/users/{user}/ban', [UserController::class, 'ban']);
+        Route::post('/users/{user}/unban', [UserController::class, 'unban']);
         Route::post('/users/{user}/verify', [UserController::class, 'verify']);
 
         Route::post('/items', [ClothingItemController::class, 'store']);
