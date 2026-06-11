@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AuthorshipRequest, ClothingItem, UpcomingDrop, User } from '../types';
 import { apiService } from '../services/apiService';
-import { Button } from '../components/UI';
+import { Button, SafeImage } from '../components/UI';
+import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { categoryLabel, typeLabel } from '../utils/labels';
 import { ITEM_COLOR_OPTIONS, ITEM_SIZE_OPTIONS, ITEM_TAG_OPTIONS, csvToList, toggleCsvValue } from '../utils/itemOptions';
 
@@ -492,7 +493,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
                 authorDrops.map(drop => (
                   <div key={drop.id} className="border-2 border-black p-3 flex gap-3 items-center">
                     <div className="w-16 h-16 border-2 border-black overflow-hidden flex-shrink-0">
-                      <img src={drop.image} alt={drop.name} className="w-full h-full object-cover" />
+                      <SafeImage src={drop.image} fallback={DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black inline-block mb-1">
@@ -663,7 +664,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
                 authorItems.map(item => (
                   <div key={item.id} className="border-2 border-black p-3 flex gap-3 items-center">
                     <div className="w-16 h-16 border-2 border-black overflow-hidden flex-shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      <SafeImage src={item.image} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[9px] font-black uppercase bg-neo-yellow px-1 border border-black inline-block mb-1">

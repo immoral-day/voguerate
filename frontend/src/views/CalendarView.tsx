@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { UpcomingDrop } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
+import { SafeImage } from '../components/UI';
 
 interface CalendarViewProps {
     drops: UpcomingDrop[];
@@ -166,7 +167,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ drops, onCop, curren
                         return (
                             <article className="calendar-drop-card" key={drop.id}>
                                 <div className="calendar-drop-cover">
-                                    <img src={drop.image || DEFAULT_ITEM_IMAGE} alt={drop.name} loading="lazy" />
+                                    <SafeImage src={drop.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={drop.name} loading="lazy" />
                                     <div className="cover-meta">
                                         <span className="tiny">{new Date(drop.releaseDate).toLocaleDateString('ru-RU')}</span>
                                         <span className="tiny">{formatPrice(drop.price)}</span>

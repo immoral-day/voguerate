@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ClothingItem, Review, User } from '../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
 import { BookmarkIcon, HeartIcon, PlusIcon } from '../components/icons/Icons';
-import { Avatar, Badge, Button, RatingCircle, UnifiedCard } from '../components/UI';
+import { Avatar, Badge, Button, RatingCircle, SafeImage, UnifiedCard } from '../components/UI';
 import { apiService } from '../services/apiService';
 import { badgeLabel, categoryLabel, typeLabel } from '../utils/labels';
 
@@ -219,11 +219,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 <aside className="grid gap-2">
                     <section className="profile-card profile-hero-card">
                         <div className="profile-bg">
-                            {user.profileBackground && <img src={user.profileBackground} alt="Фон профиля" />}
+                            {user.profileBackground && <SafeImage src={user.profileBackground} fallback={null} alt="Фон профиля" />}
                         </div>
                         <div className="profile-inner">
                             <div className="profile-avatar">
-                                <img src={user.avatar || DEFAULT_AVATAR} alt={user.username} />
+                                <SafeImage src={user.avatar || DEFAULT_AVATAR} fallback={DEFAULT_AVATAR} alt={user.username} />
                             </div>
                             <h1 className="profile-name">{user.username}</h1>
                             <div className="profile-badges">
@@ -317,7 +317,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                     {visibleUserReviews.map((review) => (
                                         <article className="review-card" key={review.id} onClick={() => onItemClick(review.clothingId)}>
                                             <div className="review-top">
-                                                <img src={review.clothing?.image || DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Вещь'} loading="lazy" decoding="async" />
+                                                <SafeImage src={review.clothing?.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={review.clothing?.name || 'Вещь'} loading="lazy" decoding="async" />
                                                 <strong>{review.clothing?.name || 'Вещь'}</strong>
                                                 <RatingCircle rating={review.rating} />
                                             </div>
@@ -427,7 +427,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                     {authorItems.map((item, index) => (
                                         <article className="release-card" key={item.id} onClick={() => onItemClick(item.id)}>
                                             <div className="release-cover">
-                                                <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" decoding="async" />
+                                                <SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} loading="lazy" decoding="async" />
                                                 <div className="cover-meta"><span className="tiny">#{index + 1}</span></div>
                                             </div>
                                             <div className="release-title">{item.name}</div>

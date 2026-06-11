@@ -3,24 +3,22 @@ import { ClothingItem, Review, ViewState, User, UpcomingDrop, ReviewReport, User
 import { ToastContainer, Button } from './components/UI';
 import { Sidebar, Header, Footer } from './components/layout';
 import { EditProfileModal } from './components/modals/EditProfileModal';
-import {
-    AuthView, 
-    ManifestoView, 
-    HomeView, 
-    CalendarView, 
-    TopRatedView, 
-    LeaderboardView, 
-    FeedbackView, 
-    ItemDetailView, 
-    ProfileView, 
-    AuthorshipView,
-    NewsView,
-    ArticleDetailView,
-    ChatView,
-} from './views';
+import { AuthView } from './views/AuthView';
+import { HomeView } from './views/HomeView';
+import { ManifestoView } from './views/ManifestoView';
 import { apiService } from './services/apiService';
 import { BootstrapPayload, ProfilePayload } from './services/normalizers';
 
+const CalendarView = lazy(() => import('./views/CalendarView').then(({ CalendarView }) => ({ default: CalendarView })));
+const TopRatedView = lazy(() => import('./views/TopRatedView').then(({ TopRatedView }) => ({ default: TopRatedView })));
+const LeaderboardView = lazy(() => import('./views/LeaderboardView').then(({ LeaderboardView }) => ({ default: LeaderboardView })));
+const FeedbackView = lazy(() => import('./views/FeedbackView').then(({ FeedbackView }) => ({ default: FeedbackView })));
+const ItemDetailView = lazy(() => import('./views/ItemDetailView').then(({ ItemDetailView }) => ({ default: ItemDetailView })));
+const ProfileView = lazy(() => import('./views/ProfileView').then(({ ProfileView }) => ({ default: ProfileView })));
+const AuthorshipView = lazy(() => import('./views/AuthorshipView').then(({ AuthorshipView }) => ({ default: AuthorshipView })));
+const NewsView = lazy(() => import('./views/NewsView').then(({ NewsView }) => ({ default: NewsView })));
+const ArticleDetailView = lazy(() => import('./views/ArticleDetailView').then(({ ArticleDetailView }) => ({ default: ArticleDetailView })));
+const ChatView = lazy(() => import('./views/ChatView').then(({ ChatView }) => ({ default: ChatView })));
 const AdminPanel = lazy(() => import('./views/AdminPanel').then((module) => ({
     default: module.AdminPanel,
 })));
@@ -80,6 +78,7 @@ export const App: React.FC = () => {
     const [profileErrorId, setProfileErrorId] = useState<string | null>(null);
     const [searchRequest, setSearchRequest] = useState<{ value: string; id: number } | null>(null);
     const loadedItemReviewsRef = useRef(new Set<string>());
+    const loadedProfilesRef = useRef(new Set<string>());
 
     useEffect(() => {
         const handleUnauthorized = () => {
@@ -209,15 +208,13 @@ export const App: React.FC = () => {
 
         const loadReports = async () => {
             try {
-                const [reviewReportsData, userReportsData, articlesData, feedbackData] = await Promise.all([
+                const [reviewReportsData, userReportsData, feedbackData] = await Promise.all([
                     apiService.get<ReviewReport[]>('/v1/report-reviews'),
                     apiService.get<UserReport[]>('/v1/report-users'),
-                    apiService.get<Article[]>('/v1/articles'),
                     apiService.get<FeedbackMessage[]>('/v1/feedback'),
                 ]);
                 setReviewReports(reviewReportsData);
                 setUserReports(userReportsData);
-                setArticles(articlesData);
                 setFeedbackMessages(feedbackData);
             } catch (error) {
                 console.error('Failed to load report data:', error);
@@ -256,6 +253,7 @@ export const App: React.FC = () => {
         if (viewState.view !== 'PROFILE') return;
         const userId = viewState.userId || currentUser?.id;
         if (!userId) return;
+        if (loadedProfilesRef.current.has(userId)) return;
 
         let cancelled = false;
         setProfileLoadingId(userId);
@@ -264,6 +262,7 @@ export const App: React.FC = () => {
         apiService.get<ProfilePayload>(`/v1/profiles/${userId}`)
             .then((payload) => {
                 if (cancelled) return;
+                loadedProfilesRef.current.add(userId);
                 setUsers((current) => current.some((entry) => entry.id === payload.user.id)
                     ? current.map((entry) => entry.id === payload.user.id ? payload.user : entry)
                     : [...current, payload.user]);

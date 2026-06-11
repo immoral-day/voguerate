@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ClothingItem, UpcomingDrop, ReviewReport, UserReport, User, AuthorshipRequest, Article, FeedbackMessage } from '../types';
 import { DEFAULT_ITEM_IMAGE } from '../constants';
 import { ChevronLeftIcon, PlusIcon, XIcon, EditIcon } from '../components/icons/Icons';
-import { Button } from '../components/UI';
+import { Button, SafeImage } from '../components/UI';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { apiService } from '../services/apiService';
 import { stripHtmlToPlain } from '../utils/string';
@@ -746,8 +746,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                             <tr key={user.id} className="border-b border-gray-200 align-top">
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-3">
-                                                        <img
+                                                        <SafeImage
                                                             src={user.avatar || '/placeholder-avatar.svg'}
+                                                            fallback="/placeholder-avatar.svg"
                                                             alt={user.username}
                                                             className="h-10 w-10 rounded-full border-2 border-black object-cover bg-gray-100"
                                                         />
@@ -994,7 +995,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         filteredItems.map((item) => (
                             <div key={item.id} className="bg-white border-2 border-black p-3 shadow-neo h-full flex flex-col">
                                 <div className="aspect-[3/4] bg-gray-100 mb-3 overflow-hidden">
-                                    <img src={item.image || DEFAULT_ITEM_IMAGE} alt={item.name} className="w-full h-full object-cover" />
+                                    <SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex justify-between items-start flex-1 gap-2">
                                     <div className="pr-1">
@@ -1027,7 +1028,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         filteredDrops.map((drop) => (
                             <div key={drop.id} className="bg-white border-2 border-black p-3 shadow-neo h-full flex flex-col">
                                 <div className="aspect-[3/4] bg-gray-100 mb-3 overflow-hidden">
-                                    <img src={drop.image || DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover" />
+                                    <SafeImage src={drop.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt={drop.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="flex justify-between items-start flex-1 gap-2">
                                     <div className="pr-1">
@@ -1482,7 +1483,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <div key={article.id} className="bg-white border-2 border-black p-4 shadow-neo flex gap-4 items-start">
                                         {article.image && (
                                             <div className="w-24 h-24 flex-shrink-0 border-2 border-black overflow-hidden">
-                                                <img src={article.image} alt="" className="w-full h-full object-cover" />
+                                                <SafeImage src={article.image} fallback={DEFAULT_ITEM_IMAGE} alt="" className="w-full h-full object-cover" />
                                             </div>
                                         )}
                                         <div className="flex-1 min-w-0">

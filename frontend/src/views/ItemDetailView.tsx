@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ClothingItem, RatingBreakdown, Review, User } from '../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
-import { Avatar, Lightbox } from '../components/UI';
+import { Avatar, Lightbox, SafeImage } from '../components/UI';
 import { HeartIcon } from '../components/icons/Icons';
 import { categoryLabel, typeLabel } from '../utils/labels';
 
@@ -152,7 +152,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
             <div className="item-detail-hero">
                 <article className="item-detail-main">
                     <button className="detail-cover" type="button" onClick={() => setLightboxIndex(0)}>
-                        <img src={image} alt={item.name} />
+                        <SafeImage src={image} fallback={DEFAULT_ITEM_IMAGE} alt={item.name} loading="eager" />
                     </button>
                     {galleryImages.length > 1 && (
                         <div className="detail-gallery-strip">
@@ -163,7 +163,7 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                                     className={index === 0 ? 'active' : ''}
                                     onClick={() => setLightboxIndex(index)}
                                 >
-                                    <img src={galleryImage} alt={`${item.name} ${index + 1}`} />
+                                    <SafeImage src={galleryImage} fallback={DEFAULT_ITEM_IMAGE} alt={`${item.name} ${index + 1}`} />
                                 </button>
                             ))}
                         </div>

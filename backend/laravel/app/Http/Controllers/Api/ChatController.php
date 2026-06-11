@@ -9,7 +9,6 @@ use App\Support\ApiAuth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ChatController extends Controller
@@ -170,15 +169,13 @@ class ChatController extends Controller
             return response()->json(['error' => 'Cannot message yourself'], 400);
         }
 
-        $message = DB::transaction(function () use ($data, $authUser) {
-            return ChatMessage::create([
-                'sender_id' => $authUser->id,
-                'recipient_id' => $data['recipientId'],
-                'body' => trim($data['body']),
-            ]);
-        });
+        $message = ChatMessage::create([
+            'sender_id' => $authUser->id,
+            'recipient_id' => $data['recipientId'],
+            'body' => trim($data['body']),
+        ]);
 
-        return response()->json($message->fresh(), 201);
+        return response()->json($message, 201);
     }
 
     private function conversationId(int $firstUserId, int $secondUserId): string

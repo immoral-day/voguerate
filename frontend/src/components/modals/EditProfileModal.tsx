@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ClothingItem, User } from '../../types';
 import { DEFAULT_AVATAR } from '../../constants';
 import { XIcon } from '../icons/Icons';
-import { Avatar, Button } from '../UI';
+import { Avatar, Button, SafeImage } from '../UI';
 import { apiService } from '../../services/apiService';
 
 interface EditProfileModalProps {
@@ -175,7 +175,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 <label>
                     Фон профиля
                     <div className="profile-bg rounded-[6px] overflow-hidden">
-                        {backgroundPreview ? <img src={backgroundPreview} alt="Фон профиля" /> : <span className="empty-box !min-h-full">Фон не выбран</span>}
+                        {backgroundPreview ? <SafeImage src={backgroundPreview} fallback={null} alt="Фон профиля" /> : <span className="empty-box !min-h-full">Фон не выбран</span>}
                     </div>
                     <Button type="button" variant="ghost" onClick={() => backgroundInputRef.current?.click()}>Выбрать фон</Button>
                     <input ref={backgroundInputRef} type="file" accept="image/*" onChange={handleBackgroundChange} className="hidden" />

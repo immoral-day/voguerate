@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { ClothingItem, User } from '../../types';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../../constants';
-import { Avatar } from '../UI';
+import { Avatar, SafeImage } from '../UI';
 
 interface SearchResultsOverlayProps {
     query: string;
@@ -52,7 +52,7 @@ export const SearchResultsOverlay: React.FC<SearchResultsOverlayProps> = ({
                     <div className="grid gap-2">
                         {filteredItems.slice(0, 8).map((item) => (
                             <button key={item.id} className="review-top text-left" onClick={() => { onItemClick(item.id); onClose(); }}>
-                                <span className="avatar"><img src={item.image || DEFAULT_ITEM_IMAGE} alt="" loading="lazy" decoding="async" /></span>
+                                <span className="avatar"><SafeImage src={item.image || DEFAULT_ITEM_IMAGE} fallback={DEFAULT_ITEM_IMAGE} alt="" loading="lazy" decoding="async" /></span>
                                 <span>
                                     <strong>{item.name}</strong>
                                     <span className="block text-xs text-[var(--muted)]">{item.brand}</span>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, ViewState } from '../../types';
 import { DEFAULT_AVATAR } from '../../constants';
+import { SafeImage } from '../UI';
 
 interface NavBarProps {
     currentUser: User;
@@ -150,8 +151,9 @@ export const NavBar: React.FC<NavBarProps> = ({
                             {currentUser.reputation} rep
                         </div>
                     </div>
-                    <img
+                    <SafeImage
                         src={currentUser.avatar || DEFAULT_AVATAR}
+                        fallback={DEFAULT_AVATAR}
                         alt={currentUser.username}
                         style={{ width: '26px', height: '26px', objectFit: 'cover', filter: 'grayscale(0.3)' }}
                     />

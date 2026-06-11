@@ -2,6 +2,7 @@ import React, { useDeferredValue, useEffect, useState } from 'react';
 import { ClothingItem, User } from '../../types';
 import { DEFAULT_AVATAR } from '../../constants';
 import { SearchResultsOverlay } from './SearchResultsOverlay';
+import { SafeImage } from '../UI';
 
 interface HeaderProps {
     currentUser: User | null;
@@ -60,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <button className={`btn ${currentUser ? '' : 'guest-login'}`} type="button" onClick={onProfileClick}>
                         <span className="hidden sm:inline">{currentUser?.username || 'Войти'}</span>
                         {currentUser && (
-                            <span className="avatar !h-[24px] !w-[24px]"><img src={currentUser.avatar || DEFAULT_AVATAR} alt={currentUser.username} /></span>
+                            <span className="avatar !h-[24px] !w-[24px]"><SafeImage src={currentUser.avatar || DEFAULT_AVATAR} fallback={DEFAULT_AVATAR} alt={currentUser.username} /></span>
                         )}
                     </button>
                 </div>

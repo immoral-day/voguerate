@@ -93,20 +93,25 @@ class ReviewController extends Controller
                 'likes' => 0,
             ]);
 
-            $item = ClothingItem::query()->findOrFail($data['clothingId']);
-            $newCount = (int) $item->rating_count + 1;
-            $newAvg = (int) round(
-                (((int) $item->average_rating * (int) $item->rating_count) + $data['rating']) / $newCount
-            );
-            $item->update([
-                'rating_count' => $newCount,
-                'average_rating' => $newAvg,
-            ]);
+            DB::table('clothing_items')
+                ->where('id', $data['clothingId'])
+                ->update([
+                    'rating_count' => DB::raw('rating_count + 1'),
+                    'average_rating' => DB::raw(
+                        'CAST(ROUND(((average_rating * rating_count) + '
+                        . (int) $data['rating']
+                        . ') / (rating_count + 1.0)) AS INTEGER)'
+                    ),
+                    'updated_at' => now(),
+                ]);
 
-            $authUser->update([
-                'reviews_count' => (int) $authUser->reviews_count + 1,
-                'reputation' => (int) $authUser->reputation + 5,
-            ]);
+            DB::table('users')
+                ->where('id', $authUser->id)
+                ->update([
+                    'reviews_count' => DB::raw('reviews_count + 1'),
+                    'reputation' => DB::raw('reputation + 5'),
+                    'updated_at' => now(),
+                ]);
 
             return $review;
         });

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChatConversation, ChatMessage, User } from '../types';
 import { DEFAULT_AVATAR } from '../constants';
-import { Button } from '../components/UI';
+import { Button, SafeImage } from '../components/UI';
 import { MessageSquareIcon } from '../components/icons/Icons';
 import { apiService } from '../services/apiService';
 
@@ -198,7 +198,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             });
             setMessages((prev) => [...prev, message]);
             setDraft('');
-            await loadConversations();
+            void loadConversations(true);
         } catch (error) {
             const err = error as Error;
             onToast(err.message || 'Не удалось отправить сообщение');
@@ -238,7 +238,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     className={`chat-list-item ${isActive ? 'active' : ''}`}
                                     onClick={() => handleSelectUser(conversation.otherUser.id)}
                                 >
-                                    <img src={conversation.otherUser.avatar || DEFAULT_AVATAR} alt={conversation.otherUser.username} loading="lazy" decoding="async" />
+                                    <SafeImage src={conversation.otherUser.avatar || DEFAULT_AVATAR} fallback={DEFAULT_AVATAR} alt={conversation.otherUser.username} loading="lazy" decoding="async" />
                                     <span>
                                         <strong>{conversation.otherUser.username}</strong>
                                         <small>{conversation.lastMessage.body}</small>
@@ -255,7 +255,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 className={`chat-list-item ${selectedUserId === user.id ? 'active' : ''}`}
                                 onClick={() => handleSelectUser(user.id)}
                             >
-                                <img src={user.avatar || DEFAULT_AVATAR} alt={user.username} loading="lazy" decoding="async" />
+                                <SafeImage src={user.avatar || DEFAULT_AVATAR} fallback={DEFAULT_AVATAR} alt={user.username} loading="lazy" decoding="async" />
                                 <span>
                                     <strong>{user.username}</strong>
                                     <small>Начать диалог</small>
@@ -278,7 +278,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         <>
                             <div className="chat-peer">
                                 <button type="button" onClick={() => onUserClick(selectedUser.id)}>
-                                    <img src={selectedUser.avatar || DEFAULT_AVATAR} alt={selectedUser.username} decoding="async" />
+                                    <SafeImage src={selectedUser.avatar || DEFAULT_AVATAR} fallback={DEFAULT_AVATAR} alt={selectedUser.username} decoding="async" />
                                     <span>
                                         <strong>{selectedUser.username}</strong>
                                         <small>Профиль пользователя</small>

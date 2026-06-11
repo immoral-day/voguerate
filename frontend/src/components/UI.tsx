@@ -3,8 +3,8 @@ import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
 
 const failedImageSources = new Set<string>();
 
-const resolveImageSource = (src: string | undefined, fallback: string) =>
-    src && !failedImageSources.has(src) ? src : fallback;
+const resolveImageSource = (src: string | undefined, fallback?: string | null) =>
+    src && !failedImageSources.has(src) ? src : (fallback || undefined);
 
 export const getRatingColor = (score: number, max: number = 90) => {
     const percentage = (score / max) * 100;
@@ -39,18 +39,20 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
     );
 };
 
-export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { fallback?: string }> = ({
+export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { fallback?: string | null }> = ({
     src,
     fallback = DEFAULT_ITEM_IMAGE,
     loading = 'lazy',
     decoding = 'async',
     ...props
 }) => {
-    const [currentSrc, setCurrentSrc] = useState(resolveImageSource(src, fallback));
+    const [currentSrc, setCurrentSrc] = useState<string | undefined>(resolveImageSource(src, fallback));
 
     useEffect(() => {
         setCurrentSrc(resolveImageSource(src, fallback));
     }, [src, fallback]);
+
+    if (!currentSrc) return null;
 
     return (
         <img
@@ -59,10 +61,8 @@ export const SafeImage: React.FC<React.ImgHTMLAttributes<HTMLImageElement> & { f
             loading={loading}
             decoding={decoding}
             onError={() => {
-                if (currentSrc !== fallback) {
-                    failedImageSources.add(currentSrc);
-                    setCurrentSrc(fallback);
-                }
+                failedImageSources.add(currentSrc);
+                setCurrentSrc(fallback || undefined);
             }}
         />
     );
@@ -234,7 +234,7 @@ export const Lightbox: React.FC<{
                         ‹
                     </button>
                 )}
-                <img src={current} alt={alt} />
+                <SafeImage src={current} fallback={DEFAULT_ITEM_IMAGE} alt={alt} loading="eager" />
                 {canBrowse && <div className="lightbox-counter">{index + 1} / {gallery.length}</div>}
                 {canBrowse && (
                     <button
@@ -259,7 +259,7 @@ export const Lightbox: React.FC<{
                             key={image}
                             onClick={() => setIndex(imageIndex)}
                         >
-                            <img src={image} alt={`${alt} ${imageIndex + 1}`} />
+                            <SafeImage src={image} fallback={DEFAULT_ITEM_IMAGE} alt={`${alt} ${imageIndex + 1}`} />
                         </button>
                     ))}
                 </div>

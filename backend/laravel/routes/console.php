@@ -434,7 +434,7 @@ Artisan::command('app:diagnose', function () {
     }
 
     if (DB::getSchemaBuilder()->hasTable('users')) {
-        $visibleUsers = \App\Models\User::visibleIds()->count();
+        $visibleUsers = \App\Models\User::query()->notBanned()->count();
         $this->line('Visible users: ' . $visibleUsers);
     }
 

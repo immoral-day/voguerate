@@ -10,6 +10,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    volumes:
+      - backend_storage:/usr/share/nginx/storage:ro
     restart: unless-stopped
 
   backend:
