@@ -24,11 +24,11 @@ services:
       APP_ENV: production
       APP_DEBUG: "false"
       DB_CONNECTION: sqlite
-      DB_DATABASE: /app/database/database.sqlite
+      DB_DATABASE: /app/database-data/database.sqlite
       CACHE_STORE: file
       SESSION_DRIVER: file
     volumes:
-      - backend_database:/app/database
+      - backend_database:/app/database-data
       - backend_storage:/app/storage/app/public
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost/api/health"]
