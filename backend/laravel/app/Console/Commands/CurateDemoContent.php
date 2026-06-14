@@ -63,6 +63,11 @@ class CurateDemoContent extends Command
                 'name' => 'fashion_notes',
                 'bio' => 'Собираю стритвир и внимательно смотрю на посадку, детали и материалы.',
             ],
+            6 => [
+                'username' => 'daily_archive',
+                'name' => 'daily_archive',
+                'bio' => 'Сохраняю интересные повседневные вещи и наблюдаю за развитием локальных марок.',
+            ],
             7 => [
                 'username' => 'archive_wave',
                 'name' => 'archive_wave',
