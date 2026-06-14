@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuthorshipRequest;
+use App\Models\User;
 use App\Support\ApiAuth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -45,11 +46,18 @@ class AuthorshipController extends Controller
 
         try {
             $data = $request->validate([
-                // Заявка должна быть содержательной
+                'brandName' => 'required|string|min:2|max:80',
                 'message' => 'required|string|min:80|max:4000',
             ]);
         } catch (ValidationException $e) {
             return response()->json(['error' => $e->errors()], 422);
+        }
+
+        $brandName = $this->normalizeBrandName($data['brandName']);
+        if (!preg_match('/[\pL\pN]/u', $brandName)) {
+            return response()->json([
+                'error' => ['brandName' => ['Название бренда должно содержать букву или цифру.']],
+            ], 422);
         }
 
         $hasActive = $user->authorshipRequests()
@@ -59,6 +67,12 @@ class AuthorshipController extends Controller
         if ($hasActive) {
             return response()->json([
                 'error' => ['request' => ['У вас уже есть активная заявка или вы уже являетесь автором.']],
+            ], 422);
+        }
+
+        if ($this->brandNameIsTaken($brandName, $user->id)) {
+            return response()->json([
+                'error' => ['brandName' => ['Этот бренд уже закреплён за другим автором или указан в активной заявке.']],
             ], 422);
         }
 
@@ -81,7 +95,7 @@ class AuthorshipController extends Controller
         foreach ([
             'message' => $data['message'] ?? null,
             'portfolio_link' => null,
-            'brand_name' => $user->username ?? 'Unknown',
+            'brand_name' => $brandName,
             'description' => $this->shortText($data['message'], 0, 255),
             'reason' => 'AUTHORSHIP_REQUEST',
         ] as $column => $value) {
@@ -115,15 +129,22 @@ class AuthorshipController extends Controller
             return response()->json(['error' => 'Forbidden'], 403);
         }
 
-        if ($authorshipRequest->status === 'APPROVED') {
-            return response()->json($authorshipRequest->load('user'));
+        $user = $authorshipRequest->user;
+        $brandName = $this->normalizeBrandName(
+            $authorshipRequest->brand_name ?: $user?->publishingBrand() ?: ''
+        );
+
+        if ($user && $this->brandNameIsTaken($brandName, $user->id)) {
+            return response()->json([
+                'error' => ['brandName' => ['Этот бренд уже закреплён за другим автором или указан в активной заявке.']],
+            ], 422);
         }
 
-        $authorshipRequest->status = 'APPROVED';
-        $authorshipRequest->admin_comment = $authorshipRequest->admin_comment;
-        $authorshipRequest->save();
+        if ($authorshipRequest->status !== 'APPROVED') {
+            $authorshipRequest->status = 'APPROVED';
+            $authorshipRequest->save();
+        }
 
-        $user = $authorshipRequest->user;
         if ($user) {
             $badges = $user->badges ?? [];
             if (!in_array('ДИЗАЙНЕР', $badges, true)) {
@@ -133,6 +154,7 @@ class AuthorshipController extends Controller
             $user->update([
                 'role' => 'DESIGNER',
                 'badges' => $badges,
+                'brand_name' => $brandName,
             ]);
         }
 
@@ -168,6 +190,33 @@ class AuthorshipController extends Controller
         }
 
         return substr($value, $start, $length);
+    }
+
+    private function normalizeBrandName(string $brandName): string
+    {
+        return preg_replace('/\s+/u', ' ', trim($brandName)) ?: trim($brandName);
+    }
+
+    private function brandNameIsTaken(string $brandName, int $userId): bool
+    {
+        $normalized = mb_strtolower($brandName);
+
+        $usedByAuthor = User::query()
+            ->where('id', '!=', $userId)
+            ->whereNotNull('brand_name')
+            ->pluck('brand_name')
+            ->contains(fn (string $value): bool => mb_strtolower(trim($value)) === $normalized);
+
+        if ($usedByAuthor) {
+            return true;
+        }
+
+        return AuthorshipRequest::query()
+            ->where('user_id', '!=', $userId)
+            ->whereIn('status', ['PENDING', 'APPROVED'])
+            ->whereNotNull('brand_name')
+            ->pluck('brand_name')
+            ->contains(fn (string $value): bool => mb_strtolower(trim($value)) === $normalized);
     }
 }
 

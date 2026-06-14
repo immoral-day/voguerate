@@ -28,6 +28,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
   const [existingRequest, setExistingRequest] = useState<AuthorshipRequest | null>(null);
 
   // Детализированная форма заявки (3 блока текста)
+  const [brandName, setBrandName] = useState('');
   const [experience, setExperience] = useState('');
   const [styles, setStyles] = useState('');
   const [motivation, setMotivation] = useState('');
@@ -36,14 +37,15 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Панель автора: анонсы и предметы
-  const authorItems = useMemo(
-    () => items.filter((item) => item.brand === currentUser.username),
-    [currentUser.username, items],
-  );
-  const authorDrops = useMemo(
-    () => drops.filter((drop) => drop.brand === currentUser.username),
-    [currentUser.username, drops],
-  );
+  const authorBrand = currentUser.brandName || existingRequest?.brandName || currentUser.username;
+  const authorItems = useMemo(() => {
+    const ownedBrands = new Set([currentUser.username, authorBrand].map((value) => value.toLowerCase()));
+    return items.filter((item) => ownedBrands.has(item.brand.toLowerCase()));
+  }, [authorBrand, currentUser.username, items]);
+  const authorDrops = useMemo(() => {
+    const ownedBrands = new Set([currentUser.username, authorBrand].map((value) => value.toLowerCase()));
+    return drops.filter((drop) => ownedBrands.has(drop.brand.toLowerCase()));
+  }, [authorBrand, currentUser.username, drops]);
 
   const [itemFormOpen, setItemFormOpen] = useState(false);
   const [dropFormOpen, setDropFormOpen] = useState(false);
@@ -82,7 +84,11 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
       const mine = await apiService.get<AuthorshipRequest[]>(
         `/v1/authorship-requests?userId=${currentUser.id}`,
       );
-      setExistingRequest(mine[0] || null);
+      const latestRequest = mine[0] || null;
+      setExistingRequest(latestRequest);
+      if (latestRequest?.status === 'REJECTED' && latestRequest.brandName) {
+        setBrandName(latestRequest.brandName);
+      }
     } catch (e) {
       console.error('Failed to load authorship requests', e);
     }
@@ -176,7 +182,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
         }),
       )).filter(Boolean) as string[];
       const payload = {
-        brand: currentUser.username,
+        brand: authorBrand,
         name: itemForm.name.trim(),
         image: imageUrls[0],
         images: imageUrls,
@@ -215,7 +221,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
     try {
       const upload = await apiService.uploadFile(dropImageFile, 'drop');
       const payload = {
-        brand: currentUser.username,
+        brand: authorBrand,
         name: dropForm.name.trim(),
         image: upload.url,
         releaseDate: dropForm.releaseDate,
@@ -243,9 +249,15 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
     const experienceTrimmed = experience.trim();
     const stylesTrimmed = styles.trim();
     const motivationTrimmed = motivation.trim();
+    const brandNameTrimmed = brandName.trim().replace(/\s+/g, ' ');
+
+    if (brandNameTrimmed.length < 2) {
+      setError('Укажи название бренда: минимум 2 символа.');
+      return;
+    }
 
     if (!experienceTrimmed || !stylesTrimmed || !motivationTrimmed) {
-      setError('Заполни все поля: опыт, стиль и мотивацию (минимум 80 символов суммарно).');
+      setError('Заполни название бренда, опыт, стиль и мотивацию (минимум 80 символов суммарно).');
       return;
     }
 
@@ -278,6 +290,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
 
     try {
       const created = await apiService.post<AuthorshipRequest>('/v1/authorship-requests', {
+        brandName: brandNameTrimmed,
         message,
       });
       setExistingRequest(created);
@@ -325,6 +338,11 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
               </time>
             )}
           </div>
+          {existingRequest.brandName && (
+            <div className="authorship-brand">
+              Бренд: <strong>{existingRequest.brandName}</strong>
+            </div>
+          )}
           {existingRequest.adminComment && (
             <div className="authorship-comment">
               <strong>Комментарий администратора</strong>
@@ -340,11 +358,24 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
         </p>
       )}
 
-      {!existingRequest && (
+      {(!existingRequest || existingRequest.status === 'REJECTED') && (
         <form
           onSubmit={handleSubmit}
           className="authorship-form"
         >
+          <div className="authorship-field">
+            <label>Название бренда</label>
+            <p>
+              Публичное название марки. После одобрения оно будет указано на вещах и релизах отдельно от твоего ника.
+            </p>
+            <input
+              value={brandName}
+              maxLength={80}
+              onChange={e => setBrandName(e.target.value)}
+              placeholder="Например: Quiet Form"
+            />
+          </div>
+
           <div className="authorship-field">
             <label>Опыт и бэкграунд</label>
             <p>
@@ -399,7 +430,7 @@ export const AuthorshipView: React.FC<AuthorshipViewProps> = ({
       {existingRequest && existingRequest.status === 'APPROVED' && (
         <div className="authorship-dashboard">
           <p className="authorship-note">
-            Ты автор. Ниже — инструменты для анонсов и вещей.
+            Ты автор бренда «{authorBrand}». Ниже — инструменты для анонсов и вещей.
           </p>
 
           {/* Блок анонсов */}

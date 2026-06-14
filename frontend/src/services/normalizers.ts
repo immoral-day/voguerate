@@ -82,6 +82,7 @@ export const normalizeUser = (value: unknown): User => {
   return {
     id: asString(raw.id),
     username: asString(firstDefined(raw.username, raw.name), 'Пользователь'),
+    brandName: asString(firstDefined(raw.brandName, raw.brand_name)) || null,
     email: asString(raw.email) || undefined,
     avatar: asString(firstDefined(raw.avatar, raw.avatar_url), DEFAULT_AVATAR),
     profileBackground: asString(firstDefined(raw.profileBackground, raw.profile_background)) || null,

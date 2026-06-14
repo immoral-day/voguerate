@@ -1299,6 +1299,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 return (
                                     req.user?.username?.toLowerCase().includes(q) ||
                                     req.user?.email?.toLowerCase().includes(q) ||
+                                    req.brandName?.toLowerCase().includes(q) ||
                                     (req.message || '').toLowerCase().includes(q)
                                 );
                             })
@@ -1328,6 +1329,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                 <span className="text-xs font-black uppercase">
                                                     {request.user?.username || request.userId}
                                                 </span>
+                                                {request.brandName && (
+                                                    <span className="text-xs font-mono text-gray-500">
+                                                        Бренд: {request.brandName}
+                                                    </span>
+                                                )}
                                                 {request.user && (
                                                     <span className="text-xs font-mono text-gray-500">
                                                         ID: {request.userId}

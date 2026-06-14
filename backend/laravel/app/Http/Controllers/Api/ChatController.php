@@ -48,6 +48,7 @@ class ChatController extends Controller
             ->select([
                 'id',
                 'username',
+                'brand_name',
                 'avatar',
                 'profile_background',
                 'reputation',

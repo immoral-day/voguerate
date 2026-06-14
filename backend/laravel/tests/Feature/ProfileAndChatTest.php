@@ -267,6 +267,108 @@ class ProfileAndChatTest extends TestCase
         $this->assertSame($reporter->id, $report->reporter_id);
     }
 
+    public function test_approved_author_publishes_under_a_separate_brand_name(): void
+    {
+        $author = $this->createUser('designer_person', 'designer-person@example.com');
+        $admin = $this->createUser('brand_admin', 'brand-admin@example.com');
+        $admin->update(['role' => 'ADMIN']);
+
+        Sanctum::actingAs($author);
+
+        $request = $this->postJson('/api/v1/authorship-requests', [
+            'brandName' => 'Quiet Signal',
+            'message' => 'Опыт и бэкграунд: создаю небольшие коллекции. Стиль и направления: городской минимализм. Почему хочу стать автором: хочу показывать процесс и получать обратную связь.',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('brandName', 'Quiet Signal');
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/v1/authorship-requests/{$request->json('id')}/approve")
+            ->assertOk()
+            ->assertJsonPath('user.username', 'designer_person')
+            ->assertJsonPath('user.brandName', 'Quiet Signal')
+            ->assertJsonPath('user.role', 'DESIGNER');
+
+        $author->refresh();
+        $this->assertSame('designer_person', $author->username);
+        $this->assertSame('Quiet Signal', $author->brand_name);
+        $this->assertSame('DESIGNER', $author->role);
+
+        $this->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonFragment([
+                'username' => 'designer_person',
+                'brandName' => 'Quiet Signal',
+            ]);
+
+        $otherApplicant = $this->createUser('other_designer', 'other-designer@example.com');
+        Sanctum::actingAs($otherApplicant);
+        $this->postJson('/api/v1/authorship-requests', [
+            'brandName' => 'quiet signal',
+            'message' => 'Опыт и бэкграунд: работаю с одеждой несколько лет. Стиль и направления: городской минимализм. Почему хочу стать автором: хочу публиковать новые работы и обсуждать их.',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'error.brandName.0',
+                'Этот бренд уже закреплён за другим автором или указан в активной заявке.'
+            );
+
+        Sanctum::actingAs($author);
+
+        $item = $this->postJson('/api/v1/items', [
+            'brand' => 'Подменённый бренд',
+            'name' => 'Тестовая куртка',
+            'image' => '/storage/items/quiet-signal.webp',
+            'releaseDate' => now()->toDateString(),
+            'type' => 'SINGLE_LOOK',
+            'category' => 'Streetwear',
+            'price' => 15000,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('brand', 'Quiet Signal');
+
+        $this->postJson('/api/v1/drops', [
+            'brand' => 'Подменённый бренд',
+            'name' => 'Первая капсула',
+            'image' => '/storage/drops/quiet-signal.webp',
+            'releaseDate' => now()->addMonth()->toDateString(),
+            'price' => 'TBA',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('brand', 'Quiet Signal');
+
+        $legacyItem = ClothingItem::create([
+            'brand' => $author->username,
+            'name' => 'Архивная вещь',
+            'image' => '/storage/items/legacy.webp',
+            'release_date' => now()->toDateString(),
+            'average_rating' => 0,
+            'rating_count' => 0,
+            'type' => 'SINGLE_LOOK',
+            'category' => 'Vintage',
+            'price' => 9000,
+        ]);
+
+        $this->deleteJson("/api/v1/items/{$legacyItem->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseHas('clothing_items', [
+            'id' => $item->json('id'),
+            'brand' => 'Quiet Signal',
+        ]);
+        $this->assertDatabaseHas('drops', [
+            'brand' => 'Quiet Signal',
+            'name' => 'Первая капсула',
+        ]);
+        $this->assertDatabaseMissing('clothing_items', ['id' => $legacyItem->id]);
+        $this->assertDatabaseHas('authorship_requests', [
+            'id' => $request->json('id'),
+            'brand_name' => 'Quiet Signal',
+            'status' => 'APPROVED',
+        ]);
+    }
+
     private function createItem(): ClothingItem
     {
         return ClothingItem::create([

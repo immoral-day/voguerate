@@ -30,7 +30,7 @@ class DropController extends Controller
 
         try {
             $data = $request->validate([
-                'brand' => 'required|string',
+                'brand' => ApiAuth::isAdmin($authUser) ? 'required|string' : 'nullable|string',
                 'name' => 'required|string',
                 'image' => 'required|string',
                 'releaseDate' => 'required|date',
@@ -41,7 +41,7 @@ class DropController extends Controller
         }
 
         $drop = Drop::create([
-            'brand' => ApiAuth::isAdmin($authUser) ? $data['brand'] : $authUser->username,
+            'brand' => ApiAuth::isAdmin($authUser) ? $data['brand'] : $authUser->publishingBrand(),
             'name' => $data['name'],
             'image' => $data['image'],
             'release_date' => $data['releaseDate'],
@@ -133,6 +133,6 @@ class DropController extends Controller
             return false;
         }
 
-        return ApiAuth::isAdmin($user) || $user->username === $brand;
+        return ApiAuth::isAdmin($user) || $user->ownsBrand($brand);
     }
 }

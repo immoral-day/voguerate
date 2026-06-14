@@ -58,6 +58,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const isVerified = !!(user.badges?.includes('ВЕРИФИЦИРОВАН') || user.badges?.includes('VERIFIED'));
     const isAdmin = currentUser.role === 'ADMIN';
     const isDesigner = user.role === 'DESIGNER' || user.badges?.includes('ДИЗАЙНЕР') || user.badges?.includes('DESIGNER');
+    const authorBrand = user.brandName || user.username;
     const avgScoreGiven = userReviews.length
         ? Math.round(userReviews.reduce((sum, review) => sum + review.rating, 0) / userReviews.length)
         : 0;
@@ -91,8 +92,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     });
 
     useEffect(() => {
-        setAuthorItems(items.filter((item) => item.brand === user.username));
-    }, [items, user.username]);
+        const ownedBrands = new Set([user.username, authorBrand].map((value) => value.toLowerCase()));
+        setAuthorItems(items.filter((item) => ownedBrands.has(item.brand.toLowerCase())));
+    }, [authorBrand, items, user.username]);
 
     const sortedUserReviews = useMemo(
         () => [...userReviews].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -158,7 +160,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             const uploads = await Promise.all(portfolioImageFiles.map((file) => apiService.uploadFile(file, 'item')));
             const imageUrls = uploads.map((upload) => upload.url);
             const payload = {
-                brand: user.username,
+                brand: authorBrand,
                 name: portfolioForm.name.trim(),
                 image: imageUrls[0],
                 images: imageUrls,
@@ -228,6 +230,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             <h1 className="profile-name">{user.username}</h1>
                             <div className="profile-badges">
                                 {isVerified && <Badge>Верифицирован</Badge>}
+                                {isDesigner && user.brandName && <Badge>Бренд: {user.brandName}</Badge>}
                                 {rank > 0 && <Badge>Ранг #{rank}</Badge>}
                                 {visibleBadges.map((badge) => <Badge key={badge}>{badge}</Badge>)}
                             </div>

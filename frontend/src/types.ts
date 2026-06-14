@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   username: string;
+  brandName?: string | null;
   email?: string;
   avatar?: string | null;
   profileBackground?: string | null;
@@ -112,6 +113,7 @@ export interface AuthorshipRequest {
   id: string;
   userId: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  brandName?: string | null;
   message?: string;
   portfolioLink?: string;
   adminComment?: string;

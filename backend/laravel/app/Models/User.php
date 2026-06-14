@@ -18,6 +18,7 @@ class User extends Authenticatable
         'email',
         'password',
         'username',
+        'brand_name',
         'avatar',
         'profile_background',
         'reputation',
@@ -105,11 +106,29 @@ class User extends Authenticatable
         return $this->hasMany(ChatMessage::class, 'recipient_id');
     }
 
+    public function publishingBrand(): string
+    {
+        $brandName = trim((string) $this->brand_name);
+
+        return $brandName !== '' ? $brandName : $this->username;
+    }
+
+    public function ownsBrand(string $brand): bool
+    {
+        $normalizedBrand = mb_strtolower(trim($brand));
+
+        return in_array($normalizedBrand, [
+            mb_strtolower(trim($this->username)),
+            mb_strtolower($this->publishingBrand()),
+        ], true);
+    }
+
     public function toArray(): array
     {
         return [
             'id' => (string) $this->id,
             'username' => $this->username,
+            'brandName' => $this->brand_name,
             'avatar' => $this->avatar,
             'profileBackground' => $this->profile_background,
             'reputation' => $this->reputation,
@@ -131,6 +150,7 @@ class User extends Authenticatable
         $summary = [
             'id' => (string) $this->id,
             'username' => $this->username,
+            'brandName' => $this->brand_name,
             'avatar' => $this->avatar,
             'profileBackground' => $this->profile_background,
             'reputation' => $this->reputation,

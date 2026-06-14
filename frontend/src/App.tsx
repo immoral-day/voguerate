@@ -771,7 +771,11 @@ export const App: React.FC = () => {
     };
 
     const handleDesignerClick = (name: string) => {
-        const designerUser = users.find(u => u.username.toLowerCase() === name.toLowerCase());
+        const normalizedName = name.toLowerCase();
+        const designerUser = users.find(u => (
+            u.username.toLowerCase() === normalizedName ||
+            u.brandName?.toLowerCase() === normalizedName
+        ));
         if (designerUser) {
             navigateTo('PROFILE', { userId: designerUser.id });
         } else {

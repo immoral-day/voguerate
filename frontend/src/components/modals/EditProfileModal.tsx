@@ -65,8 +65,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         users
             .filter((entry) => entry.role === 'DESIGNER')
             .forEach((entry) => {
-                names.set(entry.username.toLowerCase(), {
-                    name: entry.username,
+                const designerName = entry.brandName || entry.username;
+                names.set(designerName.toLowerCase(), {
+                    name: designerName,
                     source: 'Автор на сайте',
                     popularity: entry.reputation,
                 });

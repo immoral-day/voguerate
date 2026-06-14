@@ -3793,6 +3793,13 @@ input, textarea, select { color: var(--text); background: #111; }
   font-weight: 650;
   text-transform: none;
 }
+.authorship-brand {
+  color: var(--muted);
+  font-size: 12px;
+}
+.authorship-brand strong {
+  color: var(--text);
+}
 .authorship-comment {
   padding: 10px;
   border: 1px solid var(--line);
@@ -4241,7 +4248,6 @@ input, textarea, select { color: var(--text); background: #111; }
     font-size: 28px;
   }
 }
-
 .auth-side-copy {
   position: relative;
   z-index: 2;

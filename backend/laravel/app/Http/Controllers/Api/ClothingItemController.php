@@ -30,7 +30,7 @@ class ClothingItemController extends Controller
 
         try {
             $data = $request->validate([
-                'brand' => 'required|string',
+                'brand' => ApiAuth::isAdmin($authUser) ? 'required|string' : 'nullable|string',
                 'name' => 'required|string',
                 'image' => 'required|string',
                 'images' => 'nullable|array|max:3',
@@ -48,7 +48,7 @@ class ClothingItemController extends Controller
         }
 
         $item = ClothingItem::create([
-            'brand' => ApiAuth::isAdmin($authUser) ? $data['brand'] : $authUser->username,
+            'brand' => ApiAuth::isAdmin($authUser) ? $data['brand'] : $authUser->publishingBrand(),
             'name' => $data['name'],
             'image' => $data['image'],
             'images' => $data['images'] ?? [],
@@ -127,6 +127,6 @@ class ClothingItemController extends Controller
             return false;
         }
 
-        return ApiAuth::isAdmin($user) || $user->username === $brand;
+        return ApiAuth::isAdmin($user) || $user->ownsBrand($brand);
     }
 }

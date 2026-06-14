@@ -30,6 +30,7 @@ class UserController extends Controller
         $columns = [
             'id',
             'username',
+            'brand_name',
             'avatar',
             'profile_background',
             'reputation',
