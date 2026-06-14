@@ -67,21 +67,25 @@ class CurateDemoContent extends Command
                 'username' => 'daily_archive',
                 'name' => 'daily_archive',
                 'bio' => 'Сохраняю интересные повседневные вещи и наблюдаю за развитием локальных марок.',
+                'avatar' => 'https://picsum.photos/seed/daily-archive/100/100',
             ],
             7 => [
                 'username' => 'archive_wave',
                 'name' => 'archive_wave',
                 'bio' => 'Изучаю архивные коллекции и ищу вещи с выразительной конструкцией.',
+                'avatar' => 'https://picsum.photos/seed/archive-wave/100/100',
             ],
             8 => [
                 'username' => 'nikita_layers',
                 'name' => 'nikita_layers',
                 'bio' => 'Люблю многослойные образы, спокойные цвета и практичный дизайн.',
+                'avatar' => 'https://picsum.photos/seed/nikita-layers/100/100',
             ],
             9 => [
                 'username' => 'knit_observer',
                 'name' => 'knit_observer',
                 'bio' => 'Собираю выразительный трикотаж и слежу за молодыми марками.',
+                'avatar' => 'https://picsum.photos/seed/knit-observer/100/100',
             ],
             12 => [
                 'username' => 'quiet_layers',
