@@ -61,7 +61,7 @@ class AuthorshipController extends Controller
         }
 
         $hasActive = $user->authorshipRequests()
-            ->whereIn('status', ['PENDING', 'APPROVED'])
+            ->whereRaw('UPPER(status) IN (?, ?)', ['PENDING', 'APPROVED'])
             ->exists();
 
         if ($hasActive) {
@@ -152,7 +152,7 @@ class AuthorshipController extends Controller
             }
 
             $user->update([
-                'role' => 'DESIGNER',
+                'role' => $user->role === 'ADMIN' ? 'ADMIN' : 'DESIGNER',
                 'badges' => $badges,
                 'brand_name' => $brandName,
             ]);
@@ -213,7 +213,7 @@ class AuthorshipController extends Controller
 
         return AuthorshipRequest::query()
             ->where('user_id', '!=', $userId)
-            ->whereIn('status', ['PENDING', 'APPROVED'])
+            ->whereRaw('UPPER(status) IN (?, ?)', ['PENDING', 'APPROVED'])
             ->whereNotNull('brand_name')
             ->pluck('brand_name')
             ->contains(fn (string $value): bool => mb_strtolower(trim($value)) === $normalized);

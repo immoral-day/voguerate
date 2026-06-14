@@ -20,7 +20,7 @@ return new class extends Migration
         }
 
         $approvedRequests = DB::table('authorship_requests')
-            ->where('status', 'APPROVED')
+            ->whereRaw('UPPER(status) = ?', ['APPROVED'])
             ->whereNotNull('brand_name')
             ->where('brand_name', '!=', '')
             ->orderBy('id')
