@@ -243,7 +243,13 @@ export const Lightbox: React.FC<{
                         ‹
                     </button>
                 )}
-                <SafeImage src={current} fallback={DEFAULT_ITEM_IMAGE} alt={alt} loading="eager" />
+                <SafeImage
+                    className="lightbox-image"
+                    src={current}
+                    fallback={DEFAULT_ITEM_IMAGE}
+                    alt={alt}
+                    loading="eager"
+                />
                 {canBrowse && <div className="lightbox-counter">{index + 1} / {gallery.length}</div>}
                 {canBrowse && (
                     <button
