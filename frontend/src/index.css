@@ -1707,23 +1707,28 @@ h1, h2, h3, p { margin-top: 0; }
   position: fixed;
   inset: 0;
   z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 76px;
   background: rgba(0,0,0,.94);
   cursor: zoom-out;
 }
 .lightbox-frame {
   position: relative;
-  width: min(1120px, calc(100vw - 150px));
-  height: min(82vh, 860px);
+  width: min(1120px, 100%);
+  height: min(860px, calc(100dvh - 144px));
   display: grid;
   place-items: center;
   cursor: default;
 }
 .lightbox-frame img {
+  display: block;
+  width: auto;
+  height: auto;
   max-width: 100%;
   max-height: 100%;
+  margin: auto;
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1794,10 +1799,10 @@ h1, h2, h3, p { margin-top: 0; }
   object-fit: cover;
 }
 @media (max-width: 720px) {
-  .lightbox { padding: 12px; }
+  .lightbox { padding: 60px 12px; }
   .lightbox-frame {
-    width: calc(100vw - 24px);
-    height: 76vh;
+    width: 100%;
+    height: calc(100dvh - 120px);
   }
   .lightbox-arrow {
     width: 38px;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { DEFAULT_AVATAR, DEFAULT_ITEM_IMAGE } from '../constants';
 
 const failedImageSources = new Set<string>();
@@ -215,9 +216,17 @@ export const Lightbox: React.FC<{
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [canBrowse, gallery.length, onClose]);
 
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, []);
+
     if (!current) return null;
 
-    return (
+    return createPortal(
         <div className="lightbox" onClick={onClose}>
             <button className="btn lightbox-close" type="button" onClick={onClose}>Закрыть</button>
             <div className="lightbox-frame" onClick={(event) => event.stopPropagation()}>
@@ -264,7 +273,8 @@ export const Lightbox: React.FC<{
                     ))}
                 </div>
             )}
-        </div>
+        </div>,
+        document.body,
     );
 };
 
