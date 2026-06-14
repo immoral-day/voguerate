@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ChatMessage;
 use App\Models\ClothingItem;
 use App\Models\Review;
+use App\Models\ReviewReport;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -234,6 +235,36 @@ class ProfileAndChatTest extends TestCase
         ])->assertBadRequest();
 
         $this->assertDatabaseCount('reviews', 1);
+    }
+
+    public function test_review_report_requires_and_stores_a_reason(): void
+    {
+        $author = $this->createUser('reported_author', 'reported-author@example.com');
+        $reporter = $this->createUser('review_reporter', 'review-reporter@example.com');
+        $review = Review::create([
+            'user_id' => $author->id,
+            'clothing_item_id' => $this->createItem()->id,
+            'rating' => 64,
+            'text' => 'Рецензия для проверки жалобы с указанной причиной.',
+            'likes' => 0,
+        ]);
+
+        Sanctum::actingAs($reporter);
+
+        $this->postJson("/api/v1/reviews/{$review->id}/report", [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('reason');
+
+        $reason = 'Недостоверная информация: описание материала не соответствует карточке';
+
+        $this->postJson("/api/v1/reviews/{$review->id}/report", [
+            'reason' => $reason,
+        ])->assertOk();
+
+        $report = ReviewReport::query()->firstOrFail();
+        $this->assertSame($reason, $report->reason);
+        $this->assertSame($review->id, $report->review_id);
+        $this->assertSame($reporter->id, $report->reporter_id);
     }
 
     private function createItem(): ClothingItem

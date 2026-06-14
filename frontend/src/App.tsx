@@ -586,14 +586,16 @@ export const App: React.FC = () => {
         }
     };
 
-    const handleReportReview = async (reviewId: string) => {
-        if (!requireAuth() || !currentUser) return;
+    const handleReportReview = async (reviewId: string, reason: string): Promise<boolean> => {
+        if (!requireAuth() || !currentUser) return false;
         try {
-            await apiService.post(`/v1/reviews/${reviewId}/report`, { reporterId: currentUser.id });
+            await apiService.post(`/v1/reviews/${reviewId}/report`, { reason });
             addToast('Рецензия отправлена на модерацию');
+            return true;
         } catch (err: unknown) {
             const error = err as Error;
             addToast(error.message || 'Ошибка репорта');
+            return false;
         }
     };
 

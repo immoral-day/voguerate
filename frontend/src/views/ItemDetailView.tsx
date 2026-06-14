@@ -16,11 +16,18 @@ interface ItemDetailViewProps {
     onAddReview: (review: Partial<Review>) => Promise<void>;
     onLikeReview: (reviewId: string) => Promise<void>;
     likedReviewIds: Set<string>;
-    onReportReview: (reviewId: string) => void;
+    onReportReview: (reviewId: string, reason: string) => Promise<boolean>;
     onToast: (msg: string) => void;
 }
 
 const MIN_REVIEW_LENGTH = 10;
+const REPORT_CATEGORIES = [
+    'Оскорбление или грубость',
+    'Спам или бессмысленный текст',
+    'Недостоверная информация',
+    'Текст не относится к вещи',
+    'Другое',
+] as const;
 
 const breakdownKeys: Array<keyof RatingBreakdown> = ['concept', 'execution', 'dna', 'relevance', 'vibe'];
 
@@ -49,6 +56,10 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [likingReviewId, setLikingReviewId] = useState<string | null>(null);
+    const [reportReviewId, setReportReviewId] = useState<string | null>(null);
+    const [reportCategory, setReportCategory] = useState<string>(REPORT_CATEGORIES[0]);
+    const [reportDetails, setReportDetails] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
 
     const totalScore = useMemo(() => (
         ratings.concept * 2 +
@@ -133,8 +144,76 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
         }
     };
 
+    const closeReportModal = () => {
+        if (reportSubmitting) return;
+        setReportReviewId(null);
+        setReportCategory(REPORT_CATEGORIES[0]);
+        setReportDetails('');
+    };
+
+    const submitReport = async () => {
+        if (!reportReviewId) return;
+
+        const details = reportDetails.trim();
+        if (reportCategory === 'Другое' && details.length < 3) {
+            onToast('Кратко опишите причину жалобы');
+            return;
+        }
+
+        const reason = details ? `${reportCategory}: ${details}` : reportCategory;
+        setReportSubmitting(true);
+        try {
+            const sent = await onReportReview(reportReviewId, reason);
+            if (sent) {
+                setReportReviewId(null);
+                setReportCategory(REPORT_CATEGORIES[0]);
+                setReportDetails('');
+            }
+        } finally {
+            setReportSubmitting(false);
+        }
+    };
+
     return (
         <div className="animate-fade-in">
+            {reportReviewId && (
+                <div className="modal-backdrop" onClick={closeReportModal}>
+                    <div className="form-box modal-card" onClick={(event) => event.stopPropagation()}>
+                        <h3 className="vr-h3">Жалоба на рецензию</h3>
+                        <label>
+                            Причина
+                            <select
+                                className="vr-input"
+                                value={reportCategory}
+                                onChange={(event) => setReportCategory(event.target.value)}
+                            >
+                                {REPORT_CATEGORIES.map((category) => (
+                                    <option value={category} key={category}>{category}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label>
+                            Уточнение
+                            <textarea
+                                className="vr-input"
+                                value={reportDetails}
+                                maxLength={400}
+                                onChange={(event) => setReportDetails(event.target.value)}
+                                placeholder="Необязательно, кроме категории «Другое»"
+                            />
+                        </label>
+                        <div className="report-modal-actions">
+                            <button className="btn" type="button" disabled={reportSubmitting} onClick={submitReport}>
+                                {reportSubmitting ? 'Отправка...' : 'Отправить'}
+                            </button>
+                            <button className="btn" type="button" disabled={reportSubmitting} onClick={closeReportModal}>
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {lightboxIndex !== null && (
                 <Lightbox
                     images={galleryImages.length ? galleryImages : [image]}
@@ -294,7 +373,11 @@ export const ItemDetailView: React.FC<ItemDetailViewProps> = ({
                                     <span>{review.likes}</span>
                                 </button>
                             )}
-                            {review.userId !== currentUser.id && <button className="item-btn" type="button" onClick={() => onReportReview(review.id)}>Пожаловаться</button>}
+                            {review.userId !== currentUser.id && (
+                                <button className="item-btn" type="button" onClick={() => setReportReviewId(review.id)}>
+                                    Пожаловаться
+                                </button>
+                            )}
                         </div>
                     </article>
                     );

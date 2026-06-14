@@ -186,7 +186,7 @@ class ReviewController extends Controller
         }
 
         $data = $request->validate([
-            'reason' => 'nullable|string',
+            'reason' => 'required|string|min:3|max:500',
         ]);
 
         if ((int) $review->user_id === (int) $authUser->id) {
@@ -204,7 +204,7 @@ class ReviewController extends Controller
         ReviewReport::create([
             'review_id' => $review->id,
             'reporter_id' => $authUser->id,
-            'reason' => $data['reason'] ?? null,
+            'reason' => $data['reason'],
         ]);
 
         return response()->json(['success' => true]);

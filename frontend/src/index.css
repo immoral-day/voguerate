@@ -1567,6 +1567,11 @@ h1, h2, h3, p { margin-top: 0; }
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
 }
+.report-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .modal-card,
 .designer-suggestions {
   scrollbar-width: thin;
